@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailLicenseError, TestRailValidationError } from '../src/client.js';
-import { mockErr, mockOk } from './helpers.js';
+import { USER_EMAIL_SHAPE_CASES, mockErr, mockOk } from './helpers.js';
 
 const { mockDnsLookup } = vi.hoisted(() => ({
     mockDnsLookup: vi.fn(),
@@ -1566,6 +1566,25 @@ describe('TestRailClient - Enhanced Features', () => {
                 await expect(client.users.getUserByEmail(email)).rejects.toThrow('Invalid email format');
             },
         );
+
+        // The lookup shares its shape rule with UserAddPayloadSchema and
+        // UserUpdatePayloadSchema; payload-schemas.test.ts runs the same table
+        // against both writes.
+        describe('shared user email shape table', () => {
+            it.each(USER_EMAIL_SHAPE_CASES.accepted)('looks up %s', async (email) => {
+                mockFetch.mockResolvedValueOnce(mockOk({ id: 3, name: 'Ada', email, is_active: true }));
+                await expect(client.users.getUserByEmail(email)).resolves.toMatchObject({ email });
+                expect(mockFetch).toHaveBeenCalledWith(
+                    expect.stringContaining(`get_user_by_email&email=${encodeURIComponent(email)}`),
+                    expect.anything(),
+                );
+            });
+
+            it.each(USER_EMAIL_SHAPE_CASES.refused)('refuses %s (%j) before any request', async (_label, email) => {
+                await expect(client.users.getUserByEmail(email)).rejects.toThrow('Invalid email format');
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
     });
 
     describe('requestBinary - retry, timeout, and network error paths', () => {

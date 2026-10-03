@@ -172,6 +172,11 @@ Each write action validates its body against a Zod schema with
 coercion; `"5"` is rejected where `5` is expected), and TestRail
 `custom_*` fields pass through untouched.
 
+The index lists fields only, not cross-field rules: every new result (`result
+add`, `add-by-test`, and each `add-bulk` / `add-bulk-by-test` entry) needs at
+least one of `status_id`, `comment` or `assignedto_id`, and `result edit` needs
+at least one field.
+
 Router pattern: use the compact index below first; open
 `./reference/payload-schemas.yaml` only when you need full field-level details.
 
@@ -190,10 +195,10 @@ schemas:
 - {s: UpdateRunPayloadSchema, a: "run update", req: [], opt: 10, ref: "./reference/payload-schemas.yaml#updaterunpayloadschema"}
 - {s: UpdateTestLabelsPayloadSchema, a: "test update-labels", req: [labels], opt: 0, ref: "./reference/payload-schemas.yaml#updatetestlabelspayloadschema"}
 - {s: UpdateTestsLabelsPayloadSchema, a: "test update-labels-bulk", req: [test_ids, labels], opt: 0, ref: "./reference/payload-schemas.yaml#updatetestslabelspayloadschema"}
-- {s: AddResultPayloadSchema, a: "result add", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
+- {s: AddResultPayloadSchema, a: "result add", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
 - {s: AddResultsForCasesPayloadSchema, a: "result add-bulk", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultsforcasespayloadschema"}
 - {s: AddResultsPayloadSchema, a: "result add-bulk-by-test", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultspayloadschema"}
-- {s: AddResultPayloadSchema, a: "result add-by-test", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
+- {s: AddResultPayloadSchema, a: "result add-by-test", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
 - {s: EditResultPayloadSchema, a: "result edit", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#editresultpayloadschema"}
 - {s: AddPlanPayloadSchema, a: "plan add", req: [name], opt: 6, ref: "./reference/payload-schemas.yaml#addplanpayloadschema"}
 - {s: UpdatePlanPayloadSchema, a: "plan update", req: [], opt: 6, ref: "./reference/payload-schemas.yaml#updateplanpayloadschema"}

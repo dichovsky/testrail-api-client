@@ -159,6 +159,10 @@ await client.results.addResults(run.id, {
     results: [{ test_id: 1001, status_id: 1 }],
 });
 
+// status_id is optional: each result needs at least one of status_id, comment
+// or assignedto_id. A comment-only result leaves the test's status unchanged.
+await client.results.addResultForCase(run.id, 44, { comment: 'Investigating — see BUG-42' });
+
 // Read.
 const results = await client.results.getAllResultsForRun(run.id, { pageSize: 100 });
 const forCase = await client.results.getResultsForCase(run.id, 42);

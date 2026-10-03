@@ -10,7 +10,8 @@
  * The schemas are the source of truth — when a future PR changes them,
  * these tests are the safety net that prevents silent drift.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, expectTypeOf } from 'vitest';
+import { TESTRAIL_USER_EMAIL_PATTERN } from '../src/constants.js';
 import {
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
@@ -66,7 +67,13 @@ import {
     UserUpdatePayloadSchema,
     AttachmentSchema,
 } from '../src/schemas.js';
-import type { UpdateProjectUserAssignmentPayload } from '../src/schemas.js';
+import type {
+    AddResultForCasePayload,
+    AddResultForTestPayload,
+    AddResultPayload,
+    UpdateProjectUserAssignmentPayload,
+} from '../src/schemas.js';
+import { USER_EMAIL_SHAPE_CASES } from './helpers.js';
 
 describe('AddCasePayloadSchema', () => {
     it('parses a minimal valid payload (title only)', () => {
@@ -652,18 +659,49 @@ describe('UpdateRunPayloadSchema', () => {
     });
 });
 
+// TestRail "Results" API reference: add_result "adds a new test result,
+// comment or assigns a test"; add_results / add_results_for_cases require "at
+// least one of the status, comment or assignee fields for each result"; and
+// add_result_for_case "supports the same POST fields as add_result".
+const RESULT_CONTENT_RULE = /At least one of status_id, comment or assignedto_id is required/;
+
 describe('AddResultPayloadSchema', () => {
     it('parses a minimal valid payload (status_id only)', () => {
         const parsed = AddResultPayloadSchema.parse({ status_id: 1 });
         expect(parsed.status_id).toBe(1);
     });
 
-    it('rejects when status_id is missing', () => {
-        expect(() => AddResultPayloadSchema.parse({ comment: 'ok' })).toThrow();
+    it('accepts a comment-only result (no status change)', () => {
+        expect(AddResultPayloadSchema.parse({ comment: 'investigating' })).toEqual({ comment: 'investigating' });
+    });
+
+    it('accepts an assignee-only result (reassignment without a status)', () => {
+        expect(AddResultPayloadSchema.parse({ assignedto_id: 7 })).toEqual({ assignedto_id: 7 });
+    });
+
+    it('counts an empty comment as given: the rule checks presence, and TestRail judges the content', () => {
+        expect(AddResultPayloadSchema.parse({ comment: '' })).toEqual({ comment: '' });
+    });
+
+    it.each([
+        ['an empty payload', {}],
+        ['only non-content fields', { version: '1.2', elapsed: '5m', defects: 'BUG-1' }],
+        ['only a custom_* field', { custom_env: 'staging' }],
+        ['content keys explicitly undefined', { status_id: undefined, comment: undefined, assignedto_id: undefined }],
+    ])('refuses %s with the documented rule', (_label, payload) => {
+        const result = AddResultPayloadSchema.safeParse(payload);
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toEqual([
+            expect.objectContaining({ code: 'custom', path: [], message: expect.stringMatching(RESULT_CONTENT_RULE) }),
+        ]);
     });
 
     it('rejects when status_id is a string (no coercion)', () => {
         expect(() => AddResultPayloadSchema.parse({ status_id: '1' })).toThrow();
+    });
+
+    it('rejects a null status_id (request fields are omitted, never null)', () => {
+        expect(() => AddResultPayloadSchema.parse({ status_id: null, comment: 'x' })).toThrow();
     });
 
     it('preserves unknown custom_* fields via passthrough', () => {
@@ -672,6 +710,14 @@ describe('AddResultPayloadSchema', () => {
             unknown
         >;
         expect(parsed['custom_step_results']).toEqual([{ a: 1 }]);
+    });
+
+    it('keeps the inferred payload type a plain object with an optional status_id', () => {
+        expectTypeOf<AddResultPayload['status_id']>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<AddResultPayload['comment']>().toEqualTypeOf<string | undefined>();
+        expectTypeOf<AddResultPayload['assignedto_id']>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<{ comment: string }>().toExtend<AddResultPayload>();
+        expectTypeOf<{ assignedto_id: number }>().toExtend<AddResultPayload>();
     });
 });
 
@@ -686,8 +732,32 @@ describe('AddResultForCasePayloadSchema', () => {
         expect(() => AddResultForCasePayloadSchema.parse({ status_id: 1 })).toThrow();
     });
 
-    it('rejects when status_id is missing', () => {
-        expect(() => AddResultForCasePayloadSchema.parse({ case_id: 7 })).toThrow();
+    it('accepts a comment-only result', () => {
+        expect(AddResultForCasePayloadSchema.parse({ case_id: 7, comment: 'flaky' })).toEqual({
+            case_id: 7,
+            comment: 'flaky',
+        });
+    });
+
+    it('accepts an assignee-only result', () => {
+        expect(AddResultForCasePayloadSchema.parse({ case_id: 7, assignedto_id: 3 })).toEqual({
+            case_id: 7,
+            assignedto_id: 3,
+        });
+    });
+
+    it('refuses a result with none of status_id, comment or assignedto_id', () => {
+        const result = AddResultForCasePayloadSchema.safeParse({ case_id: 7, defects: 'BUG-1' });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toEqual([
+            expect.objectContaining({ code: 'custom', path: [], message: expect.stringMatching(RESULT_CONTENT_RULE) }),
+        ]);
+    });
+
+    it('keeps the inferred payload type plain with an optional status_id', () => {
+        expectTypeOf<AddResultForCasePayload['case_id']>().toEqualTypeOf<number>();
+        expectTypeOf<AddResultForCasePayload['status_id']>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<{ case_id: number; comment: string }>().toExtend<AddResultForCasePayload>();
     });
 });
 
@@ -705,6 +775,32 @@ describe('AddResultsForCasesPayloadSchema', () => {
     it('parses a payload with an empty results array', () => {
         const parsed = AddResultsForCasesPayloadSchema.parse({ results: [] });
         expect(parsed.results).toEqual([]);
+    });
+
+    it('accepts comment-only and assignee-only entries alongside status entries', () => {
+        const results = [
+            { case_id: 1, status_id: 1 },
+            { case_id: 2, comment: 'needs triage' },
+            { case_id: 3, assignedto_id: 9 },
+        ];
+        expect(AddResultsForCasesPayloadSchema.parse({ results })).toEqual({ results });
+    });
+
+    it('refuses the bulk payload when one entry has none of the three, pointing at that entry', () => {
+        const result = AddResultsForCasesPayloadSchema.safeParse({
+            results: [
+                { case_id: 1, comment: 'ok' },
+                { case_id: 2, version: '1.0' },
+            ],
+        });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toEqual([
+            expect.objectContaining({
+                code: 'custom',
+                path: ['results', 1],
+                message: expect.stringMatching(RESULT_CONTENT_RULE),
+            }),
+        ]);
     });
 
     it('rejects when results is missing', () => {
@@ -735,8 +831,26 @@ describe('AddResultForTestPayloadSchema', () => {
         expect(() => AddResultForTestPayloadSchema.parse({ status_id: 1 })).toThrow();
     });
 
-    it('rejects when status_id is missing', () => {
-        expect(() => AddResultForTestPayloadSchema.parse({ test_id: 42 })).toThrow();
+    it('accepts a comment-only result', () => {
+        expect(AddResultForTestPayloadSchema.parse({ test_id: 42, comment: 'see log' })).toEqual({
+            test_id: 42,
+            comment: 'see log',
+        });
+    });
+
+    it('accepts an assignee-only result', () => {
+        expect(AddResultForTestPayloadSchema.parse({ test_id: 42, assignedto_id: 5 })).toEqual({
+            test_id: 42,
+            assignedto_id: 5,
+        });
+    });
+
+    it('refuses a result with none of status_id, comment or assignedto_id', () => {
+        const result = AddResultForTestPayloadSchema.safeParse({ test_id: 42, elapsed: '1m' });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toEqual([
+            expect.objectContaining({ code: 'custom', path: [], message: expect.stringMatching(RESULT_CONTENT_RULE) }),
+        ]);
     });
 
     it('passes through custom_* fields unchanged', () => {
@@ -746,6 +860,12 @@ describe('AddResultForTestPayloadSchema', () => {
             custom_browser: 'firefox',
         }) as Record<string, unknown>;
         expect(parsed['custom_browser']).toBe('firefox');
+    });
+
+    it('keeps the inferred payload type plain with an optional status_id', () => {
+        expectTypeOf<AddResultForTestPayload['test_id']>().toEqualTypeOf<number>();
+        expectTypeOf<AddResultForTestPayload['status_id']>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<{ test_id: number; assignedto_id: number }>().toExtend<AddResultForTestPayload>();
     });
 });
 
@@ -763,6 +883,29 @@ describe('AddResultsPayloadSchema', () => {
     it('parses a payload with an empty results array', () => {
         const parsed = AddResultsPayloadSchema.parse({ results: [] });
         expect(parsed.results).toEqual([]);
+    });
+
+    it('accepts comment-only and assignee-only entries alongside status entries', () => {
+        const results = [
+            { test_id: 1, status_id: 1 },
+            { test_id: 2, comment: 'needs triage' },
+            { test_id: 3, assignedto_id: 9 },
+        ];
+        expect(AddResultsPayloadSchema.parse({ results })).toEqual({ results });
+    });
+
+    it('refuses the bulk payload when one entry has none of the three, pointing at that entry', () => {
+        const result = AddResultsPayloadSchema.safeParse({
+            results: [{ test_id: 1 }, { test_id: 2, assignedto_id: 4 }],
+        });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toEqual([
+            expect.objectContaining({
+                code: 'custom',
+                path: ['results', 0],
+                message: expect.stringMatching(RESULT_CONTENT_RULE),
+            }),
+        ]);
     });
 
     it('rejects when results is missing', () => {
@@ -1612,6 +1755,50 @@ describe('UpdateConfigurationPayloadSchema', () => {
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateConfigurationPayloadSchema.parse({ custom_version: '120' }) as Record<string, unknown>;
         expect(parsed['custom_version']).toBe('120');
+    });
+});
+
+/**
+ * The regex patterns attached to a string schema (unwrapping `.optional()`).
+ * Used to prove both user write payloads reference the lookup's one shared
+ * email pattern rather than a copy of it.
+ */
+function stringPatterns(schema: unknown): readonly unknown[] {
+    interface Node {
+        readonly _zod: {
+            readonly def: {
+                readonly innerType?: Node;
+                readonly checks?: readonly { readonly _zod: { readonly def: { readonly pattern?: unknown } } }[];
+            };
+        };
+    }
+    let node = schema as Node;
+    while (node._zod.def.innerType !== undefined) node = node._zod.def.innerType;
+    return (node._zod.def.checks ?? []).map((check) => check._zod.def.pattern).filter((p) => p !== undefined);
+}
+
+describe('user email shape (shared by get_user_by_email, add_user and update_user)', () => {
+    it('both write payloads use the shared pattern object, not a copy or z.email()', () => {
+        expect(stringPatterns(UserAddPayloadSchema.shape.email)).toEqual([TESTRAIL_USER_EMAIL_PATTERN]);
+        expect(stringPatterns(UserAddPayloadSchema.shape.email)[0]).toBe(TESTRAIL_USER_EMAIL_PATTERN);
+        expect(stringPatterns(UserUpdatePayloadSchema.shape.email)[0]).toBe(TESTRAIL_USER_EMAIL_PATTERN);
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.accepted)('add and update accept %s', (email) => {
+        expect(UserAddPayloadSchema.parse({ name: 'Ada', email })).toEqual({ name: 'Ada', email });
+        expect(UserUpdatePayloadSchema.parse({ email })).toEqual({ email });
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.refused)('add and update refuse %s (%j)', (_label, email) => {
+        for (const result of [
+            UserAddPayloadSchema.safeParse({ name: 'Ada', email }),
+            UserUpdatePayloadSchema.safeParse({ email }),
+        ]) {
+            expect(result.success).toBe(false);
+            expect(result.error?.issues).toEqual([
+                expect.objectContaining({ path: ['email'], message: 'Invalid email format' }),
+            ]);
+        }
     });
 });
 
