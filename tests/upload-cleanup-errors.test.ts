@@ -177,10 +177,10 @@ describe('public multipart cleanup error handling', () => {
         expect(upload.releaseLock).toHaveBeenCalledOnce();
         expect(settled).not.toHaveBeenCalled();
         const consumer = upload.consumer();
-        // The transport is aborted before a clean part completion, so no
-        // truncated file can be sent with a valid multipart closing boundary.
+        // A signal-ignoring transport cannot finish a truncated multipart
+        // body even though the client has requested its cancellation.
         expect(upload.wasAborted()).toBe(true);
-        expect(await consumer.result).toEqual({ done: true, value: undefined });
+        expect(await consumer.result).toEqual(new Error('Upload aborted before the request completed'));
         consumer.reader.releaseLock();
 
         upload.reading.reject(new Error('late source read failure'));

@@ -245,11 +245,13 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         ['1.2.3.999', 4],
         ['weird-non-ip-host', 0],
         ['203.0.113.30', 6],
-    ])('rejects malformed or mismatched DNS answer %s (family %i) before fetch', async (address, family) => {
+        ['203.0.113.30', 0],
+        ['203.0.113.30', undefined],
+    ])('rejects malformed or mismatched DNS answer %s (family %s) before fetch', async (address, family) => {
         // Every address is now passed to the socket resolver. An invalid entry
         // must fail closed even when the same answer includes a valid public IP.
         mockDnsLookup.mockResolvedValueOnce([
-            { address, family },
+            { address, ...(family !== undefined && { family }) },
             { address: '203.0.113.10', family: 4 },
         ]);
         const client = new TestRailClient({

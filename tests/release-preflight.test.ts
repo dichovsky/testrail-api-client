@@ -476,20 +476,30 @@ describe('CI package smoke wiring', () => {
 
     // The three OSes used to be three copy-pasted jobs; they are now one
     // matrix. What this test pins is the coverage, not the encoding: every
-    // supported OS is exercised on the tested Node baseline, a failing leg
+    // supported OS is exercised on both tested Node lines, a failing leg
     // cannot be masked, and branch protection still sees a stable check name.
-    it('covers the tested Node baseline on Linux, Windows, and macOS', () => {
+    it('covers both fetch handler generations on Linux, Windows, and macOS', () => {
         expect(workflow).toContain('package-smoke-matrix:');
         expect(workflow).toContain('os: [ubuntu-latest, windows-latest, macos-14]');
-        expect(workflow).toContain("node-version: ['24']");
+        expect(workflow).toContain("node-version: ['24', '26']");
         expect(workflow).toContain('runs-on: ${{ matrix.os }}');
         // fail-fast would cancel sibling legs on the first failure, hiding
         // whether a break is platform-specific.
         expect(workflow).toContain('fail-fast: false');
         expect(workflow).toContain('run: npm run package:smoke');
-        expect(workflow).toContain(
-            'run: npx vitest run tests/pinned-dispatcher.test.ts tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts',
-        );
+        const transportCommand = workflow.match(/run: npx vitest run [^\n]+/)?.[0];
+        for (const suite of [
+            'pinned-dispatcher',
+            'pinned-dispatcher-compatibility',
+            'report-execution-policy',
+            'operation-settlement',
+            'upload-settlement',
+            'upload-cleanup-errors',
+            'upload-transport',
+            'upload-http2',
+        ]) {
+            expect(transportCommand).toContain(`tests/${suite}.test.ts`);
+        }
     });
 
     it('collapses the matrix into one stable required check that fails closed', () => {

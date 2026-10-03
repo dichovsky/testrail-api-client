@@ -30,6 +30,12 @@ required.
    an empty `Unreleased` section. Include compatibility notes, security fixes,
    and operational changes. Keep the npm release-history list aligned with
    the release being prepared and confirm publication before considering it final.
+   The pending DNS-pinning release must explicitly list its global proxy/custom
+   agent bypass, strict `dnsLookup` address-family contract, and regular-file-only
+   forced output destinations as breaking changes. Link the
+   [proxy and CA migration](../README.md#proxies-and-custom-certificate-authorities),
+   [DNS resolver migration](../README.md#custom-dns-resolvers), and CLI stdout
+   discard example rather than suggesting that users disable the host guard.
 4. Audit README, architecture and agent guidance, examples, CLI help, and the
    manual sections of the bundled skill against the release changes. Preserve
    dated audits and archived plans as historical records. Every SDK endpoint
@@ -75,9 +81,9 @@ npm run package:smoke -- --prepared
 ```
 
 Open a release PR with the version, release scope, compatibility notes, and
-validation results. Wait for all CI jobs, including package smoke on the tested
-Node line, 24, across Linux, Windows, and macOS. The `>=24` engine range
-also permits later majors, which are not currently in the CI matrix. Merge
+validation results. Wait for all CI jobs, including package smoke and transport
+tests on Node 24 and 26 across Linux, Windows, and macOS. The `>=24` engine range
+also permits other majors, which are not currently in the CI matrix. Merge
 the PR, fetch `main`, and verify its resulting commit and CI before tagging.
 If other changes land before the merge, reassess the release contents and gates.
 

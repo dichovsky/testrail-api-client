@@ -1,4 +1,10 @@
-import { Agent as HttpAgent, request as httpRequest, type ClientRequestArgs } from 'node:http';
+import {
+    Agent as HttpAgent,
+    request as httpRequest,
+    type ClientRequest,
+    type ClientRequestArgs,
+    type IncomingMessage,
+} from 'node:http';
 import { Agent as HttpsAgent, request as httpsRequest, type RequestOptions } from 'node:https';
 import type { LookupFunction } from 'node:net';
 import { Readable } from 'node:stream';
@@ -44,12 +50,107 @@ interface FetchDispatchOptions {
     readonly body: AsyncIterable<Uint8Array> | null;
 }
 
-interface FetchDispatchHandler {
+interface LegacyFetchDispatchHandler {
     onConnect(abort: (error: Error) => void): void;
     onHeaders(status: number, headers: Buffer[], resume: () => void, statusText: string): boolean;
     onData(chunk: Buffer): boolean;
     onComplete(trailers: Buffer[]): void;
     onError(error: Error): void;
+}
+
+interface FetchDispatchController {
+    readonly aborted: boolean;
+    readonly paused: boolean;
+    readonly reason: Error | null;
+    rawHeaders: Buffer[] | null;
+    rawTrailers: Buffer[] | null;
+    abort(reason?: Error): void;
+    pause(): void;
+    resume(): void;
+}
+
+interface ModernFetchDispatchHandler {
+    onRequestStart(controller: FetchDispatchController, context: null): void;
+    onResponseStarted?(): void;
+    onResponseStart(
+        controller: FetchDispatchController,
+        status: number,
+        headers: Record<string, string | string[]>,
+        statusText: string,
+    ): void;
+    onResponseData(controller: FetchDispatchController, chunk: Buffer): void;
+    onResponseEnd(controller: FetchDispatchController, trailers: Record<string, string | string[]>): void;
+    onResponseError(controller: FetchDispatchController, error: Error): void;
+}
+
+type FetchDispatchHandler = LegacyFetchDispatchHandler | ModernFetchDispatchHandler;
+
+/** Bridge Undici 8's controller callbacks and Node 24's legacy callbacks. */
+function legacyHandler(handler: FetchDispatchHandler, pauseResponse: () => void): LegacyFetchDispatchHandler {
+    if ('onConnect' in handler) return handler;
+    let paused = false;
+    let aborted = false;
+    let reason: Error | null = null;
+    let abortRequest: ((error: Error) => void) | undefined;
+    let resumeResponse: (() => void) | undefined;
+    const controller: FetchDispatchController = {
+        get aborted() {
+            return aborted;
+        },
+        get paused() {
+            return paused;
+        },
+        get reason() {
+            return reason;
+        },
+        rawHeaders: null,
+        rawTrailers: null,
+        abort(error = new globalThis.DOMException('The operation was aborted.', 'AbortError')): void {
+            if (aborted) return;
+            aborted = true;
+            reason = error;
+            abortRequest?.(error);
+        },
+        pause(): void {
+            paused = true;
+            pauseResponse();
+        },
+        resume(): void {
+            if (!paused) return;
+            paused = false;
+            resumeResponse?.();
+        },
+    };
+    const parsedHeaders = (headers: Buffer[]): Record<string, string | string[]> =>
+        requestHeaders(
+            headers.map((header, index) =>
+                index % 2 === 0 ? header.toString('latin1').toLowerCase() : header.toString('latin1'),
+            ),
+        );
+    return {
+        onConnect(abort): void {
+            abortRequest = abort;
+            handler.onRequestStart(controller, null);
+        },
+        onHeaders(status, headers, resume, statusText): boolean {
+            controller.rawHeaders = headers;
+            resumeResponse = resume;
+            handler.onResponseStarted?.();
+            handler.onResponseStart(controller, status, parsedHeaders(headers), statusText);
+            return !paused;
+        },
+        onData(chunk): boolean {
+            handler.onResponseData(controller, chunk);
+            return !paused;
+        },
+        onComplete(trailers): void {
+            controller.rawTrailers = trailers;
+            handler.onResponseEnd(controller, parsedHeaders(trailers));
+        },
+        onError(error): void {
+            handler.onResponseError(controller, error);
+        },
+    };
 }
 
 function isHeaderList(
@@ -60,7 +161,7 @@ function isHeaderList(
 
 function requestHeaders(headers: FetchDispatchOptions['headers']): Record<string, string | string[]> {
     if (!isHeaderList(headers)) return { ...headers };
-    const result: Record<string, string | string[]> = {};
+    const result = Object.create(null) as Record<string, string | string[]>;
     for (let index = 0; index < headers.length; index += 1) {
         const entry = headers[index];
         let key: string;
@@ -94,19 +195,42 @@ export function createPinnedDispatcher(
     addresses: readonly PinnedAddress[],
 ): {
     dispatch(options: FetchDispatchOptions, handler: FetchDispatchHandler): boolean;
+    hasStoppedUploading(): boolean;
 } {
     const pinned = addresses.map(({ address, family }) => ({ address, family }));
-    const first = pinned[0];
-    if (first === undefined) throw new Error('A pinned dispatcher requires at least one validated address');
+    if (pinned.length === 0) throw new Error('A pinned dispatcher requires at least one validated address');
+    // Pool identity describes an address set, while connection attempts retain
+    // the resolver's original ordering and family preference.
+    const addressKey = JSON.stringify([...new Set(pinned.map(({ address, family }) => `${family}:${address}`))].sort());
+    const requests: ClientRequest[] = [];
     const lookup: LookupFunction = (_hostname, options, callback) => {
         // Node's automatic family selection can try every approved answer. No
         // second system DNS lookup can substitute an unchecked address.
-        if (options.all === true) callback(null, pinned);
+        const matches =
+            options.family === 4 || options.family === 6
+                ? pinned.filter(({ family }) => family === options.family)
+                : pinned;
+        const first = matches[0];
+        if (first === undefined) {
+            callback(
+                Object.assign(new Error('No approved DNS address matches the requested IP family'), {
+                    code: 'ENOTFOUND',
+                }),
+                [],
+            );
+        } else if (options.all === true) callback(null, matches);
         else callback(null, first.address, first.family);
     };
 
     return {
-        dispatch(options, handler): boolean {
+        hasStoppedUploading(): boolean {
+            return requests.length > 0 && requests.every((request) => request.destroyed || request.writableFinished);
+        },
+        dispatch(options, dispatchHandler): boolean {
+            let responseBody: IncomingMessage | undefined;
+            const handler = legacyHandler(dispatchHandler, () => {
+                responseBody?.pause();
+            });
             if (String(options.origin) !== origin) {
                 handler.onError(new Error('Pinned dispatcher cannot dispatch a different origin'));
                 return false;
@@ -118,10 +242,11 @@ export function createPinnedDispatcher(
                 headers: { ...requestHeaders(options.headers), host: url.host },
                 lookup,
                 autoSelectFamily: true,
-                validatedAddressKey: JSON.stringify(pinned),
+                validatedAddressKey: addressKey,
                 agent: url.protocol === 'https:' ? httpsAgent : httpAgent,
             };
             const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, requestOptions);
+            requests.push(request);
             let finished = false;
             const fail = (error: Error): void => {
                 if (finished) return;
@@ -142,6 +267,7 @@ export function createPinnedDispatcher(
                 fail(new Error('HTTP protocol upgrades are not supported'));
             });
             request.on('response', (response) => {
+                responseBody = response;
                 response.on('error', fail);
                 response.on('data', (chunk: Buffer) => {
                     if (!finished)

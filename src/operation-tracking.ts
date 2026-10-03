@@ -71,8 +71,9 @@ export function bindOperation<Args extends unknown[], Result>(
     const scope = operations.getStore();
     // Same latch as `startOperation`, and for the same reason: uploads bind
     // streams on every multipart request, tracked or not, so wrapping them
-    // unconditionally would enter `AsyncLocalStorage` — and install process-wide
-    // context tracking — for embedders who never call `trackOperation`.
+    // unconditionally would create settlement contexts before `trackOperation`.
+    // Upload transport diagnostics use a separate async context regardless of
+    // this latch; that does not engage operation settlement tracking.
     //
     // Skipping is only safe while nothing can be in a scope. Once tracking is
     // engaged the wrapper is kept even for an undefined scope, because `run`
@@ -88,11 +89,12 @@ export function bindOperation<Args extends unknown[], Result>(
  * {@link engageOperationTracking} and never cleared.
  *
  * Entering an `AsyncLocalStorage` even once installs its context tracking for
- * the whole process, and it can never be undone. On Node 24 — the runtime line
+ * the whole process, and it can never be undone. On Node 24 — the minimum line
  * exercised by CI — that is `AsyncContextFrame`, costing ~1% on promise
- * traffic that has nothing to do with this client. A library must not impose
- * even that on embedders who never use `trackOperation`, so scopes are created
- * only once the feature is in play.
+ * traffic that has nothing to do with this client. Settlement scopes are created
+ * only once this feature is in play. Multipart transport diagnostics separately
+ * enter an async context, so only embedders who neither track operations nor
+ * upload avoid the library's process-wide context-propagation cost.
  */
 let trackingEngaged = false;
 

@@ -25,8 +25,8 @@ remaining upstream documentation ambiguities.
 npm install @dichovsky/testrail-api-client
 ```
 
-Requires Node.js 24+. CI verifies Node 24 across Linux, Windows, and macOS.
-Later Node majors satisfy the engine range but are not currently in the CI matrix.
+Requires Node.js 24+. CI verifies Node 24 and 26 across Linux, Windows, and macOS.
+Other Node majors satisfy the engine range but are not currently in the CI matrix.
 
 Published declarations are smoke-tested with TypeScript 6 and 7. The repository
 build and primary type-check use native TypeScript 7; compiler-API-based
@@ -103,6 +103,18 @@ the command runs, including when a later occurrence supplies a valid filename.
 For a literal value beginning with `--`, use the inline form, such as
 `--filter=--all`. Boolean options take no value: pass `--dry-run`, not
 `--dry-run=true`.
+
+Attachment and BDD downloads accept regular files as `--out` destinations.
+`--force` permits replacing a regular file; it rejects symlinks, FIFOs, and
+devices, including `/dev/null`. To discard a download, send its payload to
+stdout and let the shell discard it:
+
+```bash
+testrail attachment get 42 --out - > /dev/null
+```
+
+The JSON acknowledgement still goes to stderr. Use the same `--out -` pattern
+with `testrail bdd get <case-id>`; do not use `--out /dev/null --force`.
 
 ## Features
 
@@ -194,9 +206,19 @@ operations are included. Return the promise for your complete callback workflow;
 unawaited application timers are outside the driver's accounting.
 `trackOperation` does not add cancellation, and `destroy()` does not abort
 in-flight work or settle its handles. Settlement tracking switches on with the
-first `trackOperation` call and stays on, so a process that never tracks pays no
-context-propagation cost; a request already in flight at that first call can be
-joined for its result but not for its post-result cleanup.
+first `trackOperation` call and stays on. Multipart uploads also enter a separate
+async context to identify their native transport requests, even without
+`trackOperation`. A process that neither tracks operations nor uploads avoids
+the library's context-propagation cost. A request already in flight at the first
+`trackOperation` call can be joined for its result but not for its post-result
+cleanup.
+
+Multipart cleanup requests abort and then requires transport evidence before
+closing active upload streams normally. The pinned dispatcher or native request
+diagnostics can provide that evidence. When an injected or globally replaced
+fetch supplies neither, cleanup errors the source instead, preventing an ignored
+abort from sending a truncated file with a valid multipart closing boundary.
+Pending source reads and cancellation still delay `settled` on every path.
 
 A cache hit is isolated, not free. Entries are deep-copied with
 `structuredClone` on both write and read, so a cached caller can mutate what it
@@ -229,6 +251,85 @@ for the exact ranges.
 
 Concurrent GETs share an in-flight request only when their effective header
 and body timeouts match. Timeout views still share completed cached responses.
+
+### Custom DNS resolvers
+
+Each `dnsLookup` answer must contain a valid IP literal and its matching numeric
+`family`: `4` for IPv4 or `6` for IPv6. Missing families, `0`, and mismatches now
+fail before any request is sent, even when the address itself is public. Use
+the system resolver's complete answer objects, or supply the correct family
+when adapting another resolver:
+
+```typescript
+import { lookup } from 'node:dns/promises';
+
+const client = new TestRailClient({
+    ...config,
+    dnsLookup: (hostname) => lookup(hostname, { all: true }),
+});
+// A fixed IPv4 answer has this shape:
+// dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }]
+// IPv6 answers must use family: 6.
+```
+
+### Proxies and custom certificate authorities
+
+With `allowPrivateHosts: false` (the default), the client now supplies a direct
+dispatcher on each request. This is a breaking change for applications that
+previously relied on Undici's `setGlobalDispatcher()` with a `ProxyAgent`,
+`EnvHttpProxyAgent`, or custom TLS settings. It also bypasses
+`NODE_USE_ENV_PROXY=1` / `--use-env-proxy`; the private HTTP/HTTPS agents do not
+inherit `http.globalAgent` or `https.globalAgent` customization. Node documents
+the separate [per-request dispatcher](https://nodejs.org/api/globals.html#custom-dispatcher)
+and [global proxy configuration](https://nodejs.org/api/http.html#built-in-proxy-support).
+
+For additional CA trust on direct connections, set
+[`NODE_EXTRA_CA_CERTS`](https://nodejs.org/api/cli.html#node_extra_ca_certsfile)
+to a PEM bundle **before starting Node**. This preserves certificate and hostname
+verification while retaining DNS pinning; a custom global agent's `ca` setting
+is not copied into the client's agents.
+
+For a required proxy, inject an application-owned fetch adapter that explicitly
+selects that proxy and preserves the supplied abort signal and manual-redirect
+policy. Replacing the dispatcher also replaces connection pinning: the client's
+local DNS check cannot verify a second lookup performed by the proxy. Before
+using this migration, configure the trusted proxy to permit only the approved
+TestRail origin and enforce the same private-address restrictions on its actual
+connection destination. An origin allowlist alone does not prevent DNS rebinding.
+
+For example, after establishing that proxy policy, an application that already
+uses [Undici's ProxyAgent](https://github.com/nodejs/undici/blob/main/docs/docs/api/ProxyAgent.md)
+can select it explicitly:
+
+```typescript
+import { ProxyAgent } from 'undici'; // Application dependency; not bundled by this client.
+
+const approvedOrigin = 'https://your-domain.testrail.io';
+const proxy = new ProxyAgent('https://approved-proxy.example:8443');
+const proxyFetch: typeof globalThis.fetch = (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    if (url.origin !== approvedOrigin) throw new Error('Unexpected TestRail origin');
+    return globalThis.fetch(input, { ...init, dispatcher: proxy });
+};
+const client = new TestRailClient({
+    ...config,
+    baseUrl: approvedOrigin,
+    allowPrivateHosts: false,
+    fetch: proxyFetch,
+});
+try {
+    console.log(await client.projects.getProjects());
+} finally {
+    client.destroy();
+    await proxy.close();
+}
+```
+
+The injected adapter and proxy now own destination enforcement. If that policy
+cannot be established, this package has no safe automatic proxy fallback.
+`allowPrivateHosts: true` restores the configured fetch's connection handling
+but disables both DNS validation and pinning; it is not a proxy fix. Reserve it
+for intentionally trusted on-premise destinations with separate network controls.
 
 ## Pagination
 

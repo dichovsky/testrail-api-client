@@ -22,13 +22,13 @@ P1 means a high-priority security boundary defect under the stated threat condit
 
 The maintenance recommendations were also applied: the skill body is below 500 lines, references are self-contained, portable frontmatter uses `metadata`, the build uses Node filesystem primitives, and documentation distinguishes the tested Node 24 baseline from the declared Node 24+ support range. All generated artifacts were regenerated from their sources.
 
-Transport review additionally caught an early-response upload cleanup hang during implementation, plus a pre-existing unhandled encoder rejection when a source stalled. Multipart cleanup now aborts the transport before closing owned stream wrappers. Retained JSON, multipart, and stalled-source regressions verify that the result returns the server error, settlement waits for underlying cancellation, and then finishes without an unhandled rejection.
+Transport review additionally caught an early-response upload cleanup hang during implementation, plus a pre-existing unhandled encoder rejection when a source stalled. The initial fix aborted the transport before closing owned stream wrappers. PR review then identified that requesting abort alone was insufficient for injected transports; the follow-up below tightens that condition. Retained JSON, multipart, and stalled-source regressions cover server errors and settlement waiting for underlying cancellation.
 
 The pinned default transport makes direct connections. A custom fetch is trusted code and must honor the dispatcher or enforce equivalent destination checks; proxy wrappers that ignore it do not inherit pinning. Skill publication uses two directory renames with a brief absent-path interval, and a failed rollback preserves a recoverable backup. These limits are documented rather than presented as stronger guarantees.
 
-## Final verification — 2026-10-04
+## Initial remediation verification — 2026-10-04
 
-`npm run verify` passed end to end after remediation: production build, TypeScript 7 and TypeScript 6, lint, formatting, all generated-artifact checks, published-version consistency, lockfile policy, coverage, and packed-package consumer/CLI smoke tests.
+At commit `ed1a5a3`, `npm run verify` passed end to end after remediation: production build, TypeScript 7 and TypeScript 6, lint, formatting, all generated-artifact checks, published-version consistency, lockfile policy, coverage, and packed-package consumer/CLI smoke tests.
 
 | Check                    | Result                                                                                                                           |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -40,7 +40,52 @@ The pinned default transport makes direct connections. A custom fetch is trusted
 | ESLint                   | No errors; 12 pre-existing warnings                                                                                              |
 | Fresh independent review | No remaining actionable findings; final cleanup review independently passed 61 focused tests and the stalled native-upload probe |
 
-The final native transport suite contains 27 tests, including Latin1 header preservation and connection-pool separation by validated address set. CI now runs it alongside the existing settlement checks on Linux, Windows, and macOS. Local execution was on macOS; cross-platform CI and live TestRail behavior are separate verification surfaces.
+That native transport suite contained 27 tests, including Latin1 header preservation and connection-pool separation by validated address set. CI ran it alongside the existing settlement checks on Linux, Windows, and macOS with Node 24. Local execution was on macOS; cross-platform CI and live TestRail behavior are separate verification surfaces.
+
+## PR #309 review follow-up — 2026-10-04
+
+The eight inline review comments identified further compatibility, lifecycle,
+and documentation changes:
+
+- Support both Node 24's legacy dispatch handlers and Node 26's Undici 8
+  controller handlers; include both runtimes in every platform's transport
+  and packed-consumer CI lane.
+- Canonicalize each pool's address set, retaining resolver order for connection
+  attempts, and respect explicit IPv4/IPv6 lookup requests.
+- Require positive transport-stop evidence before cleanly closing an incomplete
+  multipart source; injected fetch implementations that ignore abort retain
+  erroring cleanup.
+- Document the direct transport's global proxy/CA bypass, strict DNS answer
+  families, and regular-file-only forced output as breaking changes with
+  migration examples.
+- Restore bounded build cleanup retries for transient Windows file locks.
+
+Multipart shutdown now checks the exact supplied dispatcher's state or scoped
+native transport evidence. HTTP/1 cleanup preserves reassigned sockets; HTTP/2
+cleanup destroys only the stream correlated to the owned request, preserving
+the shared session. Missing evidence retains erroring cleanup. Native FormData
+encoding, filenames, and content length are unchanged.
+
+The final follow-up verification passed:
+
+| Check                            | Result                                                                                                             |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `npm run verify` on Node 24.21.0 | Passed all build, compiler, lint, formatting, generation, policy, coverage, and packed-package gates               |
+| Full suite                       | 4,717 passed; 23 opt-in fuzz tests and three Node 26 native HTTP/2 tests skipped                                   |
+| Explicit fuzz run                | All 23 passed                                                                                                      |
+| Node 26.10.0 / Undici 8.10.2     | All 145 transport/settlement tests passed, including the three real HTTP/2 cases; packed consumer/CLI smoke passed |
+| Coverage                         | Statements 99.43%; branches 98.12%; functions 99.79%; lines 99.69%; thresholds unchanged                           |
+| ESLint                           | No errors; 12 pre-existing warnings                                                                                |
+
+The HTTP/2 regressions cover complete framing, an early rejection with deferred
+source cancellation, and a concurrent upload to the same endpoint. They assert
+that cleanup preserves another request on the same session. Synthetic lifecycle
+tests also exercise pooled callbacks with inherited async context, stale event
+pairing, missing evidence, malformed events, and deterministic listener removal.
+The fresh reviewer found no remaining actionable issues, independently passed
+85 tests on Node 24 and 88 on Node 26, and checked that expired or terminated
+HTTP/2 event pairs cannot capture an unrelated stream.
+Local runs were on macOS; CI verifies both runtime lines on all three platforms.
 
 ## High priority security finding
 

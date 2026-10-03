@@ -15,6 +15,7 @@ import {
     type OperationHandle,
 } from './operation-tracking.js';
 import { createUploadSource } from './upload-source.js';
+import { observeUploadTransport } from './upload-transport.js';
 import { budgetExpiredError, createRequestBudget, type RequestBudget } from './request-budget.js';
 
 // Built from the package *name*, not `pkg.description`, which embedded literal
@@ -861,6 +862,11 @@ export class TestRailClientCore {
 
         const fetchPromise: Promise<TParsed> = (async () => {
             let formdataCleanup: ((transportAborted?: boolean) => void) | undefined;
+            const pinnedDispatcher =
+                pinnedAddresses === undefined
+                    ? undefined
+                    : createPinnedDispatcher(new URL(this.baseUrl).origin, pinnedAddresses);
+            let uploadTransport: ReturnType<typeof observeUploadTransport> | undefined;
             let receivedResponse: Response | undefined;
             let parsingResponse = false;
             try {
@@ -872,13 +878,10 @@ export class TestRailClientCore {
                     // validates the *initial* hostname only; a 3xx Location pointing at
                     // a private/metadata IP would otherwise bypass it.
                     redirect: 'manual',
-                    ...(pinnedAddresses !== undefined && {
+                    ...(pinnedDispatcher !== undefined && {
                         // Native fetch only consumes dispatch(); the full Undici
                         // type also describes unrelated convenience methods.
-                        dispatcher: createPinnedDispatcher(
-                            new URL(this.baseUrl).origin,
-                            pinnedAddresses,
-                        ) as unknown as NonNullable<RequestInit['dispatcher']>,
+                        dispatcher: pinnedDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
                     }),
                 };
                 if (spec.body.kind === 'json') {
@@ -908,8 +911,10 @@ export class TestRailClientCore {
                 // are respected) but must not be rejected by a local 429.
                 this.checkRateLimit(retryCount === 0, admissionTime);
 
+                const fetch = (): Promise<Response> => (this.fetchOverride ?? globalThis.fetch)(url, options);
+                if (formdataCleanup !== undefined) uploadTransport = observeUploadTransport(url, spec.method);
                 const response: Response = await spec.budget.bound(
-                    (this.fetchOverride ?? globalThis.fetch)(url, options).then((received) => {
+                    (uploadTransport === undefined ? fetch() : uploadTransport.run(fetch)).then((received) => {
                         receivedResponse = received;
                         // A custom fetch may ignore abort and return headers
                         // after its result deadline. Own the late body cleanup.
@@ -1006,12 +1011,20 @@ export class TestRailClientCore {
 
                 throw new TestRailApiError(0, `Network error: ${cause.message}`, cause.message);
             } finally {
-                // Stop the network before cleanly terminating multipart parts.
-                // Native fetch's encoder must finish without a rejected part
-                // leaving its cloned request-body stream permanently pending.
-                if (formdataCleanup !== undefined) {
-                    controller.abort();
-                    formdataCleanup(true);
+                // An abort signal is only a request: an injected or global
+                // fetch replacement may ignore it and keep encoding. Cleanly
+                // close a multipart part only with actual transport evidence;
+                // otherwise error it to prevent a valid closing boundary after
+                // truncated bytes.
+                try {
+                    if (formdataCleanup !== undefined) {
+                        controller.abort();
+                        const transportStopped =
+                            pinnedDispatcher?.hasStoppedUploading() === true || uploadTransport?.stop() === true;
+                        formdataCleanup(transportStopped);
+                    }
+                } finally {
+                    uploadTransport?.dispose();
                 }
                 if (receivedResponse !== undefined) this.cancelUnusedBody(receivedResponse);
             }

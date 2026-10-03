@@ -211,6 +211,9 @@ export interface TestRailConfig {
      * Receives the bare hostname (no brackets for IPv6 literals) and must
      * return the resolved addresses in the same shape as
      * `node:dns/promises lookup(hostname, { all: true })`.
+     * Every result must contain a valid IP literal and its matching numeric
+     * family (`4` or `6`); omitted, zero, and mismatched families are rejected
+     * before dispatch, even if other records in the answer are valid.
      *
      * Use this to supply static host-to-IP mappings or a custom resolver in
      * environments where the system DNS cannot reach the TestRail hostname

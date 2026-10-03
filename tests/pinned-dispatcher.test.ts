@@ -8,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import type { TLSSocket } from 'node:tls';
+import type { LookupFunction } from 'node:net';
 import { createPinnedDispatcher } from '../src/pinned-dispatcher.js';
 import { TestRailClient } from '../src/client.js';
 
@@ -38,6 +39,19 @@ function dispatcher(origin: string): NonNullable<RequestInit['dispatcher']> {
     return createPinnedDispatcher(origin, [{ address: '127.0.0.1', family: 4 }]) as unknown as NonNullable<
         RequestInit['dispatcher']
     >;
+}
+
+/** Keep the real dispatcher lifecycle while routing its approved test IP locally. */
+function connectToLocalFixture(): void {
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- invoked with the original receiver below
+    const original = HttpAgent.prototype.createConnection;
+    vi.spyOn(HttpAgent.prototype, 'createConnection').mockImplementation(function (this: HttpAgent, options, callback) {
+        const lookup: LookupFunction = (_hostname, lookupOptions, done) => {
+            if (lookupOptions.all === true) done(null, [{ address: '127.0.0.1', family: 4 }]);
+            else done(null, '127.0.0.1', 4);
+        };
+        return original.call(this, { ...options, lookup }, callback);
+    });
 }
 
 describe('DNS-pinned native fetch dispatcher', () => {
@@ -136,7 +150,12 @@ describe('DNS-pinned native fetch dispatcher', () => {
         ) {
             return originalCreateConnection.call(this, { ...options, family: 4 }, callback);
         });
-        const response = await fetch(origin, { dispatcher: dispatcher(origin) });
+        const response = await fetch(origin, {
+            dispatcher: createPinnedDispatcher(origin, [
+                { address: '::1', family: 6 },
+                { address: '127.0.0.1', family: 4 },
+            ]) as unknown as NonNullable<RequestInit['dispatcher']>,
+        });
         expect(await response.text()).toBe('single family');
         expect(connection).toHaveBeenCalledOnce();
     });
@@ -164,6 +183,14 @@ describe('DNS-pinned native fetch dispatcher', () => {
             { address: '127.0.0.1', family: 4 },
             { address: '::1', family: 6 },
         ]);
+        expect(connections).toBe(2);
+        await read([
+            { address: '::1', family: 6 },
+            { address: '127.0.0.1', family: 4 },
+            { address: '127.0.0.1', family: 4 },
+        ]);
+        expect(connections).toBe(2);
+        await read([{ address: '127.0.0.1', family: 4 }]);
         expect(connections).toBe(2);
     });
 
@@ -333,6 +360,7 @@ describe('DNS-pinned native fetch dispatcher', () => {
     });
 
     it.each(['json', 'multipart'] as const)('settles an early-rejected %s upload', async (kind) => {
+        connectToLocalFixture();
         const port = await listen(
             createServer((request, response) => {
                 request.resume();
@@ -347,9 +375,6 @@ describe('DNS-pinned native fetch dispatcher', () => {
             email: 'test@example.com',
             apiKey: 'test',
             dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }],
-            // Exercise the complete SDK lifecycle with an approved local test
-            // destination; the production guard still refuses private answers.
-            fetch: (url, options) => fetch(url, { ...options, dispatcher: dispatcher(origin) }),
         });
         try {
             const operation = client.trackOperation(() =>
@@ -371,6 +396,7 @@ describe('DNS-pinned native fetch dispatcher', () => {
     it.each(['pinned', 'native'] as const)(
         'waits for deferred %s multipart cancellation after an early response',
         async (transport) => {
+            if (transport === 'pinned') connectToLocalFixture();
             let releaseCancel: () => void = () => undefined;
             let didCancel: () => void = () => undefined;
             const cancellation = new Promise<void>((resolve) => {
@@ -409,8 +435,6 @@ describe('DNS-pinned native fetch dispatcher', () => {
                 ...(transport === 'pinned'
                     ? {
                           dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }],
-                          fetch: (url: Parameters<typeof fetch>[0], options?: RequestInit) =>
-                              fetch(url, { ...options, dispatcher: dispatcher(origin) }),
                       }
                     : { allowPrivateHosts: true }),
             });

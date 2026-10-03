@@ -143,9 +143,30 @@ continues to own multipart encoding, response decompression, and redirects.
 This dispatcher makes direct connections. An injected fetch implementation is
 a trusted transport: it must honor the supplied dispatcher or implement
 equivalent destination enforcement, along with abort and redirect controls.
-Ignoring the extension does not preserve address pinning. Setting
-`allowPrivateHosts: true` bypasses both DNS classification and the pinned
-dispatcher, leaving connection handling to the configured fetch.
+Ignoring the extension does not preserve address pinning. The explicit
+dispatcher also bypasses Undici's global dispatcher, including globally installed
+`ProxyAgent` / `EnvHttpProxyAgent` instances and their custom TLS configuration.
+The private HTTP/HTTPS agents do not inherit global-agent settings or the
+`NODE_USE_ENV_PROXY=1` / `--use-env-proxy` configuration. Additional direct TLS
+trust can be supplied through `NODE_EXTRA_CA_CERTS` at process startup without
+disabling certificate verification or DNS pinning.
+
+Proxy migration requires an explicit injected adapter and enforcement at the
+proxy's actual connection destination. The local validation lookup cannot bind
+a proxy's independent DNS resolution; the proxy must restrict the approved
+TestRail origin and reject prohibited destination addresses before connecting.
+The [README migration](../README.md#proxies-and-custom-certificate-authorities)
+shows how to select an application-owned proxy while retaining the local guard
+and makes that additional enforcement prerequisite explicit. Setting
+`allowPrivateHosts: true` bypasses both DNS classification and pinning entirely;
+it is an opt-out for trusted on-premise deployments, not a proxy compatibility fix.
+
+Custom `dnsLookup` answers follow the system resolver's full `{ address, family }`
+contract. Each IP literal must have its matching numeric `4` or `6` family;
+missing, zero, or mismatched families fail closed even for public addresses.
+These values now determine connection attempts, so a validation-only resolver
+that previously omitted or ignored the family must be updated. See the
+[complete resolver example](../README.md#custom-dns-resolvers).
 
 ### 2.6 Lifecycle
 
@@ -162,11 +183,13 @@ coalesced caller joins that loader's settlement independently of its result wait
 
 Scope creation is latched by the first `trackOperation` call and never cleared.
 Entering an `AsyncLocalStorage` installs context propagation process-wide and it
-cannot be undone — on Node 24, the runtime line exercised by CI, that is
+cannot be undone — on Node 24, the minimum runtime line exercised by CI, that is
 `AsyncContextFrame`, costing ~1% on promise traffic unrelated to this client.
-Embedders who never track are therefore never charged for it: before the latch,
-`startOperation` returns a
-handle whose `settled` simply follows the callback. One consequence is bounded
+Before the latch, `startOperation` returns a handle whose `settled` simply follows
+the callback. Multipart uploads independently enter an async context in
+`upload-transport.ts` to associate native diagnostic events with their attempt,
+even without `trackOperation`. Only processes that neither track operations nor
+upload avoid the library's context-propagation cost. One consequence is bounded
 and deliberate — a request already in flight when a process first engages
 tracking can be joined for its result but not for its post-result cleanup.
 
@@ -187,14 +210,29 @@ binds the driver-owned FormData File's stream factory to
 the operation scope. It observes each actual reader and its cancellation without
 mutating caller Blobs or replacing native multipart encoding. Cleanup prevents
 new streams and requests underlying cancellation; settlement still waits for
-pending reads and cancellation completion. Without a transport abort, cleanup
-errors active wrappers so the encoder cannot send a truncated file with a valid
-closing boundary. The HTTP pipeline first aborts the multipart transport after
-response processing, then closes active wrappers cleanly. At that point the
-network cannot send the truncated part, and clean closure lets native fetch's
-cloned multipart iterator finish without an unhandled rejection or a stuck
-cleanup promise. An unconsumed upload stream has never started and can be
-conclusively stopped.
+pending reads and cancellation completion. The HTTP pipeline requests transport
+abort after response processing, but the signal alone cannot prove that an
+injected or globally replaced fetch has stopped sending. Cleanup closes active
+wrappers cleanly only with confirmation from the pinned dispatcher or
+`upload-transport.ts`. The latter observes native diagnostics within a per-upload
+async scope, matching the origin, path, method, and request identity. A fully sent
+request body, a request error, or confirmed socket shutdown can establish that
+transmission stopped. For an unfinished HTTP/1 request, it destroys only the
+socket still owned by that request; a reassigned socket is left alone. When matching HTTP/2
+stream diagnostics are available, cleanup destroys only that upload's stream,
+preserving the shared session and unrelated streams. HTTP/2 matching requires
+the owned request's immediately preceding header event and expires before a
+later async turn. All diagnostic listeners are removed after cleanup.
+
+This confirmation lets native fetch's cloned multipart iterator finish without
+an unhandled rejection or a stuck cleanup promise, preserving the original
+FormData and configured global dispatcher. Missing or ambiguous transport
+evidence, including a custom fetch that ignores abort without exposing native
+diagnostics, keeps the conservative fallback: cleanup errors the wrappers so
+the encoder cannot send a truncated file with a valid closing boundary. An
+unconsumed upload stream has never started and can be conclusively stopped.
+All paths still await the observed source reads and cancellation before
+reporting operation settlement.
 
 Neither `trackOperation` nor `destroy()` aborts in-flight requests. Callbacks
 must return their application workflow promise; detached application timers are
@@ -577,6 +615,15 @@ set as non-optional fields.
 `outPayload` does not gate the payload on `--quiet`: `--out -` is an explicit
 request for those bytes on stdout, and `--quiet` suppresses commentary about a
 command, not the command's result. The ack is commentary, so it is gated.
+
+Filesystem attachment and BDD outputs pass through `safe-write.ts`. Without
+`--force`, exclusive creation refuses any existing entry. With `--force`, the
+helper opens without truncating, validates the descriptor as a regular file and
+checks its identity against the path, then truncates and writes the held inode.
+This intentionally excludes character devices such as `/dev/null`, FIFOs, and
+symlinks. To discard a payload, use `--out - > /dev/null` so the shell owns the
+device; the CLI still emits its acknowledgement to stderr. A stdout destination
+does not pass through the regular-file validator.
 
 Its TTY warning is derived from the payload rather than declared by the caller —
 a `Uint8Array` on a terminal warns, a string never does. `attachment get` cannot
