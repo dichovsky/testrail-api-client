@@ -679,6 +679,10 @@ describe('AddResultPayloadSchema', () => {
         expect(AddResultPayloadSchema.parse({ assignedto_id: 7 })).toEqual({ assignedto_id: 7 });
     });
 
+    it('counts an empty comment as given: the rule checks presence, and TestRail judges the content', () => {
+        expect(AddResultPayloadSchema.parse({ comment: '' })).toEqual({ comment: '' });
+    });
+
     it.each([
         ['an empty payload', {}],
         ['only non-content fields', { version: '1.2', elapsed: '5m', defects: 'BUG-1' }],

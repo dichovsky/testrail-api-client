@@ -34,13 +34,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   comment-only and assignee-only bodies. Nothing previously accepted is
   refused. Listed as breaking for typed and schema-deriving callers:
     - `AddResultPayload`, `AddResultForCasePayload` and
-      `AddResultForTestPayload` declare `status_id?: number`. Building payloads
+      `AddResultForTestPayload` make `status_id` optional
+      (`number | undefined`). Building payloads
       is unaffected; code that reads `payload.status_id` as a `number` must
       handle `undefined`.
     - The three schemas now carry a refinement. Under Zod 4, `.pick()`,
       `.omit()`, `.partial()` and `.merge()` throw on a refined object schema
-      (as they already did for `EditResultPayloadSchema`); `.extend()` and
-      `.safeExtend()` keep the rule; `z.toJSONSchema()` omits it.
+      (as they already did for `EditResultPayloadSchema`). `.extend()` keeps
+      the rule when it adds new keys, but throws when it redeclares an
+      existing one, such as `status_id` or `comment`; `.safeExtend()` keeps
+      the rule in both cases. `z.toJSONSchema()` omits it.
     - As before, the SDK methods forward payloads unchanged — the rule is
       enforced where the schemas are parsed (the CLI `--data` path), so a typed
       `{}` now compiles and reaches TestRail.
