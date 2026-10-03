@@ -15,6 +15,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Internal
+
+- Dev toolchain bumped to current latest: `vitest`/`@vitest/coverage-v8`
+  `5.0.3`, `eslint` `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node`
+  `26.6.4`, `fast-check` `4.10.2`, `prettier` `3.9.9`, `tsx` `4.23.15`. The
+  lockfile refresh also clears the transitive `brace-expansion` advisories
+  (GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p) that
+  `npm audit` reported against the dev tree. `zod` was already at latest; no
+  runtime or consumer-visible change.
+
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 
 A major because the supported-runtime floor moves. The bulk of the release is
