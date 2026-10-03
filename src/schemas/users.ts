@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TESTRAIL_USER_EMAIL_PATTERN } from '../constants.js';
 import { zObject, type KnownResponse } from './common.js';
 
 // ── Identity & User Schemas ───────────────────────────────────────────────────
@@ -9,7 +10,7 @@ export const UserSchema = zObject({
     // Response field: faithfully deserialize whatever TestRail returns. RFC 5321
     // permits non-FQDN domains (single-label, domain-literal) and IDN addresses,
     // which self-hosted / LDAP / AD / SSO instances legitimately store, so this is
-    // a bare string — format enforcement lives on the write payloads
+    // a bare string — the shape check lives on the write payloads
     // (UserAddPayloadSchema / UserUpdatePayloadSchema) and client config, not here (#236).
     email: z.string(),
     is_active: z.boolean(),
@@ -85,6 +86,10 @@ export const UpdateGroupPayloadSchema = zObject({
 
 export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>;
 
+// One shape rule for a user's email on both write payloads, shared with the
+// get_user_by_email lookup through TESTRAIL_USER_EMAIL_PATTERN.
+const userEmailField = z.string().regex(TESTRAIL_USER_EMAIL_PATTERN, { message: 'Invalid email format' });
+
 /**
  * User write-payload schemas (TestRail 7.3+). Mirror the group/milestone
  * payload pattern: declared once here as the source of truth for both the
@@ -98,10 +103,15 @@ export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>;
  * PATCH semantics; an empty `{}` body is accepted by TestRail and returns
  * the unchanged user.
  *
+ * Both check `email` with the same permissive shape rule as the
+ * `get_user_by_email` lookup (`TESTRAIL_USER_EMAIL_PATTERN`), not
+ * `z.string().email()`: an address the client can look up must also be one it
+ * can create or set, including the single-label (`ada@corp`) and
+ * domain-literal (`user@[192.168.1.1]`) forms self-hosted instances store.
  */
 export const UserAddPayloadSchema = zObject({
     name: z.string().min(1),
-    email: z.string().email(),
+    email: userEmailField,
     is_active: z.boolean().optional(),
     is_admin: z.boolean().optional(),
     role_id: z.number().int().positive().optional(),
@@ -116,7 +126,7 @@ export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>;
 
 export const UserUpdatePayloadSchema = zObject({
     name: z.string().min(1).optional(),
-    email: z.string().email().optional(),
+    email: userEmailField.optional(),
     is_active: z.boolean().optional(),
     is_admin: z.boolean().optional(),
     role_id: z.number().int().positive().optional(),

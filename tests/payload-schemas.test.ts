@@ -11,6 +11,7 @@
  * these tests are the safety net that prevents silent drift.
  */
 import { describe, it, expect, expectTypeOf } from 'vitest';
+import { TESTRAIL_USER_EMAIL_PATTERN } from '../src/constants.js';
 import {
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
@@ -72,6 +73,7 @@ import type {
     AddResultPayload,
     UpdateProjectUserAssignmentPayload,
 } from '../src/schemas.js';
+import { USER_EMAIL_SHAPE_CASES } from './helpers.js';
 
 describe('AddCasePayloadSchema', () => {
     it('parses a minimal valid payload (title only)', () => {
@@ -1749,6 +1751,50 @@ describe('UpdateConfigurationPayloadSchema', () => {
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateConfigurationPayloadSchema.parse({ custom_version: '120' }) as Record<string, unknown>;
         expect(parsed['custom_version']).toBe('120');
+    });
+});
+
+/**
+ * The regex patterns attached to a string schema (unwrapping `.optional()`).
+ * Used to prove both user write payloads reference the lookup's one shared
+ * email pattern rather than a copy of it.
+ */
+function stringPatterns(schema: unknown): readonly unknown[] {
+    interface Node {
+        readonly _zod: {
+            readonly def: {
+                readonly innerType?: Node;
+                readonly checks?: readonly { readonly _zod: { readonly def: { readonly pattern?: unknown } } }[];
+            };
+        };
+    }
+    let node = schema as Node;
+    while (node._zod.def.innerType !== undefined) node = node._zod.def.innerType;
+    return (node._zod.def.checks ?? []).map((check) => check._zod.def.pattern).filter((p) => p !== undefined);
+}
+
+describe('user email shape (shared by get_user_by_email, add_user and update_user)', () => {
+    it('both write payloads use the shared pattern object, not a copy or z.email()', () => {
+        expect(stringPatterns(UserAddPayloadSchema.shape.email)).toEqual([TESTRAIL_USER_EMAIL_PATTERN]);
+        expect(stringPatterns(UserAddPayloadSchema.shape.email)[0]).toBe(TESTRAIL_USER_EMAIL_PATTERN);
+        expect(stringPatterns(UserUpdatePayloadSchema.shape.email)[0]).toBe(TESTRAIL_USER_EMAIL_PATTERN);
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.accepted)('add and update accept %s', (email) => {
+        expect(UserAddPayloadSchema.parse({ name: 'Ada', email })).toEqual({ name: 'Ada', email });
+        expect(UserUpdatePayloadSchema.parse({ email })).toEqual({ email });
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.refused)('add and update refuse %s (%j)', (_label, email) => {
+        for (const result of [
+            UserAddPayloadSchema.safeParse({ name: 'Ada', email }),
+            UserUpdatePayloadSchema.safeParse({ email }),
+        ]) {
+            expect(result.success).toBe(false);
+            expect(result.error?.issues).toEqual([
+                expect.objectContaining({ path: ['email'], message: 'Invalid email format' }),
+            ]);
+        }
     });
 });
 

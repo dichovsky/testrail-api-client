@@ -19,6 +19,18 @@ export const DEFAULT_CACHE_CLEANUP_INTERVAL_MS = 60000; // 1 minute
 export const MAX_NODE_TIMER_DELAY_MS = 2_147_483_647;
 /** Established constructor-compatible email syntax for TestRail credentials. */
 export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * Shape check for a TestRail user's email address, shared by the
+ * `get_user_by_email` lookup and the `add_user` / `update_user` payloads:
+ * exactly one '@' with non-empty, whitespace-free local and domain parts.
+ * Deliberately does NOT require a dotted (FQDN) domain — RFC 5321 permits
+ * single-label domains (admin@localhost, user@corp) and domain-literals
+ * (user@[192.168.1.1]), which self-hosted / LDAP / AD / SSO instances
+ * legitimately store, so they must reach the API rather than being rejected
+ * client-side (#236). Authoritative format validation is TestRail's
+ * responsibility. The credential email above keeps its own, separate syntax.
+ */
+export const TESTRAIL_USER_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 export const DEFAULT_MAX_CACHE_SIZE = 1000;
 export const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100;
 export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000; // 1 minute

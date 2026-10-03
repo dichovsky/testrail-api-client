@@ -30,7 +30,7 @@ import {
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
-import { captureOutput, makeActionSpec } from './helpers.js';
+import { USER_EMAIL_SHAPE_CASES, captureOutput, makeActionSpec } from './helpers.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import {
     handleResultAdd,
@@ -3809,6 +3809,20 @@ describe('handleUserAdd', () => {
         await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
     });
 
+    it.each(USER_EMAIL_SHAPE_CASES.accepted)('accepts the email %s (same shape rule as user lookup)', async (email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { dataFlag: JSON.stringify({ name: 'Ada', email }) });
+        await handleUserAdd(ctx);
+        expect(client.users.addUser).toHaveBeenCalledWith({ name: 'Ada', email });
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.refused)('refuses an email with %s (%j)', async (_label, email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { dataFlag: JSON.stringify({ name: 'Ada', email }) });
+        await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed[\s\S]*Invalid email format/);
+        expect(client.users.addUser).not.toHaveBeenCalled();
+    });
+
     it('accepts the documented access-control fields', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, {
@@ -3863,6 +3877,20 @@ describe('handleUserUpdate', () => {
     it('rejects body with invalid email format', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['88'], dataFlag: '{"email":"not-an-email"}' });
         await expect(handleUserUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.accepted)('accepts the email %s (same shape rule as user lookup)', async (email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['88'], dataFlag: JSON.stringify({ email }) });
+        await handleUserUpdate(ctx);
+        expect(client.users.updateUser).toHaveBeenCalledWith(88, { email });
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.refused)('refuses an email with %s (%j)', async (_label, email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['88'], dataFlag: JSON.stringify({ email }) });
+        await expect(handleUserUpdate(ctx)).rejects.toThrow(/validation failed[\s\S]*Invalid email format/);
+        expect(client.users.updateUser).not.toHaveBeenCalled();
     });
 
     it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(

@@ -45,6 +45,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
       enforced where the schemas are parsed (the CLI `--data` path), so a typed
       `{}` now compiles and reaches TestRail.
 
+### Fixed
+
+- **`user add` / `user update` accept every address `user get-by-email` can
+  look up.** `UserAddPayloadSchema` and `UserUpdatePayloadSchema` checked
+  `email` with `z.string().email()`, which refuses the single-label and
+  domain-literal addresses (`ada@corp`, `user@localhost`,
+  `user@[192.168.1.1]`) that self-hosted / LDAP / AD / SSO instances store and
+  that `getUserByEmail()` deliberately admits since #236. All three now share
+  one shape rule, `TESTRAIL_USER_EMAIL_PATTERN` in `src/constants.ts`: exactly
+  one `@` with non-empty, whitespace-free local and domain parts. Only
+  widening — everything `z.string().email()` accepted still passes — and the
+  inferred types are unchanged. A refused write address now reports
+  `Invalid email format` (the lookup's message) instead of Zod's
+  `Invalid email address`, and schema introspection sees a `regex` check
+  where it saw the `email` format.
+
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 
 A major because the supported-runtime floor moves. The bulk of the release is

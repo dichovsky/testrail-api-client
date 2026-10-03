@@ -981,6 +981,11 @@ fields are `is_active`, `is_admin`, `role_id`, `group_ids`, `mfa_required`,
 passes unknown future fields through, but it does not advertise `password` or
 `language`, which are absent from the 10.7 request table.
 
+`email` (here and on `user update`) gets the same shape check as
+`user get-by-email`: one `@` with non-empty, whitespace-free parts. Intranet
+addresses such as `ada@corp`, `admin@localhost` or `user@[192.168.1.1]` are
+accepted; TestRail remains the authority on whether an address is usable.
+
 ```bash
 # Minimal documented request
 testrail user add --data '{"name":"Alice Smith","email":"alice@example.com"}'

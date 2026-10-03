@@ -16,11 +16,13 @@ export async function handleUserList(ctx: HandlerContext): Promise<void> {
  * `user get-by-email --user-email <addr>` — look up a single user by email.
  * The lookup flag is deliberately distinct from the authentication `--email`
  * so an administrator can retrieve another user's record.
- * The client-side `EMAIL_REGEX` check in `src/modules/users.ts` rejects
- * malformed addresses with `TestRailValidationError` before any network
- * call, so format validation isn't duplicated at the CLI boundary. The
- * trimmed value is passed to `getUserByEmail()` so a trailing whitespace
- * typo in `--email` does not slip past the strict regex.
+ * The client-side `TESTRAIL_USER_EMAIL_PATTERN` check in
+ * `UsersModule.getUserByEmail()` (the same shape rule `user add` / `user
+ * update` bodies use) rejects malformed addresses with
+ * `TestRailValidationError` before any network call, so format validation
+ * isn't duplicated at the CLI boundary. The trimmed value is passed to
+ * `getUserByEmail()` so a trailing whitespace typo in `--user-email` does not
+ * trip that whitespace-free check.
  *
  * Extra positional args are rejected fail-fast with `IdParseError` for
  * parity with the rest of the CLI's arg-parse failures.

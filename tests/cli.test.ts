@@ -2551,9 +2551,9 @@ describe('CLI', () => {
         // ── user get-by-email ─────────────────────────────────────────────
         // `--user-email` is deliberately separate from the authentication
         // `--email`, allowing an administrator to look up another user. The
-        // handler enforces non-empty client-side; client-side EMAIL_REGEX
-        // (src/modules/users.ts) rejects malformed addresses before any
-        // network call.
+        // handler enforces non-empty client-side; client-side
+        // TESTRAIL_USER_EMAIL_PATTERN (src/modules/users.ts) rejects malformed
+        // addresses before any network call.
 
         it('user get-by-email exits 0 and calls get_user_by_email with the email query param', async () => {
             const { exitCodes } = await runCli(
