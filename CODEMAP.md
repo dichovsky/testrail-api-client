@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "dd7cd1c0a8b59cd5b83231f2987a57407009e0706a93356287914eb211fa3685",
+  "sourceHash": "603719e74023e7c852a3572313c231b828183bee73e2896b3f23ceae3a76a1d3",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6971,27 +6971,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "raceAttemptDeadline",
               "kind": "method",
-              "line": 1003
+              "line": 1008
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1034
+              "line": 1027
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1060
+              "line": 1053
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1096
+              "line": 1089
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1108
+              "line": 1101
             }
           ]
         }

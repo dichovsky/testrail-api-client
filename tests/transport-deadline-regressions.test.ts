@@ -14,6 +14,97 @@ describe('transport deadline regressions', () => {
         vi.useRealTimers();
     });
 
+    it.each([
+        { phase: 'DNS', timeout: 1_000, elapsed: 20, aggregate: true },
+        { phase: 'DNS', timeout: 20, elapsed: 20, aggregate: true },
+        { phase: 'DNS', timeout: 10, elapsed: 10, aggregate: false },
+        { phase: 'fetch', timeout: 1_000, elapsed: 20, aggregate: true },
+        { phase: 'fetch', timeout: 20, elapsed: 20, aggregate: true },
+        { phase: 'fetch', timeout: 10, elapsed: 10, aggregate: false },
+    ])(
+        'preserves the $phase deadline owner when timeout $timeout fires before the wall clock',
+        async ({ phase, timeout, elapsed, aggregate }) => {
+            vi.useFakeTimers();
+            const now = vi.spyOn(Date, 'now').mockReturnValue(0);
+            let resolveDns!: (addresses: { address: string; family: number }[]) => void;
+            const dns = new Promise<{ address: string; family: number }[]>((resolve) => {
+                resolveDns = resolve;
+            });
+            const fetch = vi.fn<typeof globalThis.fetch>(
+                (_url, init) =>
+                    new Promise((_resolve, reject) => {
+                        init?.signal?.addEventListener(
+                            'abort',
+                            () => {
+                                reject(new globalThis.DOMException('Aborted', 'AbortError'));
+                            },
+                            { once: true },
+                        );
+                    }),
+            );
+            const client = new TestRailClient({
+                baseUrl: 'https://example.test',
+                email: 'agent@example.test',
+                apiKey: 'key',
+                timeout,
+                cacheCleanupInterval: 0,
+                allowPrivateHosts: phase === 'fetch',
+                dnsLookup: () => dns,
+                fetch,
+            });
+            clients.push(client);
+            const operation = client.trackOperation(() => client.projects.getAllProjects({ maxDurationMs: 20 }));
+            const result = operation.result.catch((error: unknown) => error);
+            const settled = vi.fn();
+            void operation.settled.then(settled);
+            await vi.advanceTimersByTimeAsync(0);
+
+            // Node's timer clock can reach its deadline while Date.now still reads
+            // one millisecond short. The attempt timer is registered first.
+            now.mockReturnValue(elapsed - 1);
+            await vi.advanceTimersByTimeAsync(elapsed);
+            expect(await result).toMatchObject(
+                aggregate
+                    ? { name: 'TestRailPaginationError', reason: 'max_duration', pagesFetched: 0, itemsFetched: 0 }
+                    : { name: 'TestRailApiError', status: 408, statusText: `Request timeout after ${timeout}ms` },
+            );
+            if (phase === 'DNS') {
+                expect(settled).not.toHaveBeenCalled();
+                expect(fetch).not.toHaveBeenCalled();
+                resolveDns([{ address: '93.184.216.34', family: 4 }]);
+            } else {
+                expect(fetch).toHaveBeenCalledOnce();
+                expect(fetch.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+            }
+            await operation.settled;
+            expect(vi.getTimerCount()).toBe(0);
+        },
+    );
+
+    it('does not label an adapter AbortError as aggregate expiry before the timer fires', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(Date, 'now').mockReturnValue(0);
+        const fetch = vi
+            .fn<typeof globalThis.fetch>()
+            .mockRejectedValue(new globalThis.DOMException('Aborted', 'AbortError'));
+        const client = new TestRailClient({
+            baseUrl: 'https://example.test',
+            email: 'agent@example.test',
+            apiKey: 'key',
+            timeout: 1_000,
+            allowPrivateHosts: true,
+            fetch,
+        });
+        clients.push(client);
+
+        await expect(client.projects.getAllProjects({ maxDurationMs: 20 })).rejects.toMatchObject({
+            name: 'TestRailApiError',
+            status: 408,
+            statusText: 'Request timeout after 20ms',
+        });
+        expect(fetch.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
+    });
+
     it('does not consume a rate-limit slot when the aggregate expires before fetch admission', async () => {
         const fetch = vi.fn().mockResolvedValue(new Response('{"id":1}', { status: 200 }));
         const client = new TestRailClient({
