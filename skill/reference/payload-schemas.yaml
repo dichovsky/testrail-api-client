@@ -130,9 +130,9 @@ schemas:
 
   AddResultPayloadSchema:
     actions: ["result add", "result add-by-test"]
-    req:
-      - "status_id:number"
+    req: []
     opt:
+      - "status_id:number"
       - "comment:string"
       - "version:string"
       - "elapsed:string"

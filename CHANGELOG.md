@@ -15,6 +15,36 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed — BREAKING
+
+- **A result no longer needs a `status_id`; it needs at least one of
+  `status_id`, `comment` or `assignedto_id`.** TestRail's
+  [Results](https://support.testrail.com/hc/en-us/articles/7077819312404-Results)
+  reference now settles the 6.0.0 known gap: `add_result` "adds a new test
+  result, comment or assigns a test", `add_results` and `add_results_for_cases`
+  require "at least one of the status, comment or assignee fields for each
+  result", and `add_result_for_case` takes the same fields as `add_result`.
+  `AddResultPayloadSchema`, `AddResultForCasePayloadSchema` and
+  `AddResultForTestPayloadSchema` (and so the `results` items of
+  `AddResultsForCasesPayloadSchema` / `AddResultsPayloadSchema`) make
+  `status_id` optional and refuse a result with none of the three, with
+  `At least one of status_id, comment or assignedto_id is required` (bulk issues
+  carry the entry's `results.<index>` path). `testrail result add`,
+  `add-by-test`, `add-bulk` and `add-bulk-by-test` therefore accept
+  comment-only and assignee-only bodies. Nothing previously accepted is
+  refused. Listed as breaking for typed and schema-deriving callers:
+    - `AddResultPayload`, `AddResultForCasePayload` and
+      `AddResultForTestPayload` declare `status_id?: number`. Building payloads
+      is unaffected; code that reads `payload.status_id` as a `number` must
+      handle `undefined`.
+    - The three schemas now carry a refinement. Under Zod 4, `.pick()`,
+      `.omit()`, `.partial()` and `.merge()` throw on a refined object schema
+      (as they already did for `EditResultPayloadSchema`); `.extend()` and
+      `.safeExtend()` keep the rule; `z.toJSONSchema()` omits it.
+    - As before, the SDK methods forward payloads unchanged — the rule is
+      enforced where the schemas are parsed (the CLI `--data` path), so a typed
+      `{}` now compiles and reaches TestRail.
+
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 
 A major because the supported-runtime floor moves. The bulk of the release is

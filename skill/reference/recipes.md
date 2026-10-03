@@ -133,6 +133,10 @@ Where `/tmp/results.json` has shape:
 }
 ```
 
+Each entry needs its `case_id` plus at least one of `status_id`, `comment` or
+`assignedto_id`; the CLI rejects the whole body, naming the offending entry,
+before any API call when one has none of them.
+
 ### 13. Close a run when CI finishes
 
 <!-- recipe-for: run:close -->
@@ -1054,6 +1058,17 @@ Unlike the per-case endpoint (`result add`), this path does not require a
 
 ```bash
 testrail result add-by-test 123 --data '{"status_id":1,"comment":"PASS — verified","elapsed":"45s","version":"2.4.1"}'
+```
+
+`status_id` is optional: TestRail requires at least one of `status_id`,
+`comment` or `assignedto_id` per result, and the CLI rejects a body with none of
+them before any API call. Omit the status to add a comment or reassign the test
+without changing its status (the stored result reads back with
+`status_id: null`):
+
+```bash
+testrail result add-by-test 123 --data '{"comment":"Investigating — see BUG-42"}'
+testrail result add-by-test 123 --data '{"assignedto_id":7}'
 ```
 
 Default `status_id` mapping (project-specific values may differ — verify with
