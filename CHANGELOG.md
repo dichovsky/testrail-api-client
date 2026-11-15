@@ -14,6 +14,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed — BREAKING
 
+- **Internal response checks no longer call public `parse()`.** This affects previews from `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()`. It also affects `bdd.addBdd()` and `bdd.updateBdd()`. Subclass or instance overrides of `parse()` previously handled these replies; they no longer run for them. Direct `client.parse()` calls retain their behavior. Migrate mismatch reporting or strict validation to `onSchemaMismatch`; apply response transformations after awaiting the method. See [SDK response validation](docs/SDK.md#response-validation).
 - SDK upload methods now consume supplied file descriptors even when ID validation, request validation, or a destroyed client rejects the call. Callers must not close or reuse these descriptors after calling an upload method.
 - Node.js 26 is now the minimum supported runtime. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
 - CI now tests Node 26 on Linux, Windows, and macOS. Both publish jobs pin Node 26.13.1.
@@ -22,7 +23,6 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - **Delete modes are fixed when called.** `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()` now snapshot `options.soft`. Previously, changing it while a request was pending could change response validation and whether the method returned a preview. The dispatched mode now determines the URL, response schema, and return value.
-- **Internal response checks no longer call public `parse()`.** This affects the five delete previews above, plus `bdd.addBdd()` and `bdd.updateBdd()`. Subclass or instance overrides of `parse()` previously handled these replies; they no longer run for them. Direct `client.parse()` calls retain their behavior. Migrate mismatch reporting or strict validation to `onSchemaMismatch`; apply response transformations after awaiting the method. See [SDK response validation](docs/SDK.md#response-validation).
 - CLI text and binary stdin now use explicit runtime readers. Binary limits, timeouts, and dry-run behavior remain unchanged.
 - Multipart uploads now have one owner for transport observation and cleanup. Released upload sources cannot reopen their original paths.
 - Updated Zod to `^4.6.7`. Zod remains the only runtime dependency.
