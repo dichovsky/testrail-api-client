@@ -23,7 +23,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import type { Mock } from 'vitest';
 import { handleRunWatch } from '../src/cli/handlers/run-watch.js';
-import { captureOutput, makeActionSpec } from './helpers.js';
+import { makeStdin, captureOutput, makeActionSpec } from './helpers.js';
 import { TestRailApiError } from '../src/errors.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -89,6 +89,7 @@ function buildCtx(
             ...(overrides.once === true && { once: true }),
         },
         pagination: { mode: 'items' },
+        stdin: makeStdin(),
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
         force: false,
@@ -588,6 +589,7 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
             actionSpec: makeActionSpec({ resource: 'run', action: 'watch' }),
             args: { pathParams: ['42'] },
             pagination: { mode: 'items' as const },
+            stdin: makeStdin(),
             bodyInput: {},
             dryRun: false,
             force: false,

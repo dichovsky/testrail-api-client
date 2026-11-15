@@ -224,14 +224,22 @@ can later share its result but cannot retroactively track post-result cleanup.
 Multipart uploads also use an asynchronous context in `src/upload-transport.ts`
 to associate native diagnostic events with the upload attempt.
 
-`src/upload-source.ts` owns path normalization, `openAsBlob`, `FormData`, stream
-wrappers, and file closure. Its `build()` runs once; a retry cannot reopen a
-closed source. Cleanup aborts transport and requires evidence that transmission
-stopped before closing wrappers normally. For HTTP/1 it destroys a socket only
+`src/upload-lifetime.ts` owns each multipart upload from SDK method entry through cleanup.
+It accepts the supplied descriptor before ID validation, request validation, and client-state checks.
+Nested request calls share that owner without mutating the caller's input.
+The core retains DNS checks, deadlines, rate-limit admission, and response handling.
+Body preparation finishes before admission; sending happens once after admission.
+
+`src/upload-source.ts` implements path normalization, `openAsBlob`, `FormData`,
+stream wrappers, and file closure for the upload owner.
+A source cannot build again after its first build or release.
+The owner aborts transport and requires evidence that transmission stopped before closing wrappers normally.
+For HTTP/1 it destroys a socket only
 if that socket still belongs to the request; for HTTP/2 it destroys only the
 matching stream, preserving the shared session. Without confirmation, such as
 when custom fetch ignores abort, wrappers fail with an error so the encoder
 cannot finish a truncated file with a valid multipart boundary.
+Cleanup always removes transport observers and releases the supplied descriptor.
 
 Neither tracking nor disposal cancels a workflow. Callers must return its full
 promise from the tracking callback; unawaited application timers are outside the
@@ -419,7 +427,7 @@ mapping generator, and `resolveActionInvocation()`. Help also consumes
 ### 6.4 Handler conventions: `src/cli/handlers/`
 
 Every `Handler` receives a `HandlerContext` with the spec, client, projected
-arguments, pagination, body input, execution flags, and output writers.
+arguments, pagination, body input, binary stdin, execution flags, and output writers.
 
 | Handler             | Execution order                                                                                                               |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -434,6 +442,12 @@ attachment uploads/deletion, and group creation. `setupUpload()` passes
 `read: !ctx.dryRun` to `resolveFile()` so previews do not drain binary stdin.
 Contributor recipes belong in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+`CliRuntime.stdin` supplies terminal status and separate text and binary readers.
+Text reads stay synchronous; binary reads enforce their own byte cap and deadline.
+`src/cli.ts` supplies the real stream and descriptor. Other modules receive these inputs explicitly.
+Upload handlers forward the binary reader through `HandlerContext`, `setupUpload()`, and `resolveFile()`.
+Tests provide independent input streams without replacing process globals.
+
 ### 6.5 Cross-cutting CLI infrastructure
 
 | Owner in `src/cli/`                      | Responsibility                                                                                            |
@@ -441,8 +455,8 @@ Contributor recipes belong in [CONTRIBUTING.md](../CONTRIBUTING.md).
 | `auth.ts`, `ids.ts`                      | Authentication resolution and integer parsing                                                             |
 | `flags.ts`, `action-invocation.ts`       | Flag catalog, token checks, capability projections, and allowed/required flags before auth or file writes |
 | `pagination.ts`                          | Validate modes/controls before client construction and select item, page, or aggregate output             |
-| `body.ts`, `stdin.ts`                    | Select JSON input, bound stdin, and validate write payloads                                               |
-| `file-input.ts`                          | Open with `O_NONBLOCK` and `O_NOFOLLOW` where supported; require regular files and bound stdin uploads    |
+| `body.ts`, `stdin.ts`                    | Select JSON input, bound explicit text and binary readers, and validate write payloads                    |
+| `file-input.ts`                          | Require regular upload files and select file or injected binary stdin input                               |
 | `file-output.ts`, `safe-write.ts`        | Validate paths and write through a held descriptor                                                        |
 | `response-validation.ts`                 | Build redacted, deduplicated schema-mismatch warnings or strict errors                                    |
 | `diagnostics.ts`                         | Reserve private files, redact failure records, and own finalization                                       |

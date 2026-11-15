@@ -11,6 +11,7 @@
  *     dry-run skips API call and emits a preview with stat-only size
  *   - delete: --yes required, --dry-run wins over --yes
  */
+import type { BinaryInputStream } from '../src/cli/stdin.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -33,9 +34,11 @@ import {
     handleAttachmentDelete,
 } from '../src/cli/handlers/attachment-write.js';
 import type { TestRailClient } from '../src/client.js';
-import { captureOutput, type CapturedOutput, makeActionSpec } from './helpers.js';
+import { makeBinaryStdin, captureOutput, type CapturedOutput, makeActionSpec } from './helpers.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
+
+let inputStream: BinaryInputStream & { isTTY: boolean | undefined } = Object.assign(Readable.from([]), { isTTY: true });
 
 interface MockedClient {
     attachments: {
@@ -115,6 +118,7 @@ function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx 
             ...(overrides.soft !== undefined && { soft: overrides.soft }),
         },
         pagination: parseCliPagination(overrides),
+        stdin: makeBinaryStdin(inputStream, inputStream.isTTY === true),
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
         force: overrides.force ?? false,
@@ -443,26 +447,17 @@ describe('attachment upload handlers', () => {
 // ── --file '-' (stdin upload) ──────────────────────────────────────────────
 
 describe("attachment upload handlers with --file '-'", () => {
-    const ORIG_STDIN = process.stdin;
-    const ORIG_IS_TTY = process.stdin.isTTY;
+    const ORIG_STDIN = inputStream;
+    const ORIG_IS_TTY = inputStream.isTTY;
 
     afterEach(() => {
-        Object.defineProperty(process, 'stdin', {
-            value: ORIG_STDIN,
-            configurable: true,
-            writable: false,
-        });
-        (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+        inputStream = ORIG_STDIN;
+        inputStream.isTTY = ORIG_IS_TTY;
     });
 
     function stubStdin(bytes: Uint8Array | string): void {
         const readable = Readable.from(typeof bytes === 'string' ? Buffer.from(bytes) : Buffer.from(bytes));
-        (readable as { isTTY?: boolean }).isTTY = false;
-        Object.defineProperty(process, 'stdin', {
-            value: readable,
-            configurable: true,
-            writable: false,
-        });
+        inputStream = Object.assign(readable, { isTTY: false });
     }
 
     it('add-to-case reads bytes from stdin and uploads with default filename', async () => {
@@ -495,12 +490,7 @@ describe("attachment upload handlers with --file '-'", () => {
                 this.push(null);
             },
         });
-        (readable as { isTTY?: boolean }).isTTY = false;
-        Object.defineProperty(process, 'stdin', {
-            value: readable,
-            configurable: true,
-            writable: false,
-        });
+        inputStream = Object.assign(readable, { isTTY: false });
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: '-', dryRun: true });
         await handleAttachmentAddToCase(ctx);
@@ -518,7 +508,7 @@ describe("attachment upload handlers with --file '-'", () => {
     });
 
     it('add-to-case --file - rejects when stdin is a TTY', async () => {
-        (process.stdin as { isTTY?: boolean }).isTTY = true;
+        inputStream.isTTY = true;
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-' });
         await expect(handleAttachmentAddToCase(ctx)).rejects.toThrow(/stdin to be piped/);

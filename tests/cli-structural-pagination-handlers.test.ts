@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
-import { captureOutput, makeActionSpec } from './helpers.js';
+import { makeStdin, captureOutput, makeActionSpec } from './helpers.js';
 import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
@@ -107,6 +107,7 @@ function buildContext(client: MockClient, fixture: InvocationFixture): { ctx: Ha
                 maxDurationMs,
                 maxBytes,
             }),
+            stdin: makeStdin(),
             bodyInput: {},
             dryRun: false,
             force: false,

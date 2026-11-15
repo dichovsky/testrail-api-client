@@ -32,3 +32,13 @@ The `runReport` and `runCrossProjectReport` methods (`src/modules/reports.ts`) u
 A fresh read is a GET request that requires current data without modifying server state. The client bypasses cache reads, cache writes, and in-flight request sharing.
 
 Bounded `getAll*()` pagination (`src/pagination.ts`) uses this intent. Caching individual pages can mix data from different times and evict unrelated cache entries.
+
+## Upload ownership
+
+Upload ownership is the SDK's responsibility for a supplied file descriptor from an upload method call through cleanup.
+
+Ownership starts before ID validation and client-state checks. A rejected upload still releases its descriptor. Each upload requires a separately opened descriptor. Callers must not close or reuse a descriptor after passing it to an upload method.
+
+The **upload lifetime** covers this ownership, body preparation, transport observation, and cleanup. Nested SDK and request calls share one lifetime. An abort request alone does not prove that transmission stopped. Cleanup uses transport evidence to prevent an incomplete file from appearing complete.
+
+A caller-visible timeout can occur before transport work settles. `trackOperation().settled` remains the way to wait for all associated work.

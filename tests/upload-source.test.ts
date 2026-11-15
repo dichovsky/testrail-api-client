@@ -1,8 +1,9 @@
 import { closeSync, fstatSync, mkdtempSync, openSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createUploadSource } from '../src/upload-source.js';
+import { prepareMultipartUpload, withMultipartUpload } from '../src/upload-lifetime.js';
 
 /**
  * Descriptors opened by a test, paired with the inode they were opened on.
@@ -158,6 +159,17 @@ describe('createUploadSource', () => {
         }).not.toThrow();
     });
 
+    it('refuses to build a released source instead of reopening its replaced path', async () => {
+        const { path, fd } = scratchFile('ORIGINAL');
+        const source = createUploadSource({ path, fd }, 'evidence.txt');
+
+        source.release();
+        expect(isOpen(fd)).toBe(false);
+        swapPathContents(path, 'REPLACEMENT');
+
+        await expect(source.build()).rejects.toThrow(/released|consumed/);
+    });
+
     it('appends under the field name the stream wrapper looks for', async () => {
         // The builder and the wrapper used to agree on this by both importing a
         // shared constant across two files; they now live in one module. If they
@@ -165,5 +177,52 @@ describe('createUploadSource', () => {
         const built = await createUploadSource(new globalThis.Blob(['x']), 'evidence.txt').build();
         expect([...built.body.keys()]).toEqual(['attachment']);
         built.cleanup();
+    });
+});
+
+describe('multipart lifetime', () => {
+    it('releases an unprepared descriptor and preserves the callback failure', async () => {
+        const file = scratchFile('payload');
+        const failure = new Error('request validation failed');
+
+        await expect(
+            withMultipartUpload({ kind: 'multipart', file, filename: 'evidence.txt' }, () => {
+                throw failure;
+            }),
+        ).rejects.toBe(failure);
+
+        expect(isOpen(file.fd)).toBe(false);
+    });
+
+    it('nested scopes share one terminal lifetime and leave a subsequently opened descriptor alone', async () => {
+        const file = scratchFile('upload');
+        let subsequent: ReturnType<typeof scratchFile> | undefined;
+
+        await withMultipartUpload({ kind: 'multipart', file, filename: 'evidence.txt' }, async (body) => {
+            await withMultipartUpload(body, () => Promise.resolve());
+            expect(isOpen(file.fd)).toBe(false);
+            subsequent = scratchFile('unrelated');
+        });
+
+        if (subsequent === undefined) throw new Error('Expected a subsequent descriptor');
+        expect(readFileSync(subsequent.fd, 'utf8')).toBe('unrelated');
+    });
+
+    it('revokes a prepared send when its owning scope finishes without sending', async () => {
+        const file = scratchFile('payload');
+        const fetch = vi.fn<typeof globalThis.fetch>();
+        const send = await withMultipartUpload({ kind: 'multipart', file, filename: 'evidence.txt' }, (body) =>
+            prepareMultipartUpload(body, {
+                url: 'https://example.testrail.io/index.php?/api/v2/add_attachment_to_case/1',
+                options: { method: 'POST' },
+                controller: new AbortController(),
+                pinnedDispatcher: undefined,
+                fetch,
+            }),
+        );
+
+        expect(isOpen(file.fd)).toBe(false);
+        expect(() => send()).toThrow(/consumed/);
+        expect(fetch).not.toHaveBeenCalled();
     });
 });

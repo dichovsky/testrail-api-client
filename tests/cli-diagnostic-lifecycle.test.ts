@@ -26,7 +26,10 @@ vi.mock('../src/cli/auth.js', async (importOriginal) => {
     const real = await importOriginal<typeof import('../src/cli/auth.js')>();
     return { ...real, resolveAuth: vi.fn(real.resolveAuth) };
 });
-vi.mock('../src/cli/stdin.js', () => ({ readBoundedStdin: vi.fn().mockReturnValue('offline-placeholder') }));
+vi.mock('../src/cli/stdin.js', () => ({
+    readBoundedStdin: vi.fn().mockReturnValue('offline-placeholder'),
+    readStdinBinary: vi.fn(),
+}));
 
 const nativePlatform = process.platform;
 const originalArgv = process.argv.slice();

@@ -140,6 +140,24 @@ Return the complete workflow promise from the callback. Tracking includes nested
 A request started before the first `trackOperation` call can share its result, but tracking cannot include its later cleanup.
 See [architecture](ARCHITECTURE.md) for resource ownership and upload cleanup mechanics.
 
+## Upload files
+
+Upload methods accept `Blob`, `File`, `Uint8Array`, or `{ path, type?, fd? }` inputs.
+With `path` alone, the SDK opens the file for streaming when preparing the request.
+
+Passing an open `fd` transfers responsibility for closing it to the SDK when you call the upload method.
+This rule includes invalid IDs, invalid request options, and calls after `destroy()`.
+Open a separate descriptor for each upload. Do not close or reuse it after the call.
+Existing callers that closed descriptors after early rejection must remove that cleanup.
+
+On macOS and Linux, uploads read through the descriptor to preserve the originally opened file.
+Other platforms close the descriptor during preparation and read through `path`.
+The SDK does not mutate your input object or caller-owned `Blob`.
+
+A timeout can arrive before all transport work finishes.
+Use `trackOperation().settled` before deleting temporary files or releasing resources needed by unfinished work.
+Multipart uploads never retry automatically.
+
 ## Caching and retries
 
 | Request                   | Response cache                                         | Automatic retries                                     |

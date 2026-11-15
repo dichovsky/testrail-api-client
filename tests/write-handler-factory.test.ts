@@ -6,6 +6,7 @@
  * previewExtras / formatOutput / allowEmptyBody / entryParam options, and the
  * error/gate paths) so the shared infrastructure is covered on its own terms.
  */
+import { makeStdin } from './helpers.js';
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { createWriteHandler, createDestructiveHandler } from '../src/cli/write-handler-factory.js';
@@ -37,6 +38,7 @@ function makeCtx(overrides: CtxOverrides = {}): { ctx: HandlerContext; out: Retu
             pathParams: overrides.pathParams ?? [],
             ...(overrides.soft !== undefined && { soft: overrides.soft }),
         },
+        stdin: makeStdin(),
         bodyInput: overrides.dataFlag !== undefined ? { dataFlag: overrides.dataFlag } : {},
         dryRun: overrides.dryRun ?? false,
         force: false,

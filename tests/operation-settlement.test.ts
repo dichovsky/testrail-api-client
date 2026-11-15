@@ -399,6 +399,46 @@ describe('TestRailClient.trackOperation settlement', () => {
         await operation.settled;
     });
 
+    it('cancels an unread failed response while its retry is still waiting for headers', async () => {
+        const retryHeaders = deferred<Response>();
+        const cancellation = deferred<void>();
+        const cancel = vi.fn(() => cancellation.promise);
+        const failedResponse = {
+            ok: false,
+            status: 500,
+            statusText: 'Server Error',
+            headers: new globalThis.Headers({ 'Retry-After': '1' }),
+            bodyUsed: false,
+            body: { locked: false, cancel },
+            text: () => Promise.reject(new Error('fallback body could not be read')),
+        } as unknown as Response;
+        fetch.mockResolvedValueOnce(failedResponse).mockReturnValueOnce(retryHeaders.promise);
+        const client = createClient({ maxRetries: 1 });
+        const operation = client.trackOperation(() => client.projects.getProject(1));
+        const settled = settlementProbe(operation);
+
+        try {
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(fetch).toHaveBeenCalledTimes(2);
+            expect(cancel).toHaveBeenCalledTimes(1);
+            expect(settled).not.toHaveBeenCalled();
+
+            retryHeaders.resolve(mockOk(MOCK_PROJECT));
+            await expect(operation.result).resolves.toEqual(MOCK_PROJECT);
+            expect(settled).not.toHaveBeenCalled();
+        } finally {
+            // A failing ordering assertion must not strand the retry or its cleanup.
+            retryHeaders.resolve(mockOk(MOCK_PROJECT));
+            cancellation.resolve();
+            await operation.result;
+            await operation.settled;
+        }
+
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(settled).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
     it('settles an interrupted aggregate retry delay without waiting for its original timer', async () => {
         fetch.mockResolvedValueOnce(new Response('retry later', { status: 503, headers: { 'Retry-After': '1' } }));
         const client = createClient({ maxRetries: 3 });

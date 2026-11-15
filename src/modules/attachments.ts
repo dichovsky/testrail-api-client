@@ -5,6 +5,7 @@ import { validateId, validateEntryId, validateAttachmentId } from '../validation
 import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import { listOf, unwrapList } from './list.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
+import { withMultipartUpload } from '../upload-lifetime.js';
 
 /**
  * Optional pagination params. TestRail documents them for case-, run-, and
@@ -148,41 +149,49 @@ export class AttachmentModule {
 
     /** @testrail POST add_attachment_to_case/{case_id} */
     async addAttachmentToCase(caseId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        validateId(caseId, 'caseId');
-        return this.client.request<Attachment>({
-            method: 'POST',
-            endpoint: `add_attachment_to_case/${caseId}`,
-            body: { kind: 'multipart', file, filename },
+        return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
+            validateId(caseId, 'caseId');
+            return this.client.request<Attachment>({
+                method: 'POST',
+                endpoint: `add_attachment_to_case/${caseId}`,
+                body,
+            });
         });
     }
 
     /** @testrail POST add_attachment_to_result/{result_id} */
     async addAttachmentToResult(resultId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        validateId(resultId, 'resultId');
-        return this.client.request<Attachment>({
-            method: 'POST',
-            endpoint: `add_attachment_to_result/${resultId}`,
-            body: { kind: 'multipart', file, filename },
+        return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
+            validateId(resultId, 'resultId');
+            return this.client.request<Attachment>({
+                method: 'POST',
+                endpoint: `add_attachment_to_result/${resultId}`,
+                body,
+            });
         });
     }
 
     /** @testrail POST add_attachment_to_run/{run_id} */
     async addAttachmentToRun(runId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        validateId(runId, 'runId');
-        return this.client.request<Attachment>({
-            method: 'POST',
-            endpoint: `add_attachment_to_run/${runId}`,
-            body: { kind: 'multipart', file, filename },
+        return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
+            validateId(runId, 'runId');
+            return this.client.request<Attachment>({
+                method: 'POST',
+                endpoint: `add_attachment_to_run/${runId}`,
+                body,
+            });
         });
     }
 
     /** @testrail POST add_attachment_to_plan/{plan_id} */
     async addAttachmentToPlan(planId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        validateId(planId, 'planId');
-        return this.client.request<Attachment>({
-            method: 'POST',
-            endpoint: `add_attachment_to_plan/${planId}`,
-            body: { kind: 'multipart', file, filename },
+        return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
+            validateId(planId, 'planId');
+            return this.client.request<Attachment>({
+                method: 'POST',
+                endpoint: `add_attachment_to_plan/${planId}`,
+                body,
+            });
         });
     }
 
@@ -198,12 +207,14 @@ export class AttachmentModule {
         file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
-        validateId(planId, 'planId');
-        validateEntryId(entryId);
-        return this.client.request<Attachment>({
-            method: 'POST',
-            endpoint: `add_attachment_to_plan_entry/${planId}/${entryId}`,
-            body: { kind: 'multipart', file, filename },
+        return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
+            validateId(planId, 'planId');
+            validateEntryId(entryId);
+            return this.client.request<Attachment>({
+                method: 'POST',
+                endpoint: `add_attachment_to_plan_entry/${planId}/${entryId}`,
+                body,
+            });
         });
     }
 

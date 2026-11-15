@@ -25,11 +25,14 @@
  *   - Redirect (3xx) still rejected via `assertNotRedirect`
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync, createWriteStream, openSync, closeSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, createWriteStream, openSync, closeSync, fstatSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { TestRailClient } from '../src/client.js';
-import { TestRailApiError } from '../src/errors.js';
+import { TestRailApiError, TestRailValidationError } from '../src/errors.js';
+import type { RequestSpec } from '../src/http-pipeline-types.js';
+import type { UploadFilePathInput } from '../src/types.js';
+import { CaseSchema } from '../src/schemas.js';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -98,6 +101,51 @@ function mockOk(body: unknown = { attachment_id: 1 }): void {
     });
 }
 
+interface UploadMethodCase {
+    readonly name: string;
+    upload(client: TestRailClient, id: number, file: UploadFilePathInput): Promise<unknown>;
+}
+
+const UPLOAD_METHODS = [
+    {
+        name: 'attachment to case',
+        upload: (client, id, file) => client.attachments.addAttachmentToCase(id, file, 'evidence.bin'),
+    },
+    {
+        name: 'attachment to result',
+        upload: (client, id, file) => client.attachments.addAttachmentToResult(id, file, 'evidence.bin'),
+    },
+    {
+        name: 'attachment to run',
+        upload: (client, id, file) => client.attachments.addAttachmentToRun(id, file, 'evidence.bin'),
+    },
+    {
+        name: 'attachment to plan',
+        upload: (client, id, file) => client.attachments.addAttachmentToPlan(id, file, 'evidence.bin'),
+    },
+    {
+        name: 'attachment to plan entry',
+        upload: (client, id, file) =>
+            client.attachments.addAttachmentToPlanEntry(
+                id,
+                '00000000-0000-4000-8000-000000000001',
+                file,
+                'evidence.bin',
+            ),
+    },
+    { name: 'BDD add', upload: (client, id, file) => client.bdd.addBdd(id, file, 'evidence.feature') },
+    { name: 'BDD update', upload: (client, id, file) => client.bdd.updateBdd(id, file, 'evidence.feature') },
+] satisfies readonly UploadMethodCase[];
+
+/** Clean up a failing regression without closing a descriptor number reused by the worker. */
+function closeIfStillOwned(fd: number, inode: number): void {
+    try {
+        if (fstatSync(fd).ino === inode) closeSync(fd);
+    } catch {
+        // Successful consumption leaves no descriptor for the test to close.
+    }
+}
+
 describe('streaming upload — requestMultipart with { path } descriptor', () => {
     let tmp: string;
     let smallPath: string;
@@ -116,6 +164,197 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         closeSyncControl.throwForFd = null;
         closeSyncControl.callsWithFd = [];
         rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it.each(UPLOAD_METHODS)('$name consumes the descriptor when its numeric ID is invalid', async ({ upload }) => {
+        const client = buildClient();
+        const fd = openSync(smallPath, 'r');
+        const inode = fstatSync(fd).ino;
+        const file = Object.freeze({ path: smallPath, fd });
+
+        try {
+            await expect(upload(client, 0, file)).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(openAsBlobRecorder.lastPath).toBeUndefined();
+            expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+            expect(() => fstatSync(fd)).toThrow();
+            expect(file).toEqual({ path: smallPath, fd });
+        } finally {
+            closeIfStillOwned(fd, inode);
+            client.destroy();
+        }
+    });
+
+    it('consumes the descriptor when the plan-entry UUID is invalid', async () => {
+        const client = buildClient();
+        const fd = openSync(smallPath, 'r');
+        const inode = fstatSync(fd).ino;
+        const file = Object.freeze({ path: smallPath, fd });
+
+        try {
+            await expect(
+                client.attachments.addAttachmentToPlanEntry(1, 'invalid-entry', file, 'evidence.bin'),
+            ).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(openAsBlobRecorder.lastPath).toBeUndefined();
+            expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+            expect(() => fstatSync(fd)).toThrow();
+            expect(file).toEqual({ path: smallPath, fd });
+        } finally {
+            closeIfStillOwned(fd, inode);
+            client.destroy();
+        }
+    });
+
+    it.each(UPLOAD_METHODS)('$name consumes the descriptor when the client is destroyed', async ({ upload }) => {
+        const client = buildClient();
+        client.destroy();
+        const fd = openSync(smallPath, 'r');
+        const inode = fstatSync(fd).ino;
+        const file = Object.freeze({ path: smallPath, fd });
+
+        try {
+            await expect(upload(client, 1, file)).rejects.toThrow(/after destroy/);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(openAsBlobRecorder.lastPath).toBeUndefined();
+            expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+            expect(() => fstatSync(fd)).toThrow();
+            expect(file).toEqual({ path: smallPath, fd });
+        } finally {
+            closeIfStillOwned(fd, inode);
+        }
+    });
+
+    it.each([
+        { name: 'header timeout', overrides: { timeout: Number.NaN } },
+        { name: 'body timeout', overrides: { bodyTimeout: -1 } },
+        { name: 'aggregate deadline', overrides: { deadlineAt: Number.POSITIVE_INFINITY } },
+    ] satisfies readonly {
+        name: string;
+        overrides: Partial<Pick<RequestSpec<unknown>, 'timeout' | 'bodyTimeout' | 'deadlineAt'>>;
+    }[])('multipart request consumes the descriptor before rejecting an invalid $name', async ({ overrides }) => {
+        const client = buildClient();
+        const fd = openSync(smallPath, 'r');
+        const inode = fstatSync(fd).ino;
+        const file = Object.freeze({ path: smallPath, fd });
+
+        try {
+            await expect(
+                client.request({
+                    method: 'POST',
+                    endpoint: 'add_attachment_to_case/1',
+                    body: { kind: 'multipart', file, filename: 'evidence.bin' },
+                    ...overrides,
+                }),
+            ).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(openAsBlobRecorder.lastPath).toBeUndefined();
+            expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+            expect(() => fstatSync(fd)).toThrow();
+            expect(file).toEqual({ path: smallPath, fd });
+        } finally {
+            closeIfStillOwned(fd, inode);
+            client.destroy();
+        }
+    });
+
+    it('a timeout view consumes the descriptor when its shared root is destroyed', async () => {
+        const client = buildClient();
+        const view = client.withTimeout(1000);
+        client.destroy();
+        const fd = openSync(smallPath, 'r');
+        const inode = fstatSync(fd).ino;
+        const file = Object.freeze({ path: smallPath, fd });
+
+        try {
+            await expect(view.attachments.addAttachmentToCase(1, file, 'evidence.bin')).rejects.toThrow(
+                /after destroy/,
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(openAsBlobRecorder.lastPath).toBeUndefined();
+            expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+            expect(() => fstatSync(fd)).toThrow();
+        } finally {
+            closeIfStillOwned(fd, inode);
+        }
+    });
+
+    it('a chained timeout view uploads BDD bytes and closes the descriptor exactly once', async () => {
+        const client = buildClient();
+        const view = client.withTimeout(1000).withTimeout(2000);
+        const contents = 'Feature: descriptor ownership\n';
+        writeFileSync(smallPath, contents);
+        const fd = openSync(smallPath, 'r');
+        const inode = fstatSync(fd).ino;
+        const file = Object.freeze({ path: smallPath, fd });
+        let encoded = '';
+        mockFetch.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+            encoded = await new globalThis.Request('https://capture.test', {
+                method: 'POST',
+                body: init.body as globalThis.FormData,
+            }).text();
+            return new Response(JSON.stringify({ id: 1 }), { status: 200 });
+        });
+
+        try {
+            await expect(view.bdd.addBdd(1, file, 'evidence.feature')).resolves.toEqual({ id: 1 });
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(encoded).toContain(contents);
+            expect(encoded).toContain('filename="evidence.feature"');
+            expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+            expect(() => fstatSync(fd)).toThrow();
+            expect(file).toEqual({ path: smallPath, fd });
+        } finally {
+            closeIfStillOwned(fd, inode);
+            client.destroy();
+        }
+    });
+
+    it.each([
+        {
+            name: 'BDD upload',
+            upload: (client: TestRailClient, file: UploadFilePathInput): Promise<unknown> =>
+                client.bdd.addBdd(1, file, 'evidence.feature'),
+        },
+        {
+            name: 'direct multipart request',
+            upload: (client: TestRailClient, file: UploadFilePathInput): Promise<unknown> =>
+                client.request({
+                    method: 'POST',
+                    endpoint: 'add_bdd/1',
+                    body: { kind: 'multipart', file, filename: 'evidence.feature' },
+                    schema: CaseSchema,
+                }),
+        },
+    ])('$name releases the descriptor before a throwing response mismatch hook', async ({ upload }) => {
+        const fd = openSync(smallPath, 'r');
+        const inode = fstatSync(fd).ino;
+        const failure = new Error('strict response mismatch');
+        let closesAtHook: number | undefined;
+        const onSchemaMismatch = vi.fn(() => {
+            closesAtHook = closeSyncControl.callsWithFd.filter((closed) => closed === fd).length;
+            throw failure;
+        });
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 't@example.com',
+            apiKey: 'k',
+            enableCache: false,
+            onSchemaMismatch,
+        });
+        const file = Object.freeze({ path: smallPath, fd });
+        mockOk({ unexpected: 'response shape' });
+
+        try {
+            await expect(upload(client, file)).rejects.toBe(failure);
+            expect(onSchemaMismatch).toHaveBeenCalledTimes(1);
+            expect(closesAtHook).toBe(1);
+            expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+            expect(() => fstatSync(fd)).toThrow();
+        } finally {
+            closeIfStillOwned(fd, inode);
+            client.destroy();
+        }
     });
 
     it('uploads a path-descriptor file (FormData body sent, success body parsed)', async () => {

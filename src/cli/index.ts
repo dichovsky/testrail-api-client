@@ -14,6 +14,7 @@ import { KNOWN_FLAGS, parseCliArgv, validateSuppliedFlagTypes, type SuppliedFlag
 import { sanitizeForTerminal } from './sanitize.js';
 import { parseId } from './ids.js';
 import type { BodyInput } from './handler-context.js';
+import type { CliStdin } from './stdin.js';
 import {
     createCliSchemaMismatchReporter,
     resolveStrictResponses,
@@ -63,11 +64,7 @@ export interface CliRuntime {
     readonly stderr: (chunk: string) => void;
     /** True only when stdout is an interactive terminal. */
     readonly stdoutIsTTY: boolean;
-    readonly stdin: {
-        /** True only for an interactive terminal; a pipe or redirect is false. */
-        readonly isTTY: boolean;
-        readonly read: (maxBytes: number) => string;
-    };
+    readonly stdin: CliStdin;
     readonly createClient: (config: TestRailConfig) => TestRailClient;
     /** `process.platform`. Injected so the Windows diagnostic refusal is testable anywhere. */
     readonly platform: string;
@@ -451,6 +448,7 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
                         args,
                         pagination,
                         bodyInput,
+                        stdin: runtime.stdin,
                         dryRun,
                         force,
                         confirmDestructive,

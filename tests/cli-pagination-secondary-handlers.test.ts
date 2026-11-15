@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
-import { captureOutput, makeActionSpec } from './helpers.js';
+import { makeStdin, captureOutput, makeActionSpec } from './helpers.js';
 import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
@@ -301,6 +301,7 @@ describe('secondary pagination CLI handlers', () => {
             actionSpec: makeActionSpec({ resource: 'test', action: 'list' }),
             args: invocation.args,
             pagination: parseCliPagination(invocation.paginationArgs),
+            stdin: makeStdin(),
             bodyInput: {},
             dryRun: false,
             force: false,
@@ -337,6 +338,7 @@ describe('secondary pagination CLI handlers', () => {
             actionSpec: makeActionSpec({ resource: 'shared-step', action: 'list' }),
             args: invocation.args,
             pagination: parseCliPagination(invocation.paginationArgs),
+            stdin: makeStdin(),
             bodyInput: {},
             dryRun: false,
             force: false,

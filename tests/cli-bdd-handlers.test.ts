@@ -9,16 +9,19 @@
  *     dry-run skips API call and emits a stat-only preview
  *   - list/update: pagination projection and case replacement routing
  */
+import type { BinaryInputStream } from '../src/cli/stdin.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { handleBddAdd, handleBddGet, handleBddList, handleBddUpdate } from '../src/cli/handlers/bdd.js';
-import { captureOutput, type CapturedOutput, makeActionSpec } from './helpers.js';
+import { makeBinaryStdin, captureOutput, type CapturedOutput, makeActionSpec } from './helpers.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
+
+let inputStream: BinaryInputStream & { isTTY: boolean | undefined } = Object.assign(Readable.from([]), { isTTY: true });
 
 interface MockedClient {
     bdd: {
@@ -84,6 +87,7 @@ function buildCtx(
             ...(overrides.pageSize !== undefined && { pageSize: overrides.pageSize }),
         },
         pagination: parseCliPagination(overrides),
+        stdin: makeBinaryStdin(inputStream, inputStream.isTTY === true),
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
         force: overrides.force ?? false,
@@ -324,26 +328,17 @@ describe('handleBddAdd', () => {
     });
 
     describe("--file '-' (stdin)", () => {
-        const ORIG_STDIN = process.stdin;
-        const ORIG_IS_TTY = process.stdin.isTTY;
+        const ORIG_STDIN = inputStream;
+        const ORIG_IS_TTY = inputStream.isTTY;
 
         afterEach(() => {
-            Object.defineProperty(process, 'stdin', {
-                value: ORIG_STDIN,
-                configurable: true,
-                writable: false,
-            });
-            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+            inputStream = ORIG_STDIN;
+            inputStream.isTTY = ORIG_IS_TTY;
         });
 
         function stubStdin(bytes: Uint8Array | string): void {
             const readable = Readable.from(typeof bytes === 'string' ? Buffer.from(bytes) : Buffer.from(bytes));
-            (readable as { isTTY?: boolean }).isTTY = false;
-            Object.defineProperty(process, 'stdin', {
-                value: readable,
-                configurable: true,
-                writable: false,
-            });
+            inputStream = Object.assign(readable, { isTTY: false });
         }
 
         it("uploads drained stdin bytes when --file is '-'", async () => {

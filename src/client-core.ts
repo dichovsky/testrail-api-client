@@ -14,8 +14,7 @@ import {
     engageOperationTracking,
     type OperationHandle,
 } from './operation-tracking.js';
-import { createUploadSource } from './upload-source.js';
-import { observeUploadTransport } from './upload-transport.js';
+import { prepareMultipartUpload, withMultipartUpload } from './upload-lifetime.js';
 import { budgetExpiredError, createRequestBudget, type RequestBudget } from './request-budget.js';
 
 // Built from the package *name*, not `pkg.description`, which embedded literal
@@ -559,6 +558,13 @@ export class TestRailClientCore {
      * @throws {Error} When called after `destroy()`.
      */
     public async request<T>(spec: RequestSpec<T>): Promise<T> {
+        if (spec.body?.kind === 'multipart') {
+            return withMultipartUpload(spec.body, (body) => this.requestAccepted<T>({ ...spec, body }));
+        }
+        return this.requestAccepted(spec);
+    }
+
+    private async requestAccepted<T>(spec: RequestSpec<T>): Promise<T> {
         const { method, endpoint, body, schema, responseKind = 'json', intent } = spec;
 
         // Derived, never declared. A multipart body is non-idempotent by
@@ -773,8 +779,8 @@ export class TestRailClientCore {
 
     /**
      * Converts a {@link RequestBody} (the public-to-modules shape) into the
-     * pipeline-internal {@link BodyShape}. The descriptor lifetime of a
-     * multipart body belongs entirely to `src/upload-source.ts`.
+     * pipeline-internal {@link BodyShape}. Multipart input retains its owning
+     * scope from request entry through awaited response decoding.
      */
     private buildPipelineBody(body: RequestSpec<unknown>['body']): PipelineSpec<unknown>['body'] {
         if (body === undefined) {
@@ -783,7 +789,7 @@ export class TestRailClientCore {
         if (body.kind === 'json') {
             return { kind: 'json', data: body.data };
         }
-        return createUploadSource(body.file, body.filename);
+        return body;
     }
 
     /**
@@ -792,22 +798,6 @@ export class TestRailClientCore {
      * Request caching and coalescing live entirely in {@link RequestCache}.
      */
     private async executePipeline<TParsed>(spec: PipelineSpec<TParsed>, retryCount = 0): Promise<TParsed> {
-        try {
-            return await this.attemptPipeline<TParsed>(spec, retryCount);
-        } catch (error) {
-            // A multipart source captures the caller's descriptor when the spec
-            // is built, but only releases it from inside `build()`. The
-            // preamble below — destroyed client, DNS/SSRF rejection, a spent
-            // budget — throws before `build()` runs, so without this the
-            // descriptor leaks for the life of the process. Release is
-            // idempotent, so a request that did build and clean up is
-            // unaffected.
-            if (spec.body.kind === 'formdata') spec.body.release();
-            throw error;
-        }
-    }
-
-    private async attemptPipeline<TParsed>(spec: PipelineSpec<TParsed>, retryCount = 0): Promise<TParsed> {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
@@ -860,17 +850,15 @@ export class TestRailClientCore {
             throw error;
         }
 
-        const fetchPromise: Promise<TParsed> = (async () => {
-            let formdataCleanup: ((transportAborted?: boolean) => void) | undefined;
+        let receivedResponse: Response | undefined;
+        const execute = async (): Promise<TParsed> => {
             const pinnedDispatcher =
                 pinnedAddresses === undefined
                     ? undefined
                     : createPinnedDispatcher(new URL(this.baseUrl).origin, pinnedAddresses);
-            let uploadTransport: ReturnType<typeof observeUploadTransport> | undefined;
-            let receivedResponse: Response | undefined;
             let parsingResponse = false;
             try {
-                const options: RequestInit = {
+                const options: RequestInit & { readonly method: string } = {
                     method: spec.method,
                     headers,
                     signal: controller.signal,
@@ -886,12 +874,18 @@ export class TestRailClientCore {
                 };
                 if (spec.body.kind === 'json') {
                     options.body = JSON.stringify(spec.body.data);
-                } else if (spec.body.kind === 'formdata') {
-                    const built = await spec.body.build();
-                    options.body = built.body;
-                    formdataCleanup = built.cleanup;
                 }
-                // kind === 'none': no body
+                const fetch = this.fetchOverride ?? globalThis.fetch;
+                const send =
+                    spec.body.kind === 'multipart'
+                        ? await prepareMultipartUpload(spec.body, {
+                              url,
+                              options,
+                              controller,
+                              pinnedDispatcher,
+                              fetch,
+                          })
+                        : (): Promise<Response> => fetch(url, options);
 
                 // Admit only when an upstream request is actually about to be
                 // invoked. DNS, cache lookup, multipart construction, and any
@@ -911,10 +905,8 @@ export class TestRailClientCore {
                 // are respected) but must not be rejected by a local 429.
                 this.checkRateLimit(retryCount === 0, admissionTime);
 
-                const fetch = (): Promise<Response> => (this.fetchOverride ?? globalThis.fetch)(url, options);
-                if (formdataCleanup !== undefined) uploadTransport = observeUploadTransport(url, spec.method);
                 const response: Response = await spec.budget.bound(
-                    (uploadTransport === undefined ? fetch() : uploadTransport.run(fetch)).then((received) => {
+                    send().then((received) => {
                         receivedResponse = received;
                         // A custom fetch may ignore abort and return headers
                         // after its result deadline. Own the late body cleanup.
@@ -1011,26 +1003,24 @@ export class TestRailClientCore {
 
                 throw new TestRailApiError(0, `Network error: ${cause.message}`, cause.message);
             } finally {
-                // An abort signal is only a request: an injected or global
-                // fetch replacement may ignore it and keep encoding. Cleanly
-                // close a multipart part only with actual transport evidence;
-                // otherwise error it to prevent a valid closing boundary after
-                // truncated bytes.
-                try {
-                    if (formdataCleanup !== undefined) {
-                        controller.abort();
-                        const transportStopped =
-                            pinnedDispatcher?.hasStoppedUploading() === true || uploadTransport?.stop() === true;
-                        formdataCleanup(transportStopped);
-                    }
-                } finally {
-                    uploadTransport?.dispose();
+                // A recursive retry is returned without awaiting it here. Release
+                // this attempt's unread response before waiting for that retry.
+                // Multipart responses instead wait for upload finalization below.
+                if (spec.body.kind !== 'multipart' && receivedResponse !== undefined) {
+                    this.cancelUnusedBody(receivedResponse);
                 }
-                if (receivedResponse !== undefined) this.cancelUnusedBody(receivedResponse);
             }
-        })();
+        };
 
-        return fetchPromise;
+        if (spec.body.kind !== 'multipart') return execute();
+
+        try {
+            // The inner scope finishes transport ownership before advisory
+            // validation invokes user code. Entry scopes cover earlier failures.
+            return await withMultipartUpload(spec.body, execute);
+        } finally {
+            if (receivedResponse !== undefined) this.cancelUnusedBody(receivedResponse);
+        }
     }
 
     /**

@@ -2,7 +2,7 @@
 import { TestRailClient } from './client.js';
 import { runCli } from './cli/index.js';
 import { sanitizeForTerminal } from './cli/sanitize.js';
-import { readBoundedStdin } from './cli/stdin.js';
+import { readBoundedStdin, readStdinBinary } from './cli/stdin.js';
 
 /**
  * Binary entrypoint (`bin: testrail` → `dist/cli.js`, and the `./cli` subpath
@@ -37,7 +37,8 @@ runCli({
         // here is what broke the documented `echo $KEY | testrail …` pipe
         // (#221/#230), so compare against `true` and nothing else.
         isTTY: process.stdin.isTTY === true,
-        read: (maxBytes) => readBoundedStdin(maxBytes),
+        read: (maxBytes) => readBoundedStdin(maxBytes, process.stdin.fd),
+        readBinary: (maxBytes, timeoutMs) => readStdinBinary(process.stdin, maxBytes, timeoutMs),
     },
     createClient: (config) => new TestRailClient({ ...config, registerProcessHandlers: true }),
     platform: process.platform,
