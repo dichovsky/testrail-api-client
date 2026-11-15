@@ -14,17 +14,20 @@ describe('architecture inventory prose', () => {
             email: 'agent@example.com',
             apiKey: 'test-key',
         });
-        const moduleCount = Object.values(client).filter(
-            (value) => typeof value === 'object' && value?.constructor?.name.endsWith('Module') === true,
-        ).length;
+        const moduleNames = Object.entries(client)
+            .filter(([, value]) => typeof value === 'object' && value?.constructor?.name.endsWith('Module') === true)
+            .map(([name]) => name);
         client.destroy();
 
         const architecture = readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8');
         const claude = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
+        const moduleCount = moduleNames.length;
+        const moduleSection = architecture.match(/## 3\. Domain modules[\s\S]*?(?=### 3\.1)/u)?.[0] ?? '';
+        const documentedModules = [...moduleSection.matchAll(/^\|\s*`(\w+)\.ts`\s*\|/gmu)].map((match) => match[1]);
+
         expect(architecture).toContain(`composes ${moduleCount} domain modules`);
-        expect(architecture).toContain(`${moduleCount} namespaces`);
-        expect(architecture).toContain(`The ${moduleCount} module fields`);
-        expect(architecture).toContain(`There are ${moduleCount} stateless namespaces`);
+        expect(documentedModules).toHaveLength(moduleCount);
+        expect(new Set(documentedModules)).toEqual(new Set(moduleNames));
         expect(claude).toContain(`composition root: ${moduleCount} \`public readonly\` module fields`);
         expect(claude).toContain(`(${moduleCount} \`public readonly\` fields`);
     });

@@ -6,7 +6,7 @@ Other documents describe the repository structure:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains the system layers.
 - [`CODEMAP.md`](CODEMAP.md) contains the symbol index.
-- [`CLAUDE.md`](CLAUDE.md) defines the repository rules.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) defines contributor workflows and conventions.
 
 ---
 
@@ -17,7 +17,7 @@ The request intent defines the purpose of a request when the request structure d
 The request structure usually defines the required behavior. For example, a multipart body is not idempotent, and a binary GET request is safe to repeat. However, the request structure cannot show the server-side effect of an endpoint. Use `RequestSpec.intent` for two cases:
 
 - **Side-effecting read**: A GET request that modifies server state. For example, the TestRail `run_report` endpoint generates a report and can send an email.
-- **Fresh read**: A GET request that must bypass the cache for both reads and writes.
+- **Fresh read**: A GET request that must bypass cache reads, cache writes, and in-flight request sharing.
 
 These two values replace the older `retry` and `bypassCache` fields.
 
@@ -29,6 +29,6 @@ The `runReport` and `runCrossProjectReport` methods (`src/modules/reports.ts`) u
 
 ## Fresh read
 
-A fresh read is a GET request that must go directly to the TestRail server. The client does not read the response from the cache and does not write the response to the cache. Unlike a side-effecting read, a fresh read does not modify server state. It only requires current data.
+A fresh read is a GET request that requires current data without modifying server state. The client bypasses cache reads, cache writes, and in-flight request sharing.
 
 Bounded `getAll*()` pagination (`src/pagination.ts`) uses this intent. Caching individual pages can mix data from different times and evict unrelated cache entries.

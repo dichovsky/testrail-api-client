@@ -1,9 +1,9 @@
 # Programmatic TypeScript API
 
-Use this reference for TypeScript or JavaScript applications and client lifecycle control.
-Read `SKILL.md` to decide when to use the SDK instead of the CLI.
+Use this reference for typed SDK calls and client lifecycle control.
+Read [SKILL.md](../SKILL.md) for the CLI usage rules.
 
-## Programmatic TypeScript API
+## Setup and lifecycle
 
 The `testrail` CLI calls `TestRailClient` methods.
 Import `TestRailClient` directly in TypeScript or JavaScript code.
@@ -28,6 +28,7 @@ const client = new TestRailClient({
 });
 
 try {
+    // Put the selected endpoint calls here, before client cleanup.
     const project = await client.projects.getProject(1);
     console.log(project.name);
 } catch (e) {
@@ -43,15 +44,18 @@ try {
     }
     throw e;
 } finally {
-    // Stops the cache cleanup timer, clears the cache, and zeroes the
-    // credential. Library callers MUST do this in their shutdown hook
-    // (the CLI does it automatically via `registerProcessHandlers: true`).
+    // Stop the cleanup timer, clear cached data, and overwrite credentials.
     client.destroy();
 }
 ```
 
-The following examples use the `client` instance above. Some examples use entities from preceding examples.
-Replace the example IDs with valid IDs from your TestRail instance.
+Use the snippets below inside the `try` block above. Move any extra imports to the top of your file.
+Choose the calls you need; these snippets are not one script to run in order.
+Some snippets use a `suite`, `section`, or `run` created in another example. Create those entities in the same `try` block.
+Replace example IDs with valid IDs from your TestRail instance.
+Call `destroy()` after the final request, or from your application's shutdown hook. A destroyed client cannot make further requests.
+The CLI manages this lifecycle automatically.
+
 All endpoint methods return `Promise<T>`, and all error classes extend `Error`:
 
 - `TestRailApiError`: HTTP, network, or protocol failures.
@@ -149,10 +153,9 @@ const run = await client.runs.addRun(1, {
 
 const runs = await client.runs.getAllRuns(1, { pageSize: 100 });
 await client.runs.updateRun(run.id, { milestone_id: 7 });
-
-// Close is irreversible — TestRail has no open_run.
-await client.runs.closeRun(run.id);
 ```
+
+Keep the run open while writing results. The next example closes it after the final write.
 
 ### Results
 
@@ -183,6 +186,9 @@ await client.results.addResultForCase(run.id, 44, { comment: 'Investigating — 
 // Read.
 const results = await client.results.getAllResultsForRun(run.id, { pageSize: 100 });
 const forCase = await client.results.getResultsForCase(run.id, 42);
+
+// Close only after all result writes. TestRail has no open_run.
+await client.runs.closeRun(run.id);
 ```
 
 ### Milestones
@@ -324,9 +330,23 @@ const tuned = new TestRailClient({
     // own shutdown hook. The CLI opts in.
     registerProcessHandlers: false,
 });
+
+try {
+    const project = await tuned.projects.getProject(1);
+    console.log(project.name);
+} finally {
+    tuned.destroy();
+}
 ```
 
+This example creates its own client. Keep its cleanup separate from the client in the setup example.
+See the [SDK configuration guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#configuration) for all options.
+See the [networking guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/NETWORKING.md) for private hosts, DNS, proxies, and certificate authorities.
+
 ### Error narrowing pattern
+
+A write can reach TestRail before an error occurs. Check server state before repeating a failed write.
+The SDK does not apply the CLI's destructive-action gates; your application must provide its own confirmation.
 
 ```typescript
 async function safelyDeleteCase(id: number) {
@@ -340,7 +360,7 @@ async function safelyDeleteCase(id: number) {
             return { ok: false as const, kind: 'api', status: e.status, msg: e.statusText };
         }
         if (e instanceof TestRailValidationError) {
-            // Pre-flight: bad ID, missing config, schema rejection.
+            // Invalid config/ID or a throwing response-validation hook.
             return { ok: false as const, kind: 'validation', msg: e.message };
         }
         throw e; // unexpected — re-throw
@@ -350,3 +370,4 @@ async function safelyDeleteCase(id: number) {
 
 See the [source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) for all public methods.
 See the [API coverage matrix](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) for endpoint, SDK, and CLI mappings.
+The [SDK guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md) covers caching, pagination, response validation, and custom fields.

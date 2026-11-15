@@ -1,7 +1,8 @@
 # `testrail` command reference
 
 This document lists every `resource:action` command and CLI option.
-Read `SKILL.md` first for authentication, safety gates, and output rules.
+Read [SKILL.md](../SKILL.md) first for authentication, safety gates, and output rules.
+Use [recipes.md](recipes.md) for worked examples.
 
 ## Command surface
 
