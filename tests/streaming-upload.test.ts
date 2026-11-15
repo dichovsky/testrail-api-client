@@ -28,6 +28,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync, createWriteStream, openSync, closeSync, fstatSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setImmediate } from 'node:timers/promises';
 import { TestRailClient } from '../src/client.js';
 import { TestRailApiError, TestRailValidationError } from '../src/errors.js';
 import type { RequestSpec } from '../src/http-pipeline-types.js';
@@ -331,36 +332,79 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
                     schema: CaseSchema,
                 }),
         },
-    ])('$name releases the descriptor before a throwing response mismatch hook', async ({ upload }) => {
-        const fd = openSync(smallPath, 'r');
-        const inode = fstatSync(fd).ino;
-        const failure = new Error('strict response mismatch');
-        let closesAtHook: number | undefined;
-        const onSchemaMismatch = vi.fn(() => {
-            closesAtHook = closeSyncControl.callsWithFd.filter((closed) => closed === fd).length;
-            throw failure;
-        });
-        const client = new TestRailClient({
-            baseUrl: 'https://example.testrail.io',
-            email: 't@example.com',
-            apiKey: 'k',
-            enableCache: false,
-            onSchemaMismatch,
-        });
-        const file = Object.freeze({ path: smallPath, fd });
-        mockOk({ unexpected: 'response shape' });
+    ])(
+        '$name retains pending cancellation after closing the descriptor and a response hook throws',
+        async ({ upload }) => {
+            const fd = openSync(smallPath, 'r');
+            const inode = fstatSync(fd).ino;
+            const failure = new Error('strict response mismatch');
+            let releaseCancellation: () => void = () => undefined;
+            const cancellation = new Promise<void>((resolve) => {
+                releaseCancellation = resolve;
+            });
+            const cancel = vi.fn(() => cancellation);
+            const stream = vi
+                .spyOn(globalThis.Blob.prototype, 'stream')
+                .mockReturnValue(new globalThis.ReadableStream<Uint8Array<ArrayBuffer>>({ cancel }));
+            let uploadRead: Promise<unknown> | undefined;
+            let closesAtHook: number | undefined;
+            const onSchemaMismatch = vi.fn(() => {
+                closesAtHook = closeSyncControl.callsWithFd.filter((closed) => closed === fd).length;
+                expect(() => fstatSync(fd)).toThrow();
+                throw failure;
+            });
+            const client = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 't@example.com',
+                apiKey: 'k',
+                enableCache: false,
+                maxRetries: 3,
+                onSchemaMismatch,
+            });
+            const file = Object.freeze({ path: smallPath, fd });
+            mockFetch.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+                if (!(init.body instanceof globalThis.FormData)) throw new Error('Expected multipart body');
+                const part = init.body.values().next().value;
+                if (!(part instanceof globalThis.Blob)) throw new Error('Expected file part');
+                // A custom transport can return headers while its upload still needs cleanup.
+                uploadRead = part
+                    .stream()
+                    .getReader()
+                    .read()
+                    .catch((error: unknown) => error);
+                return new Response(JSON.stringify({ unexpected: 'response shape' }));
+            });
+            const operation = client.trackOperation(() => upload(client, file));
+            const settled = vi.fn();
+            void operation.settled.then(settled);
 
-        try {
-            await expect(upload(client, file)).rejects.toBe(failure);
-            expect(onSchemaMismatch).toHaveBeenCalledTimes(1);
-            expect(closesAtHook).toBe(1);
+            try {
+                await expect(operation.result).rejects.toBe(failure);
+                expect(onSchemaMismatch).toHaveBeenCalledTimes(1);
+                expect(closesAtHook).toBe(1);
+                expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
+                expect(() => fstatSync(fd)).toThrow();
+                expect(cancel).toHaveBeenCalledTimes(1);
+                await expect(uploadRead).resolves.toMatchObject({
+                    message: 'Upload aborted before the request completed',
+                });
+                // Flush result/stream microtasks before proving cancellation alone keeps ownership open.
+                await setImmediate();
+                expect(settled).not.toHaveBeenCalled();
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+            } finally {
+                releaseCancellation();
+                await operation.settled;
+                stream.mockRestore();
+                closeIfStillOwned(fd, inode);
+                client.destroy();
+            }
+            expect(settled).toHaveBeenCalledTimes(1);
+            expect(cancel).toHaveBeenCalledTimes(1);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
             expect(closeSyncControl.callsWithFd.filter((closed) => closed === fd)).toHaveLength(1);
-            expect(() => fstatSync(fd)).toThrow();
-        } finally {
-            closeIfStillOwned(fd, inode);
-            client.destroy();
-        }
-    });
+        },
+    );
 
     it('uploads a path-descriptor file (FormData body sent, success body parsed)', async () => {
         const client = buildClient();
