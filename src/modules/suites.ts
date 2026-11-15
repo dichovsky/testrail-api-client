@@ -117,15 +117,15 @@ export class SuiteModule {
     async deleteSuite(suiteId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteSuite(suiteId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         validateId(suiteId, 'suiteId');
+        const soft = options?.soft === true;
         const endpoint = buildEndpoint(`delete_suite/${suiteId}`, {
-            ...(options?.soft === true && { soft: 1 }),
+            ...(soft && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
-        if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
-                method: 'POST',
-                endpoint,
-            });
-        }
+        const result = await this.client.request<SoftDeletePreview>({
+            method: 'POST',
+            endpoint,
+            ...(soft && { schema: SoftDeletePreviewSchema }),
+        });
+        if (soft) return result;
     }
 }

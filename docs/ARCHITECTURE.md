@@ -46,15 +46,18 @@ immediately before each fetch and shares retry and upstream-request counters.
 A separate limiter would currently add only a pass-through wrapper. Extract it
 if it gains an independent admission policy.
 
-### 2.1 Public surface (consumed by modules)
+### 2.1 Public surface
 
-| Method                             | Purpose                                                                                          |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `request<T>(spec: RequestSpec<T>)` | HTTP entry point for JSON, text, binary, and multipart requests                                  |
-| `parse<T>()`                       | Advisory Zod validation; a mismatch invokes the hook and returns raw data unless the hook throws |
-| `clearCache()` / `destroy()`       | Invalidate cached data or dispose the client                                                     |
+| Method                             | Purpose                                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| `request<T>(spec: RequestSpec<T>)` | HTTP entry point for JSON, text, binary, and multipart requests; owns response validation |
+| `parse<T>()`                       | Public compatibility helper for separately validating response data                       |
+| `clearCache()` / `destroy()`       | Invalidate cached data or dispose the client                                              |
 
-These methods are public because modules call them through composition.
+Domain modules pass response schemas to `request()`. It reports mismatches with
+the originating method and endpoint. A mismatch returns raw data unless the hook throws.
+The inherited `client.parse()` helper remains available for direct calls.
+Domain methods do not call it; overriding it does not customize endpoint response validation.
 `src/validation.ts` supplies preflight checks; `src/url.ts` builds endpoint paths
 and query strings.
 

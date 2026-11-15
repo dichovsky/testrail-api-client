@@ -312,9 +312,14 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
 
     it.each([
         {
-            name: 'BDD upload',
+            name: 'BDD add',
             upload: (client: TestRailClient, file: UploadFilePathInput): Promise<unknown> =>
                 client.bdd.addBdd(1, file, 'evidence.feature'),
+        },
+        {
+            name: 'BDD update',
+            upload: (client: TestRailClient, file: UploadFilePathInput): Promise<unknown> =>
+                client.bdd.updateBdd(1, file, 'evidence.feature'),
         },
         {
             name: 'direct multipart request',
