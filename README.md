@@ -5,19 +5,14 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Type-safe TypeScript client and `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference), with a single runtime dependency: Zod. ESM only.
+`@dichovsky/testrail-api-client` is a type-safe TypeScript client and `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference). It has one runtime dependency: Zod. It uses ESM only.
 
-Compatibility is tracked through
-[TestRail 10.7.0 (Default 1021)](https://support.testrail.com/hc/en-us/articles/52231138481684-TestRail-10-7-0-Default-1021),
-including the cumulative API additions from 10.4–10.7 and the 10.7 repeated
-`refs[]` filters for case and BDD lists. The compatibility surface also covers
-BDD/case-title/version discovery, result editing, dynamic filters, label
-management, and current run/plan/test filters and scheduling fields. Older
-scalar `refs` queries remain supported.
+This package supports [TestRail 10.7.0 (Default 1021)](https://support.testrail.com/hc/en-us/articles/52231138481684-TestRail-10-7-0-Default-1021) and API additions from versions 10.4 through 10.7.
+Case and BDD lists accept repeated `refs[]` filters and older scalar `refs` queries.
+The client supports BDD, case-title, and version discovery, result editing, dynamic filters, and label management.
+It also supports current run, plan, and test filters and scheduling fields.
 
-See the [TestRail 10.7.0 compatibility audit](https://github.com/dichovsky/testrail-api-client/blob/main/docs/TESTRAIL-10.7.0-COMPATIBILITY.md)
-for the primary-source corpus, endpoint counts, corrected mismatches, and
-remaining upstream documentation ambiguities.
+Read the [TestRail 10.7.0 compatibility audit](https://github.com/dichovsky/testrail-api-client/blob/main/docs/TESTRAIL-10.7.0-COMPATIBILITY.md) for source documentation, endpoint counts, resolved schema mismatches, and upstream documentation notes.
 
 ## Install
 
@@ -25,24 +20,24 @@ remaining upstream documentation ambiguities.
 npm install @dichovsky/testrail-api-client
 ```
 
-Requires Node.js 24+. CI verifies Node 24 and 26 across Linux, Windows, and macOS.
-Other Node majors satisfy the engine range but are not currently in the CI matrix.
+This package requires Node.js 26 or newer. CI tests Node 26 on Linux, Windows, and macOS. The `.nvmrc` file selects Node 26 for development. Other major versions satisfy the engine range but are outside the CI matrix.
 
-Published declarations are smoke-tested with TypeScript 6 and 7. The repository
-build and primary type-check use native TypeScript 7; compiler-API-based
-generators and typed lint tooling use the TypeScript 6 compatibility compiler
-until the native compiler exposes that API.
+The package smoke test verifies published declaration files with both TypeScript 6 and TypeScript 7. The build and primary type check use native TypeScript 7. Code generators and typed lint rules use the TypeScript 6 compiler API.
 
 ## Repository verification
 
-After `npm ci`, run `npm run verify` to build, run both compiler checks,
-lint/format/generated-document checks, execute the coverage suite, and smoke-test
-the packed package. `npm test` runs only Vitest. The repository disables
-implicit npm lifecycle hooks, so verification is an explicit command.
-Additional release fuzz and registry audit gates are listed in
-[the release guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/RELEASING.md).
+Run `npm ci` to install dependencies.
+Run `npm run verify` to execute the full local verification suite:
 
-## 30-second example
+1. Build `dist/`.
+2. Run TypeScript 7 and TypeScript 6 type checks.
+3. Run ESLint, Prettier, and generated-file drift checks.
+4. Run the test suite with coverage thresholds.
+5. Smoke-test the packed npm tarball and CLI executable.
+
+`npm test` runs only the Vitest suite. Because `.npmrc` disables implicit lifecycle scripts, always run `npm run verify` explicitly. See [the release guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/RELEASING.md) for the release fuzz and security audit checks.
+
+## Quick start (SDK)
 
 ```typescript
 import { TestRailClient } from '@dichovsky/testrail-api-client';
@@ -57,15 +52,18 @@ try {
     const project = await client.projects.getProject(1);
     console.log(project.name);
 } finally {
-    client.destroy(); // release timers, clear cache, zero the credential
+    client.destroy(); // Stop timers, clear cache, and zero credentials
 }
 ```
 
-The client surfaces the supported TestRail REST API endpoints. See [`docs/API-MAPPING.md`](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) for the endpoint-to-method matrix and [`CODEMAP.md`](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) for exact signatures and `file:line` locations of every symbol.
+See [`docs/API-MAPPING.md`](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) for the endpoint-to-method table and [`CODEMAP.md`](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) for every symbol signature and `file:line` location.
 
 ### Write example
 
-With a live `client` instance, write payloads are typed from the Zod payload schemas (compile-time only — the SDK does not re-validate them at runtime; the CLI does):
+The SDK types write payloads from the exported Zod schemas at compile time. The SDK does not validate write payloads at runtime. The CLI validates all write payloads at runtime with Zod.
+For dynamic SDK input, call `.parse(input)` on the exported payload schema before the write.
+
+This example creates a run and adds a result:
 
 ```typescript
 const run = await client.runs.addRun(5, {
@@ -78,76 +76,63 @@ const run = await client.runs.addRun(5, {
 await client.results.addResultForCase(run.id, 42, { status_id: 1, comment: 'Passed' });
 ```
 
-`status_id` is optional on a new result: it needs at least one of `status_id`,
-`comment` or `assignedto_id`, so a comment-only result is valid. Only the CLI
-enforces that rule; through the SDK a typed `{}` compiles and is sent to
-TestRail as is.
+On a new result, `status_id` is optional. A new result requires at least one of `status_id`, `comment`, or `assignedto_id`. The CLI enforces this requirement at runtime before sending the request.
 
 ## CLI quick tour
 
-The package ships a `testrail` binary. Authenticate with environment variables, then read, write, or delete:
+This package provides the `testrail` CLI binary. Set environment variables for authentication. Then run read, write, or destructive commands:
 
 ```bash
 export TESTRAIL_BASE_URL="https://your-domain.testrail.io"
 export TESTRAIL_EMAIL="you@example.com"
-export TESTRAIL_API_KEY="…"                       # never pass the key on argv
+export TESTRAIL_API_KEY="…"                       # Never pass the API key on argv
 
-npx testrail project list                              # read (JSON to stdout)
-npx testrail run add 5 --data '{"name":"CI build","include_all":true}'   # write (Zod-validated)
+npx testrail project list                              # Read (outputs JSON to stdout)
+npx testrail run add 5 --data '{"name":"CI build","include_all":true}'   # Write (validated by Zod)
 
-# Destructive: needs BOTH the per-invocation --yes flag AND the process-wide env unlock
+# Destructive commands require BOTH --yes and TESTRAIL_ALLOW_DESTRUCTIVE=1
 TESTRAIL_ALLOW_DESTRUCTIVE=1 npx testrail run close 100 --yes
 ```
 
-Prefer `TESTRAIL_API_KEY`. If an environment variable is not an option, pipe the key with `echo "$KEY" | npx testrail ... --api-key-stdin`. That flag consumes stdin, so write bodies must come from `--data` or `--data-file`.
+Use `TESTRAIL_API_KEY` when possible. If you cannot use an environment variable, pipe the key through standard input: `echo "$KEY" | npx testrail ... --api-key-stdin`. Because `--api-key-stdin` reads standard input, pass write payloads with `--data` or `--data-file`.
 
-`--dry-run` previews any write or delete client-side with no API call. Output format is selectable with `--format <json|table|yaml|csv>`. `npx testrail <resource> --help` (for example `npx testrail case --help`) lists one resource's commands; `npx testrail --help` lists them all. See [`skill/SKILL.md`](skill/SKILL.md) and the [command](skill/reference/commands.md) and [recipe](skill/reference/recipes.md) references beside it for the complete command surface and recipes.
+- Pass `--dry-run` to preview any write or delete command locally without calling the API.
+- Pass `--format <json|table|yaml|csv>` to select the output format.
+- Run `npx testrail <resource> --help` (for example, `npx testrail case --help`) to list commands for one resource.
+- Run `npx testrail --help` to list all commands.
+- Read [`skill/SKILL.md`](skill/SKILL.md), [`skill/reference/commands.md`](skill/reference/commands.md), and [`skill/reference/recipes.md`](skill/reference/recipes.md) for the complete command reference and usage recipes.
 
-String options require their own value: `--filename --dry-run` is rejected before
-the command runs, including when a later occurrence supplies a valid filename.
-For a literal value beginning with `--`, use the inline form, such as
-`--filter=--all`. Boolean options take no value: pass `--dry-run`, not
-`--dry-run=true`.
+String flags require an explicit value. The CLI rejects `--filename --dry-run` before execution because `--filename` consumes `--dry-run` as its value. To pass a value that begins with `--`, use the inline syntax `--filter=--all`. Boolean flags do not accept values: pass `--dry-run`, not `--dry-run=true`.
 
-Attachment and BDD downloads accept regular files as `--out` destinations.
-`--force` permits replacing a regular file; it rejects symlinks, FIFOs, and
-devices, including `/dev/null`. To discard a download, send its payload to
-stdout and let the shell discard it:
+Attachment and BDD download commands write only to regular files when you pass `--out <path>`. Pass `--force` to overwrite an existing regular file. The CLI rejects symlinks, FIFOs, and device files such as `/dev/null`. To discard downloaded content, write to standard output with `--out -` and redirect standard output to `/dev/null`:
 
 ```bash
 testrail attachment get 42 --out - > /dev/null
 ```
 
-The JSON acknowledgement still goes to stderr. Use the same `--out -` pattern
-with `testrail bdd get <case-id>`; do not use `--out /dev/null --force`.
+The CLI writes the JSON acknowledgement to `stderr`. Use the same `--out -` pattern with `testrail bdd get <case-id>`.
 
 ## Features
 
-| Capability         | What it does                                                                                                             | Documented in                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Response caching   | GET-only in-process LRU cache with TTL; any write invalidates it                                                         | [docs/ARCHITECTURE.md §2.3](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#23-request-cache)                         |
-| Bounded pagination | Preserve page metadata or collect every page with explicit safety limits                                                 | [Pagination](#pagination)                                                                                                                             |
-| Rate limiting      | Sliding-window limiter (default 100 req/60s); rejects over-limit before fetch                                            | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
-| Retry with backoff | Exponential backoff with `Retry-After`; GET retries 5xx/429/network, JSON writes only 429, multipart uploads never retry | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
-| SSRF guard         | Validated DNS addresses bound to each connection, private-host blocking, manual-redirect rejection                       | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
-| Response-body caps | Byte ceiling + wall-clock deadline on every body read                                                                    | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
-| Streaming uploads  | Attachment uploads stream from disk, so large files don't buffer in heap                                                 | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
-| CLI                | `testrail` binary: read / write / destructive actions, four output formats                                               | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
-| AI-agent skill     | Bundled Claude Code skill; install it with `npx testrail install-skill`                                                  | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
+| Capability         | Description                                                                                                          | Reference                                                                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Response caching   | In-process LRU cache with TTL for GET requests; any write clears the cache                                           | [docs/ARCHITECTURE.md §2.3](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#23-request-cache)                         |
+| Bounded pagination | Return one page with metadata or collect all pages within explicit safety limits                                     | [Pagination](#pagination)                                                                                                                             |
+| Rate limiting      | Sliding-window limiter (default: 100 requests per 60 seconds); rejects excess calls before fetch                     | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
+| Retry with backoff | Exponential backoff with `Retry-After`; GET retries 5xx/429/network, JSON writes retry 429 only, uploads never retry | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
+| SSRF guard         | Pins validated DNS addresses per connection, blocks private hosts, and rejects HTTP redirects                        | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
+| Response-body caps | Enforces a byte limit and a wall-clock time limit on every response body                                             | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
+| Streaming uploads  | Streams attachment uploads from disk without buffering whole files in memory                                         | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
+| CLI                | `testrail` executable for read, write, and destructive actions with four output formats                              | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
+| AI-agent skill     | Bundled Claude Code skill; run `npx testrail install-skill` to install                                               | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
 
-For a project-scoped Claude Code installation, run `npx testrail install-skill`. Add `--global` to install it under `~/.claude/skills/`. It installs `SKILL.md` and the `reference/` files the body links to; after upgrading the package, re-run it with `--force` to replace an earlier install.
+Run `npx testrail install-skill` to install the skill into `.claude/skills/testrail-cli/`. Add `--global` to install it into `~/.claude/skills/testrail-cli/`. After you upgrade the package, run `npx testrail install-skill --force` to update the installed skill files.
 
-> **Note on rate-limit headers.** A live-instance check found that TestRail Cloud does **not** emit
-> rate-limit headers (`Retry-After`, `X-RateLimit-*`) under normal serial load — a burst of requests
-> all returned `200` with no such headers. The client's `Retry-After` handling is therefore dormant in
-> practice and only engages if the server starts sending the header (e.g. under heavy throttling or on
-> a future TestRail version); it is fully covered by synthetic tests. The **effective** throttle is the
-> client's own sliding-window limiter (`rateLimiter`, default 100 req/60s), which rejects over-limit
-> requests before they leave the process — tune it to your instance's quota.
+> **Note on rate-limit headers:** TestRail Cloud does not send `Retry-After` or `X-RateLimit-*` headers under normal load. The client's `Retry-After` parser activates only when the server sends that header (for example, during heavy rate limiting). The client's local sliding-window `rateLimiter` (default: 100 requests per 60 seconds) is the primary rate control. Adjust `rateLimiter` to match your TestRail quota.
 
 ## Configuration
 
-All options except `baseUrl` / `email` / `apiKey` are optional:
+Only `baseUrl`, `email`, and `apiKey` are required:
 
 ```typescript
 const client = new TestRailClient({
@@ -155,40 +140,42 @@ const client = new TestRailClient({
     email: 'you@example.com',
     apiKey: 'your-api-key',
 
-    timeout: 30000, // request timeout (ms)
-    maxRetries: 3, // retry attempts for retryable failures
-    enableCache: true, // cache GET responses
-    cacheTtl: 300000, // cache TTL (ms)
+    timeout: 30000, // Request timeout in milliseconds
+    maxRetries: 3, // Retry attempts for retryable failures
+    enableCache: true, // Cache GET responses
+    cacheTtl: 300000, // Cache TTL in milliseconds
     rateLimiter: { maxRequests: 100, windowMs: 60000 },
 });
 ```
 
-| Option                    | Type                | Default            | Description                                            |
-| ------------------------- | ------------------- | ------------------ | ------------------------------------------------------ |
-| `baseUrl`                 | `string`            | **required**       | HTTPS TestRail URL; HTTP requires `allowInsecure`      |
-| `email`                   | `string`            | **required**       | TestRail user email (validated format)                 |
-| `apiKey`                  | `string`            | **required**       | TestRail API key                                       |
-| `timeout`                 | `number`            | `30000`            | Per-attempt timeout in ms (max 5 min); covers DNS      |
-| `maxRetries`              | `number`            | `3`                | Max retry attempts for failed requests; integer 0-10   |
-| `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                        |
-| `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                     |
-| `cacheCleanupInterval`    | `number`            | `60000`            | Integer 0–2,147,483,647 ms; 0 disables cleanup         |
-| `maxCacheSize`            | `number`            | `1000`             | Maximum number of entries in cache                     |
-| `rateLimiter`             | `RateLimiterConfig` | 100 / 60s          | `{ maxRequests, windowMs }` sliding window             |
-| `allowInsecure`           | `boolean`           | `false`            | Permit cleartext HTTP (credentials sent in Base64)     |
-| `allowPrivateHosts`       | `boolean`           | `false`            | Permit private/loopback/link-local hosts               |
-| `maxJsonResponseBytes`    | `number`            | `10485760`         | JSON/text response body cap (10 MiB; ceiling 1 GiB)    |
-| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Binary response body cap (100 MiB; ceiling 1 GiB)      |
-| `bodyTimeout`             | `number`            | `= timeout`        | Wall-clock deadline for the body read (0 disables)     |
-| `registerProcessHandlers` | `boolean`           | `false`            | Install `exit`/`SIGINT`/`SIGTERM` handlers (opt-in)    |
-| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Trusted transport; honor the supplied dispatcher       |
-| `dnsLookup`               | `function`          | system DNS         | Custom resolver for SSRF checks and connection pinning |
-| `onSchemaMismatch`        | `function`          | none (silent)      | Notified when a response does not match its schema     |
+| Option                    | Type                | Default            | Description                                             |
+| ------------------------- | ------------------- | ------------------ | ------------------------------------------------------- |
+| `baseUrl`                 | `string`            | **required**       | HTTPS TestRail URL (HTTP requires `allowInsecure`)      |
+| `email`                   | `string`            | **required**       | TestRail account email                                  |
+| `apiKey`                  | `string`            | **required**       | TestRail API key                                        |
+| `timeout`                 | `number`            | `30000`            | Per-attempt timeout in ms (max 5 min); includes DNS     |
+| `maxRetries`              | `number`            | `3`                | Max retry attempts (integer 0–10)                       |
+| `enableCache`             | `boolean`           | `true`             | Enable in-memory caching for GET requests               |
+| `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                      |
+| `cacheCleanupInterval`    | `number`            | `60000`            | Cleanup interval in ms (0–2,147,483,647; 0 disables)    |
+| `maxCacheSize`            | `number`            | `1000`             | Maximum number of entries in the cache                  |
+| `rateLimiter`             | `RateLimiterConfig` | 100 / 60s          | `{ maxRequests, windowMs }` sliding window              |
+| `allowInsecure`           | `boolean`           | `false`            | Allow cleartext HTTP connections                        |
+| `allowPrivateHosts`       | `boolean`           | `false`            | Allow private, loopback, and link-local hosts           |
+| `maxJsonResponseBytes`    | `number`            | `10485760`         | Max JSON or text response body size (10 MiB; max 1 GiB) |
+| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Max binary response body size (100 MiB; max 1 GiB)      |
+| `bodyTimeout`             | `number`            | `= timeout`        | Max time to read the response body (0 disables)         |
+| `registerProcessHandlers` | `boolean`           | `false`            | Register `exit`/`SIGINT`/`SIGTERM` cleanup handlers     |
+| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Custom fetch implementation; must honor the dispatcher  |
+| `dnsLookup`               | `function`          | system DNS         | Custom DNS resolver for SSRF checks and IP pinning      |
+| `onSchemaMismatch`        | `function`          | none (silent)      | Callback invoked when a response fails schema parsing   |
 
-Library consumers should leave `registerProcessHandlers` off and call `client.destroy()` from their own shutdown hook. The `testrail` CLI opts in on your behalf.
+Library callers should leave `registerProcessHandlers` set to `false` and call `client.destroy()` during application shutdown. The `testrail` CLI enables `registerProcessHandlers` automatically.
 
-To retain a concurrency slot or staged upload until driver work has actually
-finished, use `trackOperation`:
+### Operation settlement tracking
+
+Use `trackOperation` to wait for network requests, streams, and cleanup tasks to finish.
+Wait for settlement before you release a concurrency slot or delete temporary files:
 
 ```typescript
 const operation = client.trackOperation(() => client.projects.getAllProjects({ maxDurationMs: 1000 }));
@@ -197,74 +184,66 @@ try {
     console.log(projects.length);
 } finally {
     await operation.settled;
-    // Release the operation's slot or staged files here.
+    // Release the concurrency slot or temporary files here.
 }
 ```
 
-`result` preserves the normal method value, error, and deadline. `settled`
-always resolves, after the callback and every started or joined driver task
-finish, including DNS, fetch, response reads and cancellation, upload streams,
-retries, and shared requests. A deadline can reject `result` while `settled`
-is still pending. An abort request alone does not release ownership; custom
-transports or cancellation that never complete keep it pending. Nested
-operations are included. Return the promise for your complete callback workflow;
-unawaited application timers are outside the driver's accounting.
-`trackOperation` does not add cancellation, and `destroy()` does not abort
-in-flight work or settle its handles. Settlement tracking switches on with the
-first `trackOperation` call and stays on. Multipart uploads also enter a separate
-async context to identify their native transport requests, even without
-`trackOperation`. A process that neither tracks operations nor uploads avoids
-the library's context-propagation cost. A request already in flight at the first
-`trackOperation` call can be joined for its result but not for its post-result
-cleanup.
+- `operation.result` resolves or rejects with the callback's normal return value, error, or timeout.
+- `operation.settled` always resolves after the callback and all associated client tasks finish.
+  These tasks include DNS resolution, HTTP requests, response body reads, stream cancellation, upload streams, retries, and shared requests.
+- A timeout can reject `operation.result` while `operation.settled` is still waiting for transport cleanup to complete.
+- `trackOperation` does not cancel operations. `client.destroy()` does not abort in-flight requests or settle their handles.
+- `AsyncLocalStorage` tracking starts with the first call to `trackOperation` and stays active for the lifetime of the process.
+- An abort request does not release ownership. If a custom transport or cancellation task never finishes, `operation.settled` stays pending.
+- Tracking includes nested operations. Return the Promise for the complete callback workflow. Tracking excludes application timers that the callback does not await.
+- A request started before the first `trackOperation` call can share its result. Tracking cannot include its cleanup after that result.
 
-Multipart cleanup requests abort and then requires transport evidence before
-closing active upload streams normally. The pinned dispatcher or native request
-diagnostics can provide that evidence. When an injected or globally replaced
-fetch supplies neither, cleanup errors the source instead, preventing an ignored
-abort from sending a truncated file with a valid multipart closing boundary.
-Pending source reads and cancellation still delay `settled` on every path.
+Multipart uploads also use a separate asynchronous context to identify native transport requests, even without `trackOperation`.
+Processes that do not track operations or upload files avoid the cost of this context.
 
-A cache hit is isolated, not free. Entries are deep-copied with
-`structuredClone` on both write and read, so a cached caller can mutate what it
-receives without corrupting the entry the next caller will get. The cost scales
-with payload size: a hit on a 250-case `getCases()` page copies that whole
-payload again. This is the right trade for correctness, but it means
-`maxCacheSize` bounds entry _count_, not memory — size it against the responses
-you actually cache, and lower `maxJsonResponseBytes` (default 10 MiB) if a
-bulk-export endpoint would otherwise pin large bodies for the full TTL.
+When a multipart upload aborts, the client waits for transport completion evidence before it closes the file stream normally.
+The pinned dispatcher or native request diagnostics can provide this evidence.
+A custom or globally replaced `fetch` function might provide neither. In that case, the client destroys the upload stream with an error.
+This prevents an ignored abort from sending a truncated file with a valid closing multipart boundary.
+Pending source reads and cancellation tasks delay `operation.settled` on every path.
 
-`reports.runReport()` and `reports.runCrossProjectReport()` generate a new
-report for each call. Although the API routes use GET, these methods bypass
-cache reads, writes, and request coalescing. A 5xx or network failure is never
-retried — the report may already have been generated and the template may have
-sent email, so re-running an uncertain outcome must be your own explicit new
-invocation. A 429 is retried (honoring `Retry-After`), because the rate limiter
-rejects the request before execution.
+### Cache isolation and memory
 
-By default, the host guard rejects private, loopback, link-local, CGNAT,
-benchmarking (`198.18.0.0/15`), multicast, and reserved IPv4 addresses,
-including their IPv4-mapped IPv6 spellings, plus IPv6 transition ranges
-such as 6to4 and the well-known and local-use NAT64 prefixes. Literal URLs and
-DNS answers use the same address classifier. The default transport connects directly to
-the validated addresses without a second DNS lookup, preserving the original
-hostname for TLS certificate checks and SNI. Injected `fetch` implementations
-are trusted: they must honor the supplied Node dispatcher or enforce equivalent
-destination checks, abort signals, and manual redirects. On-premise SDK deployments that
-need these addresses must explicitly set `allowPrivateHosts: true`; this also
-disables DNS host validation and connection pinning. See the [host guard details](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)
-for the exact ranges.
+`RequestCache` copies cached values with `structuredClone` on both cache writes and cache reads. Changes to a returned object never modify the cached entry.
+Copy cost increases with payload size. For example, a cache hit on a 250-case `getCases()` page copies the complete payload.
+`maxCacheSize` limits the number of entries, not their byte size.
+If your workload caches large responses, reduce `maxCacheSize` or `maxJsonResponseBytes` (default: 10 MiB).
 
-Concurrent GETs share an in-flight request only when their effective header
-and body timeouts match. Timeout views still share completed cached responses.
+### Report execution
+
+`reports.runReport()` and `reports.runCrossProjectReport()` generate a new report on every call.
+These endpoints use HTTP GET but bypass cache reads, cache writes, and in-flight request sharing.
+The client retries HTTP `429` responses and follows `Retry-After`. The server rate limiter rejects these requests before execution.
+The client never retries `5xx` responses or network errors. The report might already exist, and the template might already have sent email.
+Inspect an uncertain outcome before you start another report request.
+
+### SSRF protection and private hosts
+
+By default, the client blocks these address ranges:
+
+- Private, loopback, link-local, multicast, and reserved IPv4 addresses.
+- CGNAT (`100.64.0.0/10`) and benchmarking (`198.18.0.0/15`) addresses.
+- IPv4-mapped IPv6 addresses from these ranges.
+- IPv6 transition ranges, including 6to4 and NAT64 prefixes `64:ff9b::/96` and `64:ff9b:1::/48`.
+
+The client applies the same blocklist to URL literals and DNS answers.
+The default transport connects directly to validated IP addresses without a second DNS lookup.
+It keeps the original hostname for TLS certificate verification and SNI.
+Custom `fetch` functions must follow the supplied Node dispatcher or enforce equivalent destination checks, abort signals, and manual redirects.
+For trusted on-premise servers on private networks, set `allowPrivateHosts: true`.
+This option disables DNS host validation and connection pinning.
+See [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers) for the complete address list.
+
+Concurrent GET requests share an in-flight request only when their effective header and body timeouts match. Completed cache entries remain shared across timeout views.
 
 ### Custom DNS resolvers
 
-Each `dnsLookup` answer must contain a valid IP literal and its matching numeric
-`family`: `4` for IPv4 or `6` for IPv6. Missing families, `0`, and mismatches now
-fail before any request is sent, even when the address itself is public. Use
-the system resolver's complete answer objects, or supply the correct family
-when adapting another resolver:
+Every answer from `dnsLookup` must include a valid IP address string and a matching numeric `family` (`4` for IPv4 or `6` for IPv6). Missing families, `family: 0`, or mismatched families fail with `TestRailValidationError` before the client sends the request:
 
 ```typescript
 import { lookup } from 'node:dns/promises';
@@ -273,42 +252,27 @@ const client = new TestRailClient({
     ...config,
     dnsLookup: (hostname) => lookup(hostname, { all: true }),
 });
-// A fixed IPv4 answer has this shape:
+// Static IPv4 example:
 // dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }]
-// IPv6 answers must use family: 6.
+// Static IPv6 answers must use family: 6.
 ```
 
 ### Proxies and custom certificate authorities
 
-With `allowPrivateHosts: false` (the default), the client now supplies a direct
-dispatcher on each request. This is a breaking change for applications that
-previously relied on Undici's `setGlobalDispatcher()` with a `ProxyAgent`,
-`EnvHttpProxyAgent`, or custom TLS settings. It also bypasses
-`NODE_USE_ENV_PROXY=1` / `--use-env-proxy`; the private HTTP/HTTPS agents do not
-inherit `http.globalAgent` or `https.globalAgent` customization. Node documents
-the separate [per-request dispatcher](https://nodejs.org/api/globals.html#custom-dispatcher)
-and [global proxy configuration](https://nodejs.org/api/http.html#built-in-proxy-support).
+When `allowPrivateHosts` is `false` (the default), the client passes a dedicated per-request dispatcher to `fetch`. This dispatcher bypasses global Undici dispatchers (`setGlobalDispatcher()`), `NODE_USE_ENV_PROXY=1`, `--use-env-proxy`, `http.globalAgent`, and `https.globalAgent`.
+This breaks applications that depend on global `ProxyAgent`, `EnvHttpProxyAgent`, or custom TLS settings.
+Node documents the [per-request dispatcher](https://nodejs.org/api/globals.html#custom-dispatcher) and [global proxy configuration](https://nodejs.org/api/http.html#built-in-proxy-support).
 
-For additional CA trust on direct connections, set
-[`NODE_EXTRA_CA_CERTS`](https://nodejs.org/api/cli.html#node_extra_ca_certsfile)
-to a PEM bundle **before starting Node**. This preserves certificate and hostname
-verification while retaining DNS pinning; a custom global agent's `ca` setting
-is not copied into the client's agents.
+To trust a custom certificate authority (CA) on direct connections, set [`NODE_EXTRA_CA_CERTS`](https://nodejs.org/api/cli.html#node_extra_ca_certsfile) to your PEM bundle path before starting Node.js. This environment variable preserves TLS certificate verification, hostname checks, and DNS pinning.
+The client does not copy the `ca` setting from a custom global agent.
 
-For a required proxy, inject an application-owned fetch adapter that explicitly
-selects that proxy and preserves the supplied abort signal and manual-redirect
-policy. Replacing the dispatcher also replaces connection pinning: the client's
-local DNS check cannot verify a second lookup performed by the proxy. Before
-using this migration, configure the trusted proxy to permit only the approved
-TestRail origin and enforce the same private-address restrictions on its actual
-connection destination. An origin allowlist alone does not prevent DNS rebinding.
+To route requests through an HTTP proxy:
 
-For example, after establishing that proxy policy, an application that already
-uses [Undici's ProxyAgent](https://github.com/nodejs/undici/blob/main/docs/docs/api/ProxyAgent.md)
-can select it explicitly:
+1. Configure the proxy to allow only your TestRail origin and to block private and link-local destination IP addresses.
+2. Pass a custom `fetch` function that selects your proxy dispatcher. Keep `init.signal` and `redirect: 'manual'` unchanged:
 
 ```typescript
-import { ProxyAgent } from 'undici'; // Application dependency; not bundled by this client.
+import { ProxyAgent } from 'undici'; // Installed by your application
 
 const approvedOrigin = 'https://your-domain.testrail.io';
 const proxy = new ProxyAgent('https://approved-proxy.example:8443');
@@ -331,125 +295,103 @@ try {
 }
 ```
 
-The injected adapter and proxy now own destination enforcement. If that policy
-cannot be established, this package has no safe automatic proxy fallback.
-`allowPrivateHosts: true` restores the configured fetch's connection handling
-but disables both DNS validation and pinning; it is not a proxy fix. Reserve it
-for intentionally trusted on-premise destinations with separate network controls.
+The proxy performs the final DNS resolution and must enforce destination IP checks.
+The local DNS check cannot validate a second lookup at the proxy. An origin allowlist alone does not prevent DNS rebinding.
+If the proxy cannot enforce this policy, the package has no safe automatic proxy fallback.
+Use `allowPrivateHosts: true` only for trusted private destinations with separate network controls.
 
 ## Pagination
 
-The 24 endpoints in the pagination registry expose three projections. Existing
-methods keep their backward-compatible behavior: `get*()` performs one request
-and returns that response's item array. `get*Page()` performs one request and
-returns a discriminated `Page<T>` with the server's `offset`, `limit`, `size`,
-and `_links` when an envelope was returned. `getAll*()` follows every response
-continuation and returns one concatenated array:
+The 24 paginated endpoints provide three methods per resource:
+
+- `get*()` sends one request and returns the item array from that response.
+- `get*Page()` sends one request and returns a discriminated `Page<T>` object. Envelope responses include `offset`, `limit`, `size`, and `_links`.
+- `getAll*()` follows `_links.next` across pages and returns a single combined array:
 
 ```typescript
-const firstResponse = await client.runs.getRuns(5); // Run[]; one response
+const firstResponse = await client.runs.getRuns(5); // Run[] from one response
 const page = await client.runs.getRunsPage(5, { limit: 25, offset: 50 }); // Page<Run>
-const all = await client.runs.getAllRuns(5, { pageSize: 100, maxItems: 10_000 }); // Run[]
+const all = await client.runs.getAllRuns(5, { pageSize: 100, maxItems: 10_000 }); // Run[] across pages
 ```
 
-An envelope's `_links.next` decides whether another request is required. The
-client extracts only a validated `offset` and optional `limit`. Each descriptor
-declares its allowed operation names; its adapter supplies one selected
-operation, validated numeric path parameters, and normalized filters. The
-shared executor rejects undeclared operations and rebuilds the known TestRail
-endpoint itself, so it never follows the continuation's host or path. A legacy
-bare-array response is necessarily one terminal page. All-page reads bypass GET
-cache reads, writes, and request coalescing so one aggregate cannot combine
-pages captured at different times. They also do not enumerate wider runtime
-option objects: only declared filters and public aggregate controls are read,
-while injected `limit`/`offset`, internal collector fields, and unrelated
-properties are ignored. A page read uses normal GET caching in a separate
-validated namespace, so a permissive legacy one-response wrapper cannot poison
-the stricter `Page<T>` projection.
+How bounded pagination works:
 
-Aggregation is fail-closed and never returns partial results. Defaults are a
-page size of 250, start offset 0, 100 pages, 25,000 items, five minutes, and
-100 MiB of UTF-8 serialized items. Page size is capped at 250, duration at five
-minutes, and the byte bound at 1 GiB. A safety, continuation, or page-structure
-failure throws `TestRailPaginationError` with `reason`, `pagesFetched`, and
-`itemsFetched`. Reasons are `max_pages`, `max_items`, `max_duration`,
-`max_bytes`, `invalid_page`, `invalid_continuation`, and `non_progress`.
+- The client reads only the validated `offset` and optional `limit` from `_links.next` and rebuilds the endpoint path locally. It never follows the host or path inside `_links.next`.
+- Legacy bare-array responses return as a single terminal page.
+- `getAll*()` bypasses cache reads, cache writes, and request coalescing so it never mixes pages from different snapshots.
+- `get*Page()` caches responses in a separate strict-schema namespace (`PAGE:PARSED:GET:{endpoint}`).
+- `getAll*()` never returns partial results. Default limits are `pageSize: 250`, `startOffset: 0`, `maxPages: 100`, `maxItems: 25_000`, `maxDurationMs: 300_000` (5 minutes), and `maxBytes: 104_857_600` (100 MiB). Maximum ceilings are `pageSize: 250`, `maxDurationMs: 300_000`, and `maxBytes: 1_073_741_824` (1 GiB).
+- If a page is malformed or exceeds a limit, the client throws `TestRailPaginationError`.
+  The error includes `reason`, `pagesFetched`, and `itemsFetched`.
+  Reasons are `max_pages`, `max_items`, `max_duration`, `max_bytes`, `invalid_page`, `invalid_continuation`, or `non_progress`.
 
-Registry scope is deliberately finite: cases, case history, and project BDDs;
-projects, suites, sections, plans, runs, tests, and milestones; the three result
-lists; labels; shared-step lists and history; case/run/plan attachment lists;
-datasets, variables, roles, groups, and case statuses. Shared-step history,
-datasets, variables, roles, groups, and case statuses expose response-driven
-pagination but no caller-controlled page size or start offset. Test
-attachments, plan-entry attachments, users, and ordinary
-metadata/configuration/report lists remain one-response-only; some legacy
-methods may still accept `limit`/`offset`, but that is not a
-`get*Page()`/`getAll*()` guarantee.
+Each endpoint descriptor declares allowed operation names. The shared executor rejects undeclared operations.
+Aggregate reads use only declared filters and public aggregate controls.
+They ignore injected `limit` and `offset`, internal collector fields, and unrelated properties.
+The separate page cache prevents a permissive one-response wrapper from affecting strict `Page<T>` validation.
+The byte limit measures UTF-8 serialized items.
 
-The CLI mirrors the projections. Its default output remains an item array;
-`--page` emits the normalized page object, and `--all` emits the complete
-array. `--all` uses `--page-size`, `--start-offset`, `--max-pages`,
-`--max-items`, `--max-duration-ms`, and `--max-bytes`. It cannot be combined
-with `--page`, `--limit`, or `--offset`; aggregate controls require `--all`.
-Response-driven endpoints reject caller-controlled size/offset flags.
+Paginated endpoints include these resources:
 
-## Response types are a description, not a guarantee
+- Cases, case history, and project BDDs.
+- Projects, suites, sections, plans, runs, tests, and milestones.
+- The three result lists and labels.
+- Shared steps and shared-step history.
+- Case, run, and plan attachments.
+- Datasets, variables, roles, groups, and case statuses.
 
-Since 6.0.0, **Zod response validation is advisory**. When entity fields do not match their schema, the client normally returns the raw body unchanged and notifies `onSchemaMismatch`; the Zod mismatch alone does not throw. With the default or another non-throwing hook, domain methods still enforce list/page outer structure so a malformed collection cannot masquerade as a successful empty result. A caller-supplied hook that throws takes precedence over downstream structural decoding.
+Six endpoints use response-driven pagination: shared-step history, datasets, variables, roles, groups, and case statuses.
+These endpoints do not accept caller-supplied `pageSize` or `startOffset`.
+Test attachments, plan-entry attachments, users, and ordinary metadata, configuration, and report lists return one response only.
+Some one-response methods accept `limit` and `offset`. This does not mean that they support `get*Page()` or `getAll*()`.
 
-In non-throwing advisory mode, the hard protocol exceptions are structural
-rather than entity-field drift. A malformed default list response throws
-`TestRailApiError`; explicit page/all reads throw `TestRailPaginationError`. An
-unrecognized successful response from `cases.addCases()` or
-`cases.updateCases()` also throws `TestRailApiError` with an explicit “write
-outcome is indeterminate” message. Those non-idempotent writes may already have
-changed server state, so reporting an empty result could prompt a duplicate
-retry.
+In the CLI:
 
-The CLI makes advisory mismatches visible without copying the response into
-logs. By default it writes at most 10 unique, deduplicated warnings to stderr,
-then a safe suppressed-count summary. Warnings contain only the request method,
-CLI resource/action, Zod issue codes, and shape-only paths whose segments are
-all masked as `*`; they never include the endpoint, field/record keys, issue
-messages, or raw response. Pass
-`--strict-responses` or set `TESTRAIL_STRICT_RESPONSES=1` to stop at the first
-mismatch with exit code 1. Read mismatches use `TestRailValidationError`; a
-successful mutating request with a mismatched response uses a privacy-safe
-`TestRailApiError` that says the write outcome is indeterminate, and must not be
-retried blindly. One-shot commands emit no value for the mismatched response,
-and bounded aggregates emit no partial array. A streaming `run watch` may
-already have emitted completed earlier polls before a later mismatch; those
-events cannot be retracted. The environment variable accepts only `1`, `0`, an
-empty value, or unset; any other value is rejected before authentication or a
-network request. The flag is boolean-only, so forms such as
-`--strict-responses=true` are rejected instead of guessed. `--quiet` suppresses
-advisory warnings as well as normal output.
+- Default mode outputs the item array from one response.
+- `--page` outputs the `Page<T>` object.
+- `--all` collects all pages and accepts `--page-size`, `--start-offset`, `--max-pages`, `--max-items`, `--max-duration-ms`, and `--max-bytes`.
+- Do not combine `--all` with `--page`, `--limit`, or `--offset`.
+- Aggregate controls require `--all`. Response-driven endpoints reject `--page-size` and `--start-offset`.
 
-This is deliberate. TestRail's published API documentation is not a reliable description of what the API actually sends: it documents a `{step_history}` wrapper for an endpoint that returns a bare array, a boolean `mfa_required` that arrives as integer `0`, and an `is_untested` field on the wrong endpoint entirely. Because list endpoints validate a whole page at once, a single unmodelled row used to discard up to 250 valid ones — so strict validation reliably converted a working response into an outage, and never once caught a server-side regression.
+## Advisory response validation
 
-Two consequences worth knowing:
+Starting in version 6.0.0, **Zod response validation is advisory**.
+If an entity field does not match its schema, the client normally returns the raw response unchanged.
+It also calls `onSchemaMismatch` if configured. A throwing hook runs before the list and page decoders.
 
-- **Exported response types state the expected shape, not a runtime guarantee.** A field typed `number` can hold whatever TestRail sent. Fields are widened to match reality as wire evidence arrives, in any release — pin an exact version if you need frozen types.
-- **Caller-supplied input still fails closed.** Client configuration and CLI write payloads are validated on a separate path and reject invalid input as before.
-- **The hook must be synchronous, and what it logs can contain personal data.** An `async` hook cannot restore fail-closed validation and is rejected with `TestRailValidationError`; see the comment in the example below before logging `endpoint` or `data`.
+With a non-throwing hook, structural errors still throw these errors:
 
-Public response types are derived from the declared Zod response shapes, so a
-runtime `.passthrough()` no longer leaks a broad `[key: string]: unknown` into
-every entity. Flat response custom fields are modeled only where TestRail emits
-them: `Case`, `Test`, and `Result` support bracket access such as
-`test['custom_browser']`, typed `unknown`; narrow before use. Their older
-`custom_fields` container remains deprecated for compatibility. Stable fields
-added in 6.0 include `Test.refs_data`/`case_title`,
-`Result.case_title`/`case_refs`,
-`CaseField.is_indexed`/`is_system`, and `ResultField.is_system`; milestone
-children are now recursively typed.
+- `TestRailApiError` for malformed default lists.
+- `TestRailPaginationError` for malformed pages or aggregate reads.
+- `TestRailApiError` for malformed responses from `cases.addCases()` or `cases.updateCases()`. The message says the write outcome is indeterminate.
+
+These writes might have changed server state. Never interpret a hook error as proof that a write did not execute.
+
+In the CLI:
+
+- By default, the CLI writes up to 10 unique schema-mismatch warnings to `stderr`, then reports the suppressed count.
+- Warnings contain the HTTP method, CLI resource and action, Zod issue codes, and paths with every segment masked as `*`.
+- Warnings exclude endpoints, field names, record keys, issue messages, and raw responses.
+- Pass `--strict-responses` or set `TESTRAIL_STRICT_RESPONSES=1` to exit with code `1` on the first schema mismatch.
+- Pass `--quiet` to suppress advisory warnings and normal output.
+
+In strict mode, read mismatches throw `TestRailValidationError`.
+Write mismatches throw `TestRailApiError` with an indeterminate-outcome message and no raw response. Do not retry these writes automatically.
+One-shot commands return no mismatched value. Aggregate reads return no partial array.
+`run watch` can emit successful earlier polls before a later mismatch; the CLI cannot retract these events.
+`TESTRAIL_STRICT_RESPONSES` accepts only `1`, `0`, an empty value, or no value. Other values fail before authentication or network requests.
+The flag accepts no value: `--strict-responses=true` is invalid.
+
+Key rules for response types and hooks:
+
+- **Response types describe expected shapes, not runtime guarantees.** A field typed `number` can contain a different server value.
+  Response types can widen in any release to match observed responses. Pin an exact version if you need fixed types.
+- Narrow `unknown` custom fields (such as `test['custom_browser']` on `Case`, `Test`, and `Result`) before use.
+- **Caller inputs still fail closed.** Constructor config validation and CLI write payload validation reject invalid input before any network call.
+- **`onSchemaMismatch` must be synchronous.** Returning a Promise throws `TestRailValidationError`. Do not log raw `endpoint` query strings or raw `data` bodies if they can contain personal data:
 
 ```typescript
-// Observe drift without changing behavior.
-// Never log `endpoint`, `error`, or `data` wholesale. Endpoint path/query values
-// and the raw body can contain personal data, while Zod paths can contain
-// response-controlled record/catchall keys. Keep only the operation token,
-// issue code, and path depth; mask every path segment.
+// Log schema drift safely without exposing sensitive values:
 const client = new TestRailClient({
     ...config,
     onSchemaMismatch: ({ method, endpoint, error }) =>
@@ -463,10 +405,7 @@ const client = new TestRailClient({
         }),
 });
 
-// Or restore strict, fail-closed validation — useful in CI.
-// `handleZodError` reproduces the exact TestRailValidationError older versions
-// threw, so existing `instanceof` handlers keep matching; throw `error` as-is
-// if you would rather have the raw Zod issue tree.
+// Or enforce strict fail-closed validation (for example, in CI):
 import { handleZodError } from '@dichovsky/testrail-api-client';
 
 const strict = new TestRailClient({
@@ -477,9 +416,17 @@ const strict = new TestRailClient({
 });
 ```
 
+Public response types come from declared Zod shapes. Runtime `.passthrough()` does not add `[key: string]: unknown` to every entity.
+`Case`, `Test`, and `Result` support flat custom fields. Their older `custom_fields` container remains deprecated for compatibility.
+Version 6.0 added `Test.refs_data`, `Test.case_title`, `Result.case_title`, `Result.case_refs`, `CaseField.is_indexed`, `CaseField.is_system`, and `ResultField.is_system`.
+Milestone children use recursive types.
+
+TestRail responses can differ from its documentation. Examples include a bare array instead of `{step_history}` and integer `0` for `mfa_required`.
+The documentation also placed `is_untested` on a different endpoint. Strict page validation could reject 250 valid rows because of one unmodelled field.
+
 ## Error handling
 
-The client exposes three primary error classes:
+The client exports three main error classes:
 
 ```typescript
 import { TestRailApiError, TestRailPaginationError, TestRailValidationError } from '@dichovsky/testrail-api-client';
@@ -488,93 +435,87 @@ try {
     await client.projects.getProject(999);
 } catch (error) {
     if (error instanceof TestRailApiError) {
-        // HTTP/network/protocol failure, including a malformed successful default-list response
+        // HTTP, network, or protocol error
         console.error(error.status, error.statusText, error.response);
     } else if (error instanceof TestRailPaginationError) {
-        // Bounded aggregation or structural page/continuation failure
+        // Pagination limit exceeded or malformed page/continuation
         console.error(error.reason, error.pagesFetched, error.itemsFetched);
     } else if (error instanceof TestRailValidationError) {
-        // Bad config, invalid ID, or invalid params
+        // Invalid configuration, ID, or parameter
         console.error(error.message);
     }
 }
 ```
 
-`TestRailApiError` carries `status`, `statusText`, and `response` (the raw body
-lives only in `response`, never in `message`). In non-throwing advisory mode, it
-also represents an unrecognized successful outer structure from a default list
-read or non-idempotent bulk case write. CLI strict mode uses the same class for
-any successful mutating request whose response mismatches, with an indeterminate
-outcome message and no raw response attached. `TestRailPaginationError`
-extends `TestRailValidationError`; catch it first when its structured reason
-matters. Ordinary entity-field schema mismatches remain advisory. Explicit
-page/all projections require complete envelope metadata, valid links, and a
-safe continuation. A throwing SDK mismatch hook takes precedence over these
-downstream decoders; never treat its error as proof that a write did not happen.
-Other `TestRailValidationError`s signal caller mistakes — bad config, an invalid
-ID, or an invalid parameter. Calling any method after `destroy()` throws a plain
-`Error`.
+- `TestRailApiError` provides `status`, `statusText`, and `response`. Raw bodies appear only in `response`, never in `message`.
+- `TestRailPaginationError` extends `TestRailValidationError` and adds `reason`, `pagesFetched`, and `itemsFetched`. Catch `TestRailPaginationError` before `TestRailValidationError`.
+- `TestRailValidationError` indicates invalid caller input (configuration, IDs, or filter parameters).
+- Calling any method after `client.destroy()` throws a standard `Error`.
 
-For list filters that carry numeric IDs, validation also happens before any request is sent. Arrays such as `createdBy`, `statusId`, and `milestoneId` must contain positive integers; invalid values fail locally with `TestRailValidationError` instead of reaching the API.
+Numeric list filters also validate IDs before requests.
+Arrays such as `createdBy`, `statusId`, and `milestoneId` must contain positive integers. Invalid values throw `TestRailValidationError` locally.
 
-For CLI error details, opt into a private diagnostic file on the original invocation:
+### CLI diagnostic files
+
+To capture structured error details from a CLI command, pass `--diagnostic-file <new-path>` on the original command invocation:
 
 ```bash
 testrail case-field add --data-file field.json --diagnostic-file ./field-error.json
 ```
 
-For real invocations, `--diagnostic-file` reserves a new regular file before the command handler runs and rejects existing
-paths, including symlinks, and destinations shared with `--out`. Its directory must
-already exist. The file has mode `0600`. The flag currently rejects Windows before
-stdin or authentication work because the client cannot establish an equivalent private ACL there.
-`--dry-run` ignores the diagnostic destination on every platform: previews create no
-diagnostic file and do not validate or modify an existing destination.
-On macOS, the client clears inherited ACLs on a private staging directory before
-creating the file, then reserves the requested destination with an exclusive link
-to that private file. Bounded calls to the system `chmod` secure the staging
-directory and remove ACLs added to the file before writing diagnostics. The
-destination directory's ACL is preserved. If securing the file fails, the client
-rejects the destination or omits the diagnostic record.
-Normal completion removes an unused reservation; process exit also attempts cleanup,
-including exits caused by SIGINT/SIGTERM. A permission or I/O failure can leave an empty
-reservation; the command's exit status still describes the operation, and `--quiet`
-suppresses cleanup warnings. File existence alone does not establish API failure.
-Failures after reservation produce a
-version-1 JSON record with `kind`, HTTP `status` when available, an explicit
-`operationOutcome`, and `server` containing `state`,
-`messages`, and `truncated`. Early argument/auth failures have no diagnostic artifact.
-`operationOutcome` is `"not_dispatched"` for a known failure before invoking the
-command handler, such as invalid client configuration. Once the handler starts it
-is conservatively `"failed_or_indeterminate"`; the error's class alone cannot prove
-whether an API write happened.
+How `--diagnostic-file` works:
 
-Only recognized structured validation details are included. Known credentials and
-common encoded variants are redacted; sensitive nested keys are omitted. Raw bodies,
-headers, request payloads, and stacks are excluded. `messages` contains nonblank redacted
-string values in encounter order, without object keys or field-to-message mappings.
-Input processing is capped at
-64 KiB and the record at 16 KiB; malformed/non-JSON or oversized bodies yield a safe
-omission state. When extracted messages exceed the record limit, the first complete
-redacted messages are retained with `truncated: true`. Safe validation text preserves
-the server's original escaping. Diagnostic failures preserve the command's exit status and report
-that the file could not be saved or cleaned up. `--quiet` also suppresses these
-warnings. Default output and request/retry behavior are unchanged. Never replay a
-write just to obtain diagnostics.
+- Before the command handler runs, the CLI reserves a new regular file with `0600` permissions. Its directory must already exist.
+- The CLI rejects existing paths, symlinks, and destinations shared with `--out`.
+- Windows rejects the flag before stdin or authentication work because the client cannot establish an equivalent private ACL.
+- `--dry-run` ignores the destination on every platform. It does not create a diagnostic file or validate or modify an existing destination.
+- Normal completion removes an unused reservation. Process exit also attempts cleanup, including `SIGINT` and `SIGTERM`.
+- Permission or I/O failures can leave an empty reservation. File existence alone does not establish an API failure.
+- Early argument and authentication failures produce no diagnostic file.
 
-After successful custom-field creation, inventory visibility can lag. See the
-[GET-only readiness guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CASE-FIELD-READINESS.md) for bounded, cancellable
-polling that retains the creation result and verifies scope/options before dependent
-case writes.
+On macOS, the client clears inherited ACLs on a private staging directory before file creation.
+It then reserves the requested destination with an exclusive link to that file.
+Bounded `chmod` calls secure the staging directory and remove ACLs added to the file before diagnostic output.
+The destination directory keeps its ACL. If these checks fail, the client rejects the destination or omits the diagnostic record.
+
+Failures after reservation produce a `version: 1` JSON record with these fields:
+
+| Field              | Meaning                                                      |
+| ------------------ | ------------------------------------------------------------ |
+| `kind`             | Error category                                               |
+| `status`           | HTTP status, when available                                  |
+| `operationOutcome` | `"not_dispatched"` or `"failed_or_indeterminate"`            |
+| `server`           | Validation details with `state`, `messages`, and `truncated` |
+
+`"not_dispatched"` indicates a known failure before the command handler starts, such as invalid client configuration.
+After the handler starts, the outcome is `"failed_or_indeterminate"`. The error class alone cannot prove whether an API write executed.
+
+Only recognized structured validation details enter the record.
+The CLI redacts known credentials and common encoded variants, and omits sensitive nested keys.
+The record excludes raw bodies, headers, request payloads, and stack traces.
+`messages` contains nonblank redacted strings in encounter order, without object keys or field-to-message mappings.
+Safe validation text keeps the server's original escaping.
+
+Input processing has a 64 KiB limit, and the record has a 16 KiB limit.
+Malformed, non-JSON, or oversized bodies produce a safe omission state.
+If extracted messages exceed the record limit, the CLI keeps the first complete redacted messages and sets `truncated: true`.
+Diagnostic or cleanup failures preserve the command's exit status and produce a warning. `--quiet` suppresses these warnings.
+Diagnostics do not change default output, requests, or retries.
+Never repeat a failed write only to generate a diagnostic file.
+
+After you create a custom case field, TestRail can take time to show the field in `get_case_fields`.
+Read the [case-field readiness guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CASE-FIELD-READINESS.md) for bounded polling with cancellation.
+Keep the creation result and verify scope and options before dependent case writes.
 
 ## Links
 
-- [CHANGELOG.md](https://github.com/dichovsky/testrail-api-client/blob/main/CHANGELOG.md) — release notes and migration guidance
-- [docs/RELEASING.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/RELEASING.md) — maintainer release and post-release checklist
-- [docs/API-MAPPING.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) — endpoint ↔ client method ↔ CLI command ↔ skill recipe matrix
-- [CODEMAP.md](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) — every symbol with exact `file:line` links
-- [docs/ARCHITECTURE.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md) — how the layers are organized and why
-- [AGENTS.md](https://github.com/dichovsky/testrail-api-client/blob/main/AGENTS.md) — vendor-neutral guidance for AI coding agents
+- [CHANGELOG.md](https://github.com/dichovsky/testrail-api-client/blob/main/CHANGELOG.md) — Release history and migration notes
+- [docs/RELEASING.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/RELEASING.md) — Release checklist for maintainers
+- [docs/API-MAPPING.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) — Endpoint, client method, CLI command, and skill recipe coverage table
+- [CODEMAP.md](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) — Symbol index with `file:line` links
+- [docs/ARCHITECTURE.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md) — System architecture and design invariants
+- [AGENTS.md](https://github.com/dichovsky/testrail-api-client/blob/main/AGENTS.md) — Instructions for AI coding agents
 
 ## License
 
-MIT — see [LICENSE](LICENSE). If this saved you time, you can [buy me a coffee](https://buymeacoffee.com/dichovsky).
+MIT — see [LICENSE](LICENSE). If this package saves you time, you can [buy me a coffee](https://buymeacoffee.com/dichovsky).

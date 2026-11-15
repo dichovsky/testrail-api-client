@@ -2,15 +2,24 @@
 
 # TestRail API Mapping
 
-Coverage matrix linking every TestRail API endpoint to its implementation in this package: the client method, CLI action(s), and agent skill recipe(s). Rows with `—` indicate gaps (endpoint exists in TestRail but not yet surfaced at that layer).
+This coverage table maps every TestRail API endpoint to its client method, CLI action(s), and agent skill recipe(s). Cells with `—` indicate an unimplemented layer.
 
-**Sources of truth.** The endpoint inventory is hand-curated in [`docs/testrail-endpoints.json`](testrail-endpoints.json). Client methods are bound via `@testrail` JSDoc tags on each method in `src/modules/*.ts`. CLI commands are read from the `apiEndpoint` field on each entry in `ACTIONS` in `src/cli/metadata.ts`.
+**Sources of truth.** [`docs/testrail-endpoints.json`](testrail-endpoints.json) defines the endpoint inventory. `@testrail` JSDoc tags in `src/modules/*.ts` bind client methods to endpoints. The `apiEndpoint` field on each `ACTIONS` entry in `src/cli/metadata.ts` binds CLI commands to endpoints.
 
-**Version target.** The inventory is audited against TestRail 10.7.0; source provenance, cumulative-release additions, resolved mismatches, and known upstream documentation conflicts are recorded in [`docs/TESTRAIL-10.7.0-COMPATIBILITY.md`](TESTRAIL-10.7.0-COMPATIBILITY.md).
+**Version target.** This inventory tracks TestRail 10.7.0. Read [`docs/TESTRAIL-10.7.0-COMPATIBILITY.md`](TESTRAIL-10.7.0-COMPATIBILITY.md) for source documentation, version additions, resolved schema mismatches, and upstream documentation notes.
 
-**Drift gates.** The generator validates five things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/reference/recipes.md` references an existing entry in `ACTIONS` (gate C2); every `@testrail`-tagged client method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch (gate D); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `verify` and CI). Pagination is no longer among them: an `ActionSpec` reads its endpoint's contract from `src/cli/metadata/paginated-endpoints.ts` instead of restating it, so there is nothing left for a gate to compare.
+**Drift gates.** The generator runs these checks:
 
-**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/reference/recipes.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary distinguishes endpoint coverage from action counts because more than one CLI action can intentionally use the same TestRail endpoint.
+- Gate A (`npm run mapping:check`) verifies that the committed file matches the generator output.
+- Gate B verifies that every `@testrail` tag matches an endpoint in the JSON inventory.
+- Gate C verifies that every `ActionSpec.apiEndpoint` matches a `@testrail` tag.
+- Gate C2 verifies that every `<!-- recipe-for: resource:action -->` comment in `skill/reference/recipes.md` matches an `ACTIONS` entry.
+  It also verifies that every `ACTIONS` entry has a recipe.
+- Gate D verifies that every `@testrail` client method has at least one `ActionSpec.apiEndpoint`. There are no exemptions.
+
+`src/cli/metadata/paginated-endpoints.ts` defines pagination metadata directly by `apiEndpoint`.
+
+**Skill recipes.** When a numbered recipe in `skill/reference/recipes.md` includes `<!-- recipe-for: resource:action -->`, the table links directly to that recipe. Otherwise, the cell links to the generated command table. Because multiple CLI actions can call the same TestRail endpoint, the summary table lists endpoint counts and action counts separately.
 
 ## Summary
 
@@ -58,7 +67,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`GET get_attachments_for_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForPlanEntry`](../src/modules/attachments.ts#L126) | `attachment list-for-plan-entry` | [recipe #35](../skill/reference/recipes.md#35-attachment-lifecycle-entry-types-plan-plan-entry-run-test) |
 | [`GET get_attachments_for_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForRun`](../src/modules/attachments.ts#L82) | `attachment list-for-run` | [recipe #35](../skill/reference/recipes.md#35-attachment-lifecycle-entry-types-plan-plan-entry-run-test) |
 | [`GET get_attachments_for_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForTest`](../src/modules/attachments.ts#L97) | `attachment list-for-test` | [recipe #35](../skill/reference/recipes.md#35-attachment-lifecycle-entry-types-plan-plan-entry-run-test) |
-| [`POST add_attachment_to_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToCase`](../src/modules/attachments.ts#L150) | `attachment add-to-case` | [recipe #16](../skill/reference/recipes.md#16-attach-a-repro-file-to-a-test-case) |
+| [`POST add_attachment_to_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToCase`](../src/modules/attachments.ts#L150) | `attachment add-to-case` | [recipe #16](../skill/reference/recipes.md#16-attach-a-reproduction-file-to-a-test-case) |
 | [`POST add_attachment_to_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToPlan`](../src/modules/attachments.ts#L180) | `attachment add-to-plan` | [recipe #35](../skill/reference/recipes.md#35-attachment-lifecycle-entry-types-plan-plan-entry-run-test) |
 | [`POST add_attachment_to_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToPlanEntry`](../src/modules/attachments.ts#L195) | `attachment add-to-plan-entry` | [recipe #35](../skill/reference/recipes.md#35-attachment-lifecycle-entry-types-plan-plan-entry-run-test) |
 | [`POST add_attachment_to_result/{result_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToResult`](../src/modules/attachments.ts#L160) | `attachment add-to-result` | [recipe #15](../skill/reference/recipes.md#15-attach-a-playwright-screenshot-to-a-test-result) |
@@ -103,7 +112,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`GET get_case_titles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTitles`](../src/modules/cases.ts#L123) | `case titles` | [recipe #44](../skill/reference/recipes.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
 | [`GET get_cases/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCases`](../src/modules/cases.ts#L137) | `case list` | [recipe #5](../skill/reference/recipes.md#5-list-cases-in-a-specific-suite) |
 | [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L370) | `case history` | [recipe #44](../skill/reference/recipes.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
-| [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L152) | `case add` | [recipe #9](../skill/reference/recipes.md#9-author-a-new-test-case) |
+| [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L152) | `case add` | [recipe #9](../skill/reference/recipes.md#9-create-a-test-case) |
 | [`POST add_cases/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCases`](../src/modules/cases.ts#L172) | `case add-bulk` | [recipe #30](../skill/reference/recipes.md#30-bulk-author-cases-under-a-section-in-one-api-call) |
 | [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L344) | `case copy-to-section` | [recipe #44](../skill/reference/recipes.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
 | [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L222) | `case delete` | [recipe #47](../skill/reference/recipes.md#47-delete-a-single-test-case-with-safety-gates) |
@@ -352,7 +361,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`GET get_current_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCurrentUser`](../src/modules/users.ts#L82) | `user get-current` | [recipe #41](../skill/reference/recipes.md#41-user-lookups-current-session-by-id-by-email) |
 | [`GET get_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUser`](../src/modules/users.ts#L38) | `user get` | [recipe #41](../skill/reference/recipes.md#41-user-lookups-current-session-by-id-by-email) |
 | [`GET get_user_by_email`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUserByEmail`](../src/modules/users.ts#L48) | `user get-by-email` | [recipe #41](../skill/reference/recipes.md#41-user-lookups-current-session-by-id-by-email) |
-| [`GET get_users`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUsers`](../src/modules/users.ts#L60) | `user list` | [recipe #1](../skill/reference/recipes.md#1-smoke-test-auth--connectivity) |
+| [`GET get_users`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUsers`](../src/modules/users.ts#L60) | `user list` | [recipe #1](../skill/reference/recipes.md#1-test-authentication-and-connectivity) |
 | [`POST add_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addUser`](../src/modules/users.ts#L91) | `user add` | [recipe #32](../skill/reference/recipes.md#32-create-a-user-testrail-73) |
 | [`POST update_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateUser`](../src/modules/users.ts#L101) | `user update` | [recipe #33](../skill/reference/recipes.md#33-update-a-user-testrail-73) |
 

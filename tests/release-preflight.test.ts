@@ -263,7 +263,7 @@ describe('publish workflow wiring', () => {
         expect(workflow).toContain('git merge-base --is-ancestor "$GITHUB_SHA" origin/main');
         expect(workflow).toContain('fetch-depth: 0');
         expect(workflow).toContain('package-manager-cache: false');
-        expect(workflow.match(/node-version: '24\.19\.0'/g)).toHaveLength(2);
+        expect(workflow.match(/node-version: '26\.13\.1'/g)).toHaveLength(2);
         expect(workflow).toContain('npm ci --ignore-scripts --registry=https://registry.npmjs.org/');
         expect(workflow).toContain("if: needs.verify.outputs.already-published == 'false'");
         expect(workflow.match(/if: steps\.preflight\.outputs\.already-published == 'false'/g)).toHaveLength(2);
@@ -317,8 +317,8 @@ describe('publish workflow wiring', () => {
     });
 
     it('hands only the tested map-stripped dist artifact to the OIDC job', () => {
-        expect(workflow).toContain('actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02');
-        expect(workflow).toContain('actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093');
+        expect(workflow).toContain('actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9');
+        expect(workflow).toContain('actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333');
         expect(workflow).toContain('name: npm-release-dist');
         expect(workflow).toContain('if-no-files-found: error');
         expect(workflow).toContain('dist-sha256:');
@@ -476,12 +476,12 @@ describe('CI package smoke wiring', () => {
 
     // The three OSes used to be three copy-pasted jobs; they are now one
     // matrix. What this test pins is the coverage, not the encoding: every
-    // supported OS is exercised on both tested Node lines, a failing leg
+    // supported OS is exercised on Node 26, a failing leg
     // cannot be masked, and branch protection still sees a stable check name.
-    it('covers both fetch handler generations on Linux, Windows, and macOS', () => {
+    it('covers Node 26 on Linux, Windows, and macOS', () => {
         expect(workflow).toContain('package-smoke-matrix:');
         expect(workflow).toContain('os: [ubuntu-latest, windows-latest, macos-14]');
-        expect(workflow).toContain("node-version: ['24', '26']");
+        expect(workflow).toContain("node-version: ['26']");
         expect(workflow).toContain('runs-on: ${{ matrix.os }}');
         // fail-fast would cancel sibling legs on the first failure, hiding
         // whether a break is platform-specific.

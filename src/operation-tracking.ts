@@ -89,8 +89,8 @@ export function bindOperation<Args extends unknown[], Result>(
  * {@link engageOperationTracking} and never cleared.
  *
  * Entering an `AsyncLocalStorage` even once installs its context tracking for
- * the whole process, and it can never be undone. On Node 24 — the minimum line
- * exercised by CI — that is `AsyncContextFrame`, costing ~1% on promise
+ * the whole process, and it can never be undone. Measurements on Node 24
+ * found that `AsyncContextFrame` costs ~1% on promise
  * traffic that has nothing to do with this client. Settlement scopes are created
  * only once this feature is in play. Multipart transport diagnostics separately
  * enter an async context, so only embedders who neither track operations nor

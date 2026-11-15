@@ -1,49 +1,51 @@
 # Readiness after case-field creation
 
-A successful `add_case_field` response confirms creation, but the next complete
-`get_case_fields` inventory can temporarily omit the new field. In the report
-for [#270](https://github.com/dichovsky/testrail-api-client/issues/270), TestRail
-10.7.1.1003 omitted a created field at about 2 and 61 seconds, then included it
-at about 131 seconds. Another creation appeared immediately. These observations
-are not an SLA or a reason to use a fixed sleep.
+A successful `add_case_field` response confirms field creation. However, the next
+`get_case_fields` inventory can temporarily omit the new field. In issue
+[#270](https://github.com/dichovsky/testrail-api-client/issues/270), TestRail
+10.7.1.1003 omitted a new field at 2 seconds and 61 seconds. The server included
+the field at 131 seconds. Another field appeared immediately. These observations
+do not define an SLA. Do not use a fixed sleep delay.
 
-Retain the full successful POST result, especially `id` and `system_name`, before
-checking readiness. Save it durably when the workflow must survive a process
-restart. Never send another creation POST because a subsequent GET omits the
-field or a readiness deadline expires. An uncertain write outcome also requires
-reconciliation before any retry.
+Keep the full POST response, especially `id` and `system_name`, before you check
+readiness. Save the response to durable storage if the workflow must survive a
+process restart. Do not send another `add_case_field` POST if a later GET omits
+the field or a readiness deadline expires. If a write outcome is uncertain,
+reconcile the server state before you retry.
 
-The opt-in [TypeScript example](../examples/case-field-readiness.ts) performs only
-GETs through a dedicated client with caching and automatic retries disabled.
-`get_case_fields` returns the complete array; it does not use the SDK pagination
-trio. Polling a shared client with its default five-minute GET cache could keep
-returning the first omission even after the server becomes ready.
+The opt-in [TypeScript example](../examples/case-field-readiness.ts) sends only
+GET requests through a dedicated client. This client disables caching and
+automatic retries. The `get_case_fields` endpoint returns the complete array and
+does not use the SDK pagination methods. Do not poll through a shared client with
+the default five-minute GET cache. A cached response can repeat the first
+omission after the server is ready.
 
-The example provides three states, each preserving the original creation result:
+The example returns one of three states. Each state keeps the original creation
+result:
 
-| State      | Meaning and next step                                                                                                                                                                                                                     |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pending`  | Creation succeeded, but readiness is incomplete. Inspect the reason (`deadline`, `cancelled`, `attempt_limit`, invalid metadata, or read/verification failure), keep the creation result, and reconcile or resume GET-only polling later. |
-| `ready`    | Exactly one field matched both returned identifiers and passed the caller's configuration verification. Dependent case writes may proceed using its returned `system_name`.                                                               |
-| `conflict` | An identifier collides or the returned configuration differs. Stop dependent writes and reconcile the existing field; do not create a replacement automatically.                                                                          |
+| State      | Meaning and next step                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pending`  | Creation succeeded, but the field is not ready. Check the reason (`deadline`, `cancelled`, `attempt_limit`, invalid metadata, or read/verification failure). Keep the creation result and resume GET-only polling later. |
+| `ready`    | One field matched both returned identifiers and passed the configuration check. Run dependent case writes with the returned `system_name`.                                                                               |
+| `conflict` | An identifier collides or the returned configuration does not match. Stop dependent writes and inspect the existing field. Do not create a replacement field automatically.                                              |
 
-`pending` with reason `invalid_config` means the dedicated reader rejected its
-configuration before any GET (`attempts: 0`), for example an invalid `baseUrl`,
-email, or request timeout. Correct the reader configuration before resuming
-GET-only polling; waiting cannot fix this condition. The successful POST result
-remains available as `created`, and creation must not be repeated.
+A `pending` state with reason `invalid_config` means the reader client rejected
+its configuration before any GET request (`attempts: 0`). For example, `baseUrl`,
+`email`, or `timeout` was invalid. Fix the reader configuration before you resume
+GET-only polling. Waiting does not fix an invalid configuration. The `created`
+property still holds the POST result. Do not repeat the creation request.
 
-Supply a deadline, positive backoff bounds, an attempt limit, an optional abort
-signal, and a synchronous verification callback. Verify the intended type,
-project and template scope, and field-specific options including option IDs.
-The [field contract](https://support.testrail.com/hc/en-us/articles/7077281158164-Case-Fields)
-describes nested configuration and scope; use the metadata returned by your
-server. Do not infer readiness from undocumented activity/status enum values.
+Provide a deadline, positive backoff bounds, an attempt limit, an optional abort
+signal, and a synchronous verification callback. Check the field type, project
+scope, template scope, and field options (including option IDs). The
+[field contract](https://support.testrail.com/hc/en-us/articles/7077281158164-Case-Fields)
+describes the nested configuration and scope. Compare against the metadata that
+your server returns. Do not infer readiness from undocumented activity or status
+values.
 
-For example, after creating the project-1/template-1 Dropdown from Recipe 45,
-the following callback requires its intended configuration. Adapt the exact
-comparison if your server normalizes option formatting; do not simply skip
-verification. The timing values below are caller-selected example limits.
+The following example checks the project-1, template-1 Dropdown from Recipe 45.
+Adjust the comparison if your server normalizes option formatting. Do not skip
+the verification check. Set the timing limits to match your application.
 
 ```typescript
 // In this repository, import waitForCaseField from the example. If copying it
@@ -83,9 +85,10 @@ if (readiness.state === 'ready') {
 // Retain readiness.created for pending/conflict as well. Neither means create failed.
 ```
 
-Cancellation interrupts backoff and fetch, and the caller-visible deadline also
-bounds injected DNS/fetch implementations that ignore cancellation. Such an
-implementation may finish its current GET in the background; the example starts
-no further GETs or dependent writes after cancellation. Transport/schema errors
-stop polling with a pending result. Existing SDK callers keep their current
-latency and response passthrough unless they opt into this workflow.
+Cancellation stops the backoff timer and the in-flight fetch. The deadline also
+bounds custom DNS or fetch functions that ignore the abort signal. A custom
+function can finish its current GET request in the background. However, the
+helper starts no more GET requests or dependent writes after cancellation.
+Transport errors and schema errors stop polling and return a `pending` result.
+Standard SDK calls keep their normal latency and response behavior unless you call
+this helper.

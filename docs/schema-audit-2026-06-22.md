@@ -1,54 +1,79 @@
 # Live-API Schema Audit — 2026-06-22
 
-Audit of `@dichovsky/testrail-api-client` schemas and client methods against a **live TestRail Cloud instance**. Goal: capture real response types and diff them against the repo's Zod schemas to find mismatches (wrong types) and gaps (fields TestRail returns that the schemas don't model). Confirmed defects were fixed in the same change.
+This audit tested `@dichovsky/testrail-api-client` schemas and client methods
+against a **live TestRail Cloud instance**. The goal was to capture live
+response types and compare them against the repository's Zod schemas. This
+comparison identified type mismatches and missing response fields. All confirmed
+defects were fixed in the same change.
 
 ## Method
 
-- **Throwaway project**: a uniquely-named project (`SCHEMA-PROBE-<ts>`) was created to confine all writes/deletes; deleting it at the end was the one-call rollback (verified: no residue).
-- **Dual capture**: every reachable endpoint was hit with a raw fetch (untouched JSON, ground truth), then the **shipped Zod schema** was run against the real entity offline to prove which schemas actually throw on live data.
-- **Adversarial verification**: each candidate finding was re-checked against the raw evidence (default-reject) and scored for over-fit risk before being accepted.
-- **Fix policy**: match-observed, but `.passthrough()` is retained on every object schema (never `.strict()`), so a field another instance/version returns that this one didn't still degrades to "untyped extra" rather than a hard reject. `missing_in_real` and per-instance `custom_*` fields were **not** removed/narrowed (over-fit guard).
-- **Rollback / cleanup**: append-only ledger + `delete_project` catch-all + name-prefix sweep + verify. The global group (escapes `delete_project`) was deleted explicitly. The probe harness was throwaway (gitignored, deleted); only sanitized fixtures, regression tests, schema/module fixes, and this report are committed.
+- **Temporary project**: the audit created a temporary project
+  (`SCHEMA-PROBE-<ts>`) to isolate all writes and deletes. Deleting that project
+  at the end removed all project-scoped test data.
+- **Dual capture**: the harness called each reachable endpoint with a raw `fetch`
+  to record the unmodified JSON response. It then ran the shipped Zod schema
+  against the captured response offline to identify validation failures.
+- **Verification**: each candidate finding was checked against the raw JSON
+  response and evaluated for overfitting before acceptance.
+- **Fix policy**: schemas were updated to match the observed responses while
+  keeping `.passthrough()` on every object schema instead of `.strict()`. If
+  another TestRail version returns an extra field, the schema passes it through
+  instead of rejecting the response. The audit did not remove `missing_in_real`
+  fields or narrow per-instance `custom_*` fields.
+- **Cleanup**: the harness used an append-only ledger, `delete_project`, a
+  name-prefix sweep, and a final verification check. It also deleted the global
+  group explicitly because `delete_project` does not remove global groups. The
+  temporary probe script was deleted and not committed. The commit includes only
+  sanitized fixtures, regression tests, schema and module fixes, and this report.
 
 ## Coverage
 
 - **Target surface**: 117 documented endpoints.
-- **Exercised with a 2xx capture**: 81 endpoint calls across the full read / write / update / destructive surface (single + bulk, pagination envelopes, multipart upload, binary download, soft-delete preview).
-- **Not exercised on this instance (16)** — instance limits, **not** schema defects:
-    | Reason                                                | Endpoints                                                                                                                                                                                         |
-    | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | Enterprise license required                           | `get_case_statuses`, `get_variables`, `get_datasets`, `add_variable`, `add_dataset`                                                                                                               |
-    | Configuration permission denied                       | `add_config_group` (+ `add/update/delete_config*`), `add_run_to_plan_entry` (requires `config_ids`)                                                                                               |
-    | Test-result/label permission denied                   | `update_test`, `update_tests`, `delete_milestone`                                                                                                                                                 |
-    | Closed-state / precondition                           | `delete_run`/`delete_plan`/`delete_plan_entry`/`delete_run_from_plan_entry` (run/plan was closed first), `update_run_in_plan_entry` (needs a config-split entry), `add_bdd` (BDD-enabled section) |
-    | Intentionally skipped (un-rollbackable global writes) | `add_user`, `update_user`, `add_case_field`                                                                                                                                                       |
+- **Tested with a 2xx response**: 81 endpoint calls across read, write, update,
+  and destructive operations. These calls covered single and bulk writes,
+  pagination envelopes, multipart uploads, binary downloads, and soft-delete
+  previews.
+- **Not tested on this instance (16)**: skipped due to instance limits, **not**
+  schema defects:
 
-Open-entity deletes (`delete_case`, `delete_section`, `delete_suite`, `delete_shared_step`, `delete_group`) were exercised and confirmed to return an empty/void body.
+    | Reason                                           | Endpoints                                                                                                                                                                                         |
+    | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | Enterprise license required                      | `get_case_statuses`, `get_variables`, `get_datasets`, `add_variable`, `add_dataset`                                                                                                               |
+    | Configuration permission denied                  | `add_config_group` (+ `add/update/delete_config*`), `add_run_to_plan_entry` (requires `config_ids`)                                                                                               |
+    | Test-result/label permission denied              | `update_test`, `update_tests`, `delete_milestone`                                                                                                                                                 |
+    | Closed-state / precondition                      | `delete_run`/`delete_plan`/`delete_plan_entry`/`delete_run_from_plan_entry` (run/plan was closed first), `update_run_in_plan_entry` (needs a config-split entry), `add_bdd` (BDD-enabled section) |
+    | Intentionally skipped (irreversible global data) | `add_user`, `update_user`, `add_case_field`                                                                                                                                                       |
+
+The audit also ran open-entity deletes (`delete_case`, `delete_section`,
+`delete_suite`, `delete_shared_step`, and `delete_group`) and confirmed that
+they return an empty response body.
 
 ## Confirmed defects (fixed)
 
-Each row was proven by running the **shipped** schema against the **real** captured entity; "throws" means `getX()` currently rejects a real response on this instance.
+The audit verified each row below by running the shipped schema against the
+captured live response.
 
-### CRITICAL — parse-throwers (the shipped client fails on real data today)
+### CRITICAL — validation failures on live responses
 
-| Schema / method                                                                                 | Defect                                                                                                           | Real wire value | Fix                                                                               |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------- |
-| `UserSchema.mfa_required`                                                                       | `z.boolean()` but wire is an **integer** — throws on `getCurrentUser` / `getUser` / `getUsers`                   | `0`             | `z.union([z.boolean(), z.number()]).nullish()`                                    |
-| `AttachmentSchema.data_id`                                                                      | `z.string()` but wire is a **number**                                                                            | `1000006328`    | `z.union([z.number(), z.string()]).nullish()`                                     |
-| `getAttachmentsForTest` / `getAttachmentsForPlanEntry` (and `_case`/`_run`/`_plan` defensively) | parsed with `z.object({attachments…})` but TestRail returns a **bare array**                                     | `[]`            | accept `z.union([z.array(...), z.object({...})])` and unwrap                      |
-| `StepHistoryEntrySchema.id` / `user_id`                                                         | `z.string()` but wire is a **number**                                                                            | `23`, `40`      | `z.union([z.number(), z.string()])` (accepts observed integer + the doc's string) |
-| `getSharedStepHistory`                                                                          | parsed with `z.object({step_history…})` but TestRail returns a **bare array**                                    | `[]`            | union + unwrap (mirrors `getSharedSteps`)                                         |
-| `FieldConfigOptionsSchema.default_value`                                                        | required `z.string()` but the key is **omitted** on some configs — throws on `getCaseFields` / `getResultFields` | `undefined`     | `z.string().nullish()`                                                            |
+| Schema / method                                                                                 | Defect                                                                                                | Real wire value | Fix                                                                                |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------- |
+| `UserSchema.mfa_required`                                                                       | `z.boolean()`, but the server returns an **integer** (`getCurrentUser` / `getUser` / `getUsers` fail) | `0`             | `z.union([z.boolean(), z.number()]).nullish()`                                     |
+| `AttachmentSchema.data_id`                                                                      | `z.string()`, but the server returns a **number**                                                     | `1000006328`    | `z.union([z.number(), z.string()]).nullish()`                                      |
+| `getAttachmentsForTest` / `getAttachmentsForPlanEntry` (and `_case`/`_run`/`_plan` defensively) | Parsed with `z.object({attachments…})`, but TestRail returns a **bare array**                         | `[]`            | Accept `z.union([z.array(...), z.object({...})])` and unwrap                       |
+| `StepHistoryEntrySchema.id` / `user_id`                                                         | `z.string()`, but the server returns a **number**                                                     | `23`, `40`      | `z.union([z.number(), z.string()])` (accepts observed integer and documented text) |
+| `getSharedStepHistory`                                                                          | Parsed with `z.object({step_history…})`, but TestRail returns a **bare array**                        | `[]`            | Union and unwrap (matches `getSharedSteps`)                                        |
+| `FieldConfigOptionsSchema.default_value`                                                        | Required `z.string()`, but some configs **omit** the key (`getCaseFields` / `getResultFields` fail)   | `undefined`     | `z.string().nullish()`                                                             |
 
-### HIGH — real gaps / client bug
+### HIGH — missing fields and client bug
 
-| Target                                              | Defect                                                                                                           | Fix                                     |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `AttachmentSchema`                                  | `cassandra_file_id` (UUID string) unmodeled                                                                      | add `z.string().nullish()`              |
-| `CaseFieldConfigSchema` / `ResultFieldConfigSchema` | config-level `id` (UUID / legacy hex) unmodeled                                                                  | add `id: z.string().nullish()`          |
-| `updateGroup` (client method)                       | sent `update_group/{id}` with body `{name?, user_ids?}`; TestRail requires `group_id` **in the body** → HTTP 400 | inject `group_id` into the request body |
+| Target                                              | Defect                                                                                                                     | Fix                                     |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `AttachmentSchema`                                  | `cassandra_file_id` (UUID string) missing from schema                                                                      | Add `z.string().nullish()`              |
+| `CaseFieldConfigSchema` / `ResultFieldConfigSchema` | Config-level `id` (UUID or legacy hex) missing from schema                                                                 | Add `id: z.string().nullish()`          |
+| `updateGroup` (client method)                       | Sent `update_group/{id}` with body `{name?, user_ids?}`. TestRail requires `group_id` **in the body** and returns HTTP 400 | Inject `group_id` into the request body |
 
-### MEDIUM — additive gaps (passthrough today; now typed)
+### MEDIUM — additive fields (previously untyped passthrough; now typed)
 
 | Schema                                                                                     | Added field                                                                                  |
 | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
@@ -59,45 +84,53 @@ Each row was proven by running the **shipped** schema against the **real** captu
 
 ## Deliberately NOT changed in the original audit
 
-- **Pagination envelopes** (`offset`/`limit`/`size`/`_links`) were originally unwrapped-and-dropped so existing method contracts remained `Entity[]`. This historical conclusion is superseded by the follow-up below; the existing methods still retain that contract.
-- **`missing_in_real`** fields (e.g. `ProjectSchema.users[].id/role_id` from a single thin sample, `custom_fields` records) — kept; absence on one instance is not evidence to remove.
-- **Flattened `custom_*` fields** on Case/Test/Result (e.g. `custom_ai_*`, `custom_steps_separated`) remain dynamic per-instance and are not enumerated as static properties.
+- **Pagination envelopes** (`offset`, `limit`, `size`, and `_links`): the
+  original audit unwrapped and discarded these fields so existing methods kept
+  their `Entity[]` return type. The 2026-08 follow-up below added explicit page
+  and aggregate methods while keeping `Entity[]` on the existing methods.
+- **`missing_in_real` fields:** The audit kept `ProjectSchema.users[].id/role_id` and `custom_fields` records. Their absence on one instance does not prove that TestRail never returns them.
+- **Flattened `custom_*` fields:** Fields such as `custom_ai_*` and `custom_steps_separated` vary by instance on `Case`, `Test`, and `Result`. The schemas therefore do not list them as static properties.
 
 ## Follow-up — explicit pagination and type coverage (2026-08)
 
-The defect-report review separated backward compatibility from metadata access.
-For 23 audited endpoints, existing `get*()` methods still make one request and
-return `Entity[]`; new `get*Page()` methods preserve a normalized `Page<T>`, and
-new `getAll*()` methods collect every page under explicit bounds. The registry
-covers cases/history; projects, suites, sections, plans, runs, tests,
-milestones; all three result lists; labels; shared steps/history;
-case/run/plan attachments; datasets, variables, roles, groups, and case
-statuses. Test attachments, plan-entry attachments, users, and ordinary
-metadata/configuration/report lists are intentionally excluded.
+The 2026-08 update added metadata access without breaking existing callers. For
+23 audited endpoints, existing `get*()` methods still send one request and
+return `Entity[]`. New `get*Page()` methods return a normalized `Page<T>`, and
+new `getAll*()` methods fetch all pages within configured safety bounds. This set covers cases, case history, projects, suites, sections, plans, runs, tests, and milestones. It includes all three result lists, labels, shared steps, shared-step history, and case, run, and plan attachments. Datasets, variables, roles, groups, and case statuses complete the set. It excludes test attachments, plan-entry attachments,
+users, and standard metadata, configuration, and report lists.
 
-`_links.next` is authoritative, but the client never follows its host or path:
-it validates continuation controls and rebuilds the known endpoint with the
-original filters. Legacy bare arrays are terminal. Page reads use a separate
-strict-schema cache namespace; all-page walks bypass cache reads/writes/coalescing
-and never return partial results. Default bounds are
-250/page, offset 0, 100 pages, 25,000 items, 300,000 ms, and 100 MiB; hard
-ceilings are 250/page, 300,000 ms, and 1 GiB. Failures use
-`TestRailPaginationError` with a stable reason and progress counters.
-Shared-step history, datasets, variables, roles, groups, and case statuses are
-response-driven: page/all mode does not invent caller-controlled size/offset.
+The client reads continuation offsets from `_links.next`, but it never follows
+the link host or path directly. Instead, it validates the continuation parameters
+and rebuilds the request for the known endpoint with the original filters. Legacy
+bare arrays stop pagination immediately. Page reads use a separate strict-schema
+cache namespace. All-page reads bypass cache reads, cache writes, and request
+coalescing, and they never return partial results. Default bounds are 250 items
+per page, offset 0, 100 pages, 25,000 items, 300,000 ms, and 100 MiB. Hard
+ceilings are 250 items per page, 300,000 ms, and 1 GiB. On failure, the client
+throws `TestRailPaginationError` with a reason code and progress counters.
+Shared-step history, datasets, variables, roles, groups, and case statuses are response-driven endpoints. Page and all-page modes therefore reject caller page size and offset parameters.
 
-Public response aliases now derive from declared schema keys, preventing
-`.passthrough()` from advertising a broad string index signature. Only `Case`,
-`Test`, and `Result` add template-literal `custom_*` bracket access, with values
-typed `unknown`; the nested `custom_fields` record remains deprecated. Stable
-coverage added in the same follow-up: `Test.refs_data`/`case_title`,
-`Result.case_title`/`case_refs`, `CaseField.is_indexed`/`is_system`,
-`ResultField.is_system`, writable `AddCaseFieldPayload.is_indexed`, and
-recursive milestone children.
+Public response type aliases now derive from declared schema keys so
+`.passthrough()` does not add an unrestricted string index signature. Only
+`Case`, `Test`, and `Result` include a `custom_*` template-literal index
+signature (typed as `unknown`), while their nested `custom_fields` property
+remains deprecated. This update also added `Test.refs_data`, `Test.case_title`,
+`Result.case_title`, `Result.case_refs`, `CaseField.is_indexed`,
+`CaseField.is_system`, `ResultField.is_system`, writable
+`AddCaseFieldPayload.is_indexed`, and recursive `Milestone.milestones`.
 
 ## Verification
 
-- New regression suite `tests/live-audit-regression.test.ts` (16 tests) pins every fix using **sanitized** fixtures under `tests/fixtures/live-audit/` (strings deep-scrubbed to `redacted`; numbers/booleans/null/key-presence preserved exactly — no PII committed). Confirmed RED before the fixes, GREEN after.
-- Existing `getSharedStepHistory` tests (client + CLI) were corrected from the prior string-`id` assumption to the real numeric shape.
-- **At the time of this audit, manual `src/types.ts` interfaces were synced to the widened schemas.** The 2026-08 follow-up replaced those mirrors with aliases derived from declared schema keys, removing that drift seam.
-- Full gate suite green: `typecheck`, `lint`, full `vitest` (3255 passing), `codemap:check`, `mapping:check`, `agents-md:check`, `schema-conventions`.
+- The regression suite `tests/live-audit-regression.test.ts` (16 tests) verifies
+  every fix against sanitized fixtures in `tests/fixtures/live-audit/`. Strings
+  in the fixtures are replaced with `redacted`, while numbers, booleans, `null`
+  values, and keys remain unchanged. The tests failed before the fixes and
+  passed after them.
+- Existing `getSharedStepHistory` client and CLI tests were updated from string
+  IDs to numeric IDs.
+- **During the original audit, the manual interfaces in `src/types.ts` were
+  updated to match the schemas.** The 2026-08 update replaced those manual
+  interfaces with type aliases derived from the schemas.
+- All verification checks passed: `typecheck`, `lint`, `vitest` (3,255 passing
+  tests), `codemap:check`, `mapping:check`, `agents-md:check`, and
+  `schema-conventions`.

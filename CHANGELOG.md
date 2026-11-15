@@ -1,1518 +1,508 @@
 # Changelog
 
-All notable changes to `@dichovsky/testrail-api-client` are documented here.
+This document records all notable changes to `@dichovsky/testrail-api-client`.
 
-The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 > **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`, `9.0.0`.
-> Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
-> or unreleased and never reached the registry. The `5.0.0` entry below collapses a
-> large body of unreleased work — previously carried on `main` as `5.0.0` through
-> `7.1.0` — into a single major bump from the last published release, `4.1.0`. No
-> source was reverted in that reconciliation; only the version number and this log
-> were realigned with what npm actually shipped.
+> Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal or unreleased and never reached the npm registry.
+> The `5.0.0` entry combines unreleased work from `5.0.0` through `7.1.0` into one major version bump from `4.1.0`.
+> That update did not revert any source code. It only aligned the version number and this log with the published npm versions.
 
 ## [Unreleased]
 
+### Changed — BREAKING
+
+- Node.js 26 is now the minimum supported runtime. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
+- CI now tests Node 26 on Linux, Windows, and macOS. Both publish jobs pin Node 26.13.1.
+
+### Changed
+
+- Updated Zod to `^4.6.7`. Zod remains the only runtime dependency.
+- Updated `@types/node` to `^26.6.6` and both TypeScript ESLint packages to `^8.72.2`.
+- Updated Vitest and its V8 coverage provider to `^5.1.0`, ESLint to `^10.15.0`, and `lockfile-lint` to `^5.1.0`.
+- Updated Prettier to `~3.10.1` and refreshed transitive dependencies. The other direct dependencies already use their latest releases.
+- Converted repository documentation to Simplified Technical English. Preserved historical runtime requirements, commands, issue references, and evidence.
+
+### Security
+
+- Overrode transitive `minimatch` with `^11.0.8` to resolve GHSA-g3hv-75wg-m249. The TypeScript ESLint dependency range otherwise retains vulnerable version 10.
+- The updated dependency tree reports zero vulnerabilities in `npm audit`.
+
 ## [9.0.0] — 2026-10-04 — pinned connections, comment-only results, and a split skill
 
-This major changes default transport and DNS behavior, forced download targets,
-and the exported add-result payload types and schemas. Default connections are
-pinned to validated DNS answers and connect directly; deployments that use a
-global proxy or custom agent need the migration below. Other changes include
-comment-only results, resource-scoped help, bounded DNS resolution, and a
-self-contained installed skill with on-demand references.
+This major release changes default transport and DNS behavior, forced download targets, and exported add-result payload types and schemas. Default connections now pin to validated DNS answers and connect directly. Deployments that use a global proxy or custom agent must follow the migration steps below. Other changes include comment-only results, resource-scoped help, bounded DNS resolution, and a split skill with on-demand reference files.
 
-The release includes #295–#307 and #309, plus the documentation and help
-corrections in the release PR (#308).
+This release includes #295–#307 and #309, plus the documentation and help fixes in the release PR (#308).
 
 ### Changed — BREAKING
 
 - **Default connections no longer inherit global proxy or agent settings.**
-  The per-request DNS-pinned dispatcher connects directly, bypassing Undici
-  `setGlobalDispatcher()` customizations (including `ProxyAgent`,
-  `EnvHttpProxyAgent`, and custom CA settings), `NODE_USE_ENV_PROXY=1`, and
-  Node HTTP/HTTPS global-agent settings. Use `NODE_EXTRA_CA_CERTS` before
-  process startup for additional direct-connection trust. Required proxies
-  need an explicitly injected transport plus proxy-side destination enforcement;
-  replacing the dispatcher loses the client's connection pinning. See the
-  [proxy migration](README.md#proxies-and-custom-certificate-authorities).
-  Disabling the private-host guard is not a safe proxy migration. (#309)
-- **Custom DNS answers require a matching numeric family.** `dnsLookup` answers
-  with a missing `family`, `family: 0`, a non-IP address, or a family that does
-  not match the IP literal now fail closed. Return `{ address, family: 4 }` for
-  IPv4 and `{ address, family: 6 }` for IPv6; `dns.lookup(hostname, { all: true })`
-  already supplies the correct shape. Valid public addresses no longer make an
-  incomplete answer acceptable. See [resolver migration](README.md#custom-dns-resolvers). (#309)
-- **Forced download destinations must be regular files.** Attachment and BDD
-  `--out <path> --force` now reject devices such as `/dev/null`, as well as
-  symlinks and FIFOs, before truncation. To discard a payload, use
-  `testrail attachment get <id> --out - > /dev/null`; the acknowledgement remains
-  on stderr. The same stdout pattern applies to `bdd get`. (#309)
-
-- **A result no longer needs a `status_id`; it needs at least one of
-  `status_id`, `comment` or `assignedto_id`.** TestRail's
-  [Results](https://support.testrail.com/hc/en-us/articles/7077819312404-Results)
-  reference now settles the 6.0.0 known gap: `add_result` "adds a new test
-  result, comment or assigns a test", `add_results` and `add_results_for_cases`
-  require "at least one of the status, comment or assignee fields for each
-  result", and `add_result_for_case` takes the same fields as `add_result`.
-  `AddResultPayloadSchema`, `AddResultForCasePayloadSchema` and
-  `AddResultForTestPayloadSchema` (and so the `results` items of
-  `AddResultsForCasesPayloadSchema` / `AddResultsPayloadSchema`) make
-  `status_id` optional and refuse a result with none of the three, with
-  `At least one of status_id, comment or assignedto_id is required` (bulk issues
-  carry the entry's `results.<index>` path). `testrail result add`,
-  `add-by-test`, `add-bulk` and `add-bulk-by-test` therefore accept
-  comment-only and assignee-only bodies. Nothing previously accepted is
-  refused. Listed as breaking for typed and schema-deriving callers:
-    - `AddResultPayload`, `AddResultForCasePayload` and
-      `AddResultForTestPayload` make `status_id` optional
-      (`number | undefined`). Building payloads
-      is unaffected; code that reads `payload.status_id` as a `number` must
-      handle `undefined`.
-    - The three schemas now carry a refinement. Under Zod 4, `.pick()`,
-      `.omit()`, `.partial()` and `.merge()` throw on a refined object schema
-      (as they already did for `EditResultPayloadSchema`). `.extend()` keeps
-      the rule when it adds new keys, but throws when it redeclares an
-      existing one, such as `status_id` or `comment`; `.safeExtend()` keeps
-      the rule in both cases. `z.toJSONSchema()` omits it.
-    - As before, the SDK methods forward payloads unchanged — the rule is
-      enforced where the schemas are parsed (the CLI `--data` path), so a typed
-      `{}` now compiles and reaches TestRail.
+  The per-request DNS-pinned dispatcher connects directly. It bypasses Undici `setGlobalDispatcher()` settings (including `ProxyAgent`, `EnvHttpProxyAgent`, and custom CA settings), `NODE_USE_ENV_PROXY=1`, and Node HTTP/HTTPS global-agent settings. Set `NODE_EXTRA_CA_CERTS` before process startup to add certificate authorities for direct connections. Required proxies need an explicitly injected transport and proxy-side destination checks. Replacing the dispatcher removes the client's connection pinning. See the [proxy migration](README.md#proxies-and-custom-certificate-authorities). Do not disable the private-host guard as a proxy migration. (#309)
+- **Custom DNS answers require a matching numeric family.** The client now rejects `dnsLookup` answers that have a missing `family`, `family: 0`, a non-IP address, or a family that does not match the IP literal. Return `{ address, family: 4 }` for IPv4 and `{ address, family: 6 }` for IPv6. Calling `dns.lookup(hostname, { all: true })` already returns the valid shape. A valid public address no longer makes an incomplete answer valid. See [resolver migration](README.md#custom-dns-resolvers). (#309)
+- **Forced download destinations must be regular files.** Attachment and BDD `--out <path> --force` commands now reject device files (such as `/dev/null`), symlinks, and FIFOs before truncation. To discard a payload, run `testrail attachment get <id> --out - > /dev/null`. The CLI still writes the acknowledgement to stderr. The same stdout pattern applies to `bdd get`. (#309)
+- **A result no longer needs a `status_id`, and instead requires at least one of `status_id`, `comment`, or `assignedto_id`.** TestRail's [Results](https://support.testrail.com/hc/en-us/articles/7077819312404-Results) reference resolves the 6.0.0 known gap. In TestRail, `add_result` adds a test result, comment, or test assignment. Both `add_results` and `add_results_for_cases` require at least one of the status, comment, or assignee fields for each result. The `add_result_for_case` endpoint takes the same fields as `add_result`. `AddResultPayloadSchema`, `AddResultForCasePayloadSchema`, and `AddResultForTestPayloadSchema` (and the `results` items of `AddResultsForCasesPayloadSchema` and `AddResultsPayloadSchema`) now make `status_id` optional. They reject a result that omits all three fields with the error `At least one of status_id, comment or assignedto_id is required` (bulk issues include the entry's `results.<index>` path). Consequently, `testrail result add`, `add-by-test`, `add-bulk`, and `add-bulk-by-test` accept comment-only and assignee-only bodies. All previously accepted inputs remain valid. This change is breaking for typed and schema-deriving callers:
+    - `AddResultPayload`, `AddResultForCasePayload`, and `AddResultForTestPayload` make `status_id` optional (`number | undefined`). This change does not affect code that builds payloads. Code that reads `payload.status_id` as a `number` must now handle `undefined`.
+    - The three schemas now include a refinement. Under Zod 4, `.pick()`, `.omit()`, `.partial()`, and `.merge()` throw an error on a refined object schema (as they already did for `EditResultPayloadSchema`). `.extend()` preserves the rule when it adds new keys, but throws an error when it redeclares an existing key such as `status_id` or `comment`. `.safeExtend()` preserves the rule in both cases. `z.toJSONSchema()` omits the refinement.
+    - As before, the SDK methods forward payloads unchanged. Only the CLI `--data` parser enforces this schema rule at runtime, so a typed `{}` now compiles and reaches TestRail through the SDK.
 
 ### Added
 
-- **`testrail <resource> --help` prints only that resource's actions.** Every
-  `--help` printed the full listing of all 134 commands, whichever resource was
-  named. A known resource before `--help` (`testrail case --help`, or
-  `testrail case get --help`) now scopes it to that resource. An unknown name
-  falls back to the full listing, which gains a
-  resource index so the scoped form is discoverable. `attachment` and `bdd`
-  help keep their file-I/O actions. (#299)
+- **`testrail <resource> --help` prints only that resource's actions.** Previously, `--help` printed all 134 commands regardless of the resource name. Passing a known resource before `--help` (`testrail case --help` or `testrail case get --help`) now limits the output to that resource. Passing an unknown resource name falls back to the full listing, which now includes a resource index. The `attachment` and `bdd` help outputs retain their file-I/O actions. (#299)
 
 ### Changed
 
-- **The bundled skill is a short body plus on-demand reference files.**
-  `skill/SKILL.md` carried every command, option and recipe — 4,179 lines and
-  162 KB loaded whenever the skill fired. The body now keeps what an agent needs
-  before acting (when to use it, auth, body input, the destructive gates, output
-  and pagination policy, errors, limits, SDK fallback) in fewer than 500 lines, and
-  indexes the files under `skill/reference/` to read only when a task needs
-  them: `commands.md` (command table and option reference), `recipes.md` (the
-  numbered recipes), `typescript-api.md` (SDK fallback) and the existing
-  `payload-schemas.yaml`. The installed references are self-contained; repository
-  development guidance stays in the repository. A skill installed by an earlier
-  version keeps its old single-file content until reinstalled; run
-  `npx testrail install-skill --force` (add `--global` if that is where it
-  lives — the existing `SKILL.md` blocks a plain install). Tooling that reads
-  `skill/SKILL.md` from the package directly must follow its `./reference/*`
-  links for the command table and recipes. (#304)
+- **The bundled skill has a short main file and on-demand reference files.** Previously, `skill/SKILL.md` contained every command, option, and recipe (4,179 lines and 162 KB) and loaded completely on every activation. The main file now has fewer than 500 lines. It covers skill use, authentication, body input, destructive gates, output, pagination, errors, limits, and SDK fallback. It indexes reference files under `skill/reference/` for on-demand reading: `commands.md` (command table and option reference), `recipes.md` (numbered recipes), `typescript-api.md` (SDK fallback), and `payload-schemas.yaml`. The installed references are self-contained, and repository development rules remain in the repository. A skill installed by an earlier version keeps its old single-file content until you reinstall it. Run `npx testrail install-skill --force` (add `--global` if installed globally, because the existing `SKILL.md` blocks a default install). Tools that read `skill/SKILL.md` directly from the package must follow its `./reference/*` links for the command table and recipes. (#304)
 
 ### Fixed
 
-- The pinned transport supports native fetch's legacy Node 24 and modern
-  Node 26 handler contracts, including response backpressure and cancellation.
-  Reordered or duplicate DNS answers reuse the same approved socket pool;
-  connection lookup preserves resolver order and honors the requested IP family. (#309)
-- Concurrent timeout views no longer inherit another caller's header/body
-  deadline through in-flight coalescing; completed cached responses remain shared. (#309)
-- Fragmented response bodies drain iteratively without retaining one pending
-  promise chain per chunk. (#309)
-- Enriched test reads normalize nullish result/attachment collections even
-  when unrelated entity fields trigger advisory schema warnings. (#309)
-- Early-rejected multipart uploads require transport evidence before closing
-  owned streams normally. The pinned dispatcher and native request diagnostics
-  establish when transmission has stopped, preventing unhandled encoder errors
-  and stuck settlement while still waiting for source cancellation. Matched
-  HTTP/2 cleanup stops only the upload stream, preserving the shared session.
-  Unknown custom transports retain erroring cleanup so an ignored abort cannot
-  turn an incomplete upload into a valid truncated file. (#309)
-- Multipart transport observation now enters an async context even without
-  `trackOperation`. Processes that neither track operations nor upload continue
-  to avoid the library's process-wide context-propagation cost. (#309)
-- Skill installation protects all bundled files from unforced overwrites,
-  stages the complete tree, and restores the previous installation on failure. (#309)
-- Skill guidance now accurately distinguishes CLI runtime payload validation
-  from SDK compile-time types and shows explicit validation for dynamic input. (#309)
-
-- **Aggregate pagination deadlines retain `max_duration` when a timer fires
-  before the wall clock reaches its deadline.** The transport records whether
-  the aggregate owns an attempt's timeout, including equal deadlines, so DNS
-  and fetch aborts consistently surface `TestRailPaginationError` rather than
-  a plain 408. A tighter request timeout keeps its existing error, and late
-  DNS work remains tracked until it settles. (#307)
-
-- **`user add` / `user update` accept every address `user get-by-email` can
-  look up.** `UserAddPayloadSchema` and `UserUpdatePayloadSchema` checked
-  `email` with `z.string().email()`, which refuses the single-label and
-  domain-literal addresses (`ada@corp`, `user@localhost`,
-  `user@[192.168.1.1]`) that self-hosted / LDAP / AD / SSO instances store and
-  that `getUserByEmail()` deliberately admits since #236. All three now share
-  one shape rule, `TESTRAIL_USER_EMAIL_PATTERN` in `src/constants.ts`: exactly
-  one `@` with non-empty, whitespace-free local and domain parts. Only
-  widening — everything `z.string().email()` accepted still passes — and the
-  inferred types are unchanged. A refused write address now reports
-  `Invalid email format` (the lookup's message) instead of Zod's
-  `Invalid email address`, and schema introspection sees a `regex` check
-  where it saw the `email` format.
-
-- **`timeout` now bounds DNS resolution.** The per-attempt timer started only
-  after the host guard's `dns.lookup` had resolved, and `getaddrinfo` has no
-  deadline of its own, so a resolver that dropped packets kept a request
-  pending indefinitely while holding one of libuv's four default threadpool
-  slots — starving unrelated fs/crypto work in the host process. The timer now
-  starts first and the lookup races it. **Compatibility:** a short `timeout`
-  against a slow resolver can now fail with `TestRailApiError(408)` before any
-  request is sent. The lookup itself cannot be cancelled, so a
-  `trackOperation()` handle's `settled` still waits for it to finish. The
-  `TestRailConfig.timeout` JSDoc that ships in `dist/types.d.ts` and the
-  `--timeout` help text now say that DNS is inside the allowance. (#296, #302,
-  #303)
-- **A custom `fetch` that rejects with a non-`Error` reason now surfaces as
-  `TestRailApiError`.** `TestRailConfig.fetch` is public, so its rejection
-  reason can be anything. Reading `.name` off a `null` or `undefined` reason
-  threw a `TypeError` out of the pipeline's own error handling, replacing the
-  `TestRailApiError` the caller was entitled to, and a string reason rendered
-  as `Network error: undefined`. Reasons are normalized once. (#296)
-- **The `User-Agent` header is one product token,
-  `testrail-api-client/<version>`.** It was built from the package description —
-  `Type-safe ESM TestRail API client and CLI for Node.js/8.0.0` — whose spaces
-  make it read as several products, which strict proxies and WAFs can mangle or
-  reject. The npm scope is dropped as well, because `@` and `/` are not token
-  characters under RFC 7230 §3.2.6. Server-side rules or log queries that
-  matched the old string need updating. (#296)
-- **The published `dist/` no longer references source maps it does not ship.**
-  The production build emitted maps and a later step deleted them, leaving a
-  `//# sourceMappingURL=` comment in every emitted `.js` and `.d.ts` — 332
-  files pointing at nothing, so editors' "go to definition" and debuggers
-  chased a missing file. The production config no longer emits maps, the
-  `clean:maps` script is gone, and the package smoke test fails on any
-  dangling reference. (#297)
-- **`testrail install-skill` installs the skill's reference files, not just
-  `SKILL.md`.** The installed body pointed at
-  `./reference/payload-schemas.yaml` throughout, but only the body was copied,
-  so every installed skill told the agent the detail existed and then could not
-  produce it. The bundled `reference/` directory is now installed beside the
-  body in a staged installation that rolls back on publication failure,
-  and a symlink at the installed `reference/` is refused rather than written
-  through. `uninstall-skill` removes only the reference files this package
-  bundles — files you added there are kept — and does not follow a symlink
-  planted at `reference/`. (#301, #309)
+- The pinned transport now supports both legacy Node 24 and modern Node 26 native fetch handler contracts, including response backpressure and cancellation. Reordered or duplicate DNS answers reuse the same approved socket pool. Connection lookup preserves resolver order and honors the requested IP family. (#309)
+- Concurrent timeout views no longer inherit another caller's header or body deadline during in-flight request coalescing. Completed cached responses remain shared. (#309)
+- The client now drains fragmented response bodies iteratively without keeping one pending promise chain per chunk. (#309)
+- Enriched test reads now normalize nullish result and attachment collections even when unrelated entity fields trigger advisory schema warnings. (#309)
+- Early-rejected multipart uploads now require transport confirmation before closing owned streams normally. The pinned dispatcher and native request diagnostics detect when transmission stops. This prevents unhandled encoder errors and hung promises while waiting for source cancellation. On HTTP/2, cleanup stops only the upload stream and preserves the shared session. Unknown custom transports keep error-based cleanup so an ignored abort cannot turn an incomplete upload into a valid truncated file. (#309)
+- Multipart transport observation now enters an async context even without `trackOperation`. Processes that neither track operations nor upload files still avoid process-wide context-propagation overhead. (#309)
+- Skill installation now protects all bundled files from unforced overwrites, stages the complete directory tree, and restores the previous installation on failure. (#309)
+- Skill guidance now clearly distinguishes CLI runtime payload validation from SDK compile-time types and shows how to validate dynamic input explicitly. (#309)
+- **Aggregate pagination deadlines retain `max_duration` when a timer fires before the wall clock reaches its deadline.** The transport records whether the aggregate owns an attempt's timeout, including when deadlines are equal. This ensures that DNS and fetch aborts throw `TestRailPaginationError` instead of a plain 408 error. A shorter request timeout keeps its existing error, and the client tracks late DNS work until it settles. (#307)
+- **`user add` and `user update` accept every address that `user get-by-email` can look up.** Previously, `UserAddPayloadSchema` and `UserUpdatePayloadSchema` validated `email` with `z.string().email()`. That check rejected single-label and domain-literal addresses (`ada@corp`, `user@localhost`, `user@[192.168.1.1]`) that self-hosted, LDAP, AD, and SSO instances store and that `getUserByEmail()` has accepted since #236. All three paths now share `TESTRAIL_USER_EMAIL_PATTERN` in `src/constants.ts`, which requires one `@` with non-empty, whitespace-free local and domain parts. Every address that `z.string().email()` accepted remains valid, and the inferred types do not change. A rejected write address now reports `Invalid email format` instead of Zod's `Invalid email address`, and schema introspection sees a `regex` check instead of the `email` format.
+- **`timeout` now bounds DNS resolution.** Previously, the per-attempt timer started only after `dns.lookup` resolved in the host guard. Because `getaddrinfo` has no built-in deadline, a resolver that dropped packets kept a request pending indefinitely and occupied one of libuv's four default threadpool slots. Now the timer starts first and races against the DNS lookup. **Compatibility:** a short `timeout` against a slow resolver can now fail with `TestRailApiError(408)` before the client sends any request. Node cannot cancel the lookup itself, so a `trackOperation()` handle's `settled` promise still waits for the lookup to finish. The `TestRailConfig.timeout` JSDoc in `dist/types.d.ts` and the `--timeout` help text now state that the timeout includes DNS resolution. (#296, #302, #303)
+- **A custom `fetch` that rejects with a non-`Error` reason now throws `TestRailApiError`.** Because `TestRailConfig.fetch` is public, a custom implementation can reject with any value. Previously, a `null` or `undefined` reason caused the error handler to throw `TypeError` when it read `.name`. A string reason produced `Network error: undefined`. Neither path produced the expected `TestRailApiError`. The pipeline now normalizes rejection reasons once. (#296)
+- **The `User-Agent` header is now a single product token: `testrail-api-client/<version>`.** Previously, the client built this header from the package description (`Type-safe ESM TestRail API client and CLI for Node.js/8.0.0`). Strict proxies and WAFs can alter or reject values with spaces, and `@` and `/` are not valid token characters under RFC 7230 §3.2.6. Update any server rules or log queries that matched the old `User-Agent` string. (#296)
+- **The published `dist/` directory no longer references missing source maps.** Previously, the production build emitted source maps and a later step deleted them. This left a `//# sourceMappingURL=` comment in 332 `.js` and `.d.ts` files, causing editors and debuggers to look for missing files. Now the production build does not emit source maps, we removed the `clean:maps` script, and the package smoke test fails on any dangling source-map comment. (#297)
+- **`testrail install-skill` now installs the skill's reference files alongside `SKILL.md`.** Previously, `SKILL.md` referenced `./reference/payload-schemas.yaml`, but the installer copied only `SKILL.md`. Now the installer copies the bundled `reference/` directory beside `SKILL.md` in a staged operation that rolls back on failure. The installer also refuses to write through a symlink at `reference/`. The `uninstall-skill` command removes only the bundled reference files, keeps any files you added, and refuses to follow a symlink at `reference/`. (#301, #309)
 
 ### Security
 
-- Default fetch connections now use the exact DNS answers accepted by the
-  private-host guard, preserving the original hostname for Host, SNI, and TLS
-  certificate checks. Malformed DNS answers fail closed. The transport uses
-  direct connections; injected fetch/proxy implementations must honor the
-  supplied dispatcher or enforce equivalent destination checks themselves. (#309)
-- Forced CLI downloads validate an opened file descriptor before truncation,
-  preventing a replaced symlink from redirecting writes. File inputs reject
-  FIFOs without blocking while opening them. (#309)
-
-- **The host guard blocks three more non-routable IPv4 ranges:**
-  `198.18.0.0/15` (RFC 2544 benchmarking, routed inside some enterprise
-  networks), `224.0.0.0/4` (multicast) and `240.0.0.0/4` (reserved, covering
-  the `255.255.255.255` broadcast address). Like the existing ranges they apply
-  to IP-literal base URLs at construction and to every DNS answer before a
-  fetch, in IPv4-mapped IPv6 spellings too. A TestRail host that resolves into
-  one of them now needs `allowPrivateHosts: true`. (#296)
+- Default fetch connections now use the exact DNS answers accepted by the private-host guard. They preserve the original hostname for `Host`, SNI, and TLS certificate checks. Malformed DNS answers fail closed. The default transport connects directly. Custom `fetch` or proxy implementations must honor the supplied dispatcher or enforce equivalent destination checks. (#309)
+- Forced CLI downloads now validate the opened file descriptor before truncation so a replaced symlink cannot redirect writes. File input readers reject FIFOs without blocking when opening them. (#309)
+- **The host guard blocks three additional non-routable IPv4 ranges:** `198.18.0.0/15` (RFC 2544 benchmarking), `224.0.0.0/4` (multicast), and `240.0.0.0/4` (reserved, including `255.255.255.255`). The guard blocks these ranges in IP-literal base URLs at construction and in every DNS answer before a fetch, including IPv4-mapped IPv6 forms. A TestRail host that resolves to one of these ranges now requires `allowPrivateHosts: true`. (#296)
 
 ### Internal
 
-- `brace-expansion` moves from 5.0.9 to 5.0.12 in the lockfile for three DoS
-  advisories (GHSA-6j4f-fj2g-mc7p, GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7),
-  which had failed the required `security-audit` check. It is reached only
-  through the dev toolchain (`eslint` → `minimatch`), so the published package
-  and its one runtime dependency are unchanged. The lockfile's root `engines`
-  field now also records `>=24`. (#306)
-- CI declares least-privilege `permissions` (`contents: read`), cancels
-  superseded runs per ref (never on `main`), no longer runs every job twice for
-  a pushed pull-request branch, checks out with `persist-credentials: false`,
-  and runs package smoke as one OS matrix behind the same stable
-  `package-smoke` gate. (#298)
-- Added `SECURITY.md` (private vulnerability reporting, what is and is not in
-  scope) and `CONTRIBUTING.md` (the gates to run, the generated files, the
-  layer-coverage rule, and response-schema policy). `CLAUDE.md` no longer
-  mirrors `src/constants.ts` values by hand. (#300)
-- Two type-checked examples: `examples/publish-ci-results.ts` (one bulk
-  `add_results_for_cases` write, closing the run only once results have landed,
-  and no blind retry of an indeterminate write) and
-  `examples/bounded-pagination.ts` (`get*()` versus `get*Page()` versus
-  `getAll*()`, branching on `TestRailPaginationError.reason`). README now notes
-  that a cache hit deep-copies its entry and that `maxCacheSize` bounds entry
-  count, not memory. (#304)
-- `docs/RELEASING.md` describes the `npm-publish` deployment approval again.
-  The environment does have a required reviewer, so the 8.0.0 entry's Internal
-  note that publishing proceeds unattended was wrong; that entry is left as
-  shipped apart from a `RequestSpec` bullet now also listed under its BREAKING
-  section. The guide also records that the single reviewer may approve their
-  own deployment — a deliberate pause, not review. (#295)
-- `npm run verify` explicitly builds and runs static checks, generated-document
-  checks, coverage, and packed-package smoke tests despite disabled lifecycle
-  hooks. The build uses the same portable Node entry point locally and in CI,
-  retaining bounded removal retries for transient Windows file locks. (#309)
-- The installed skill uses portable metadata, self-contained references, and a
-  body below 500 lines. CI exercises Node 24 and 26 on Linux, Windows, and macOS;
-  other Node majors allowed by the Node 24+ engine range are not in the matrix. (#309)
-
-- Dev toolchain updated: `vitest`/`@vitest/coverage-v8` `5.0.3`, `eslint`
-  `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`,
-  `fast-check` `4.10.2`, `prettier` `3.9.9`, `tsx` `4.23.15`. The lockfile
-  keeps `brace-expansion` `5.0.12` from the dependency security update. The
-  runtime dependency remains Zod `4.6.5`. (#307)
+- Updated `brace-expansion` from 5.0.9 to 5.0.12 in the lockfile to fix three DoS advisories (GHSA-6j4f-fj2g-mc7p, GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7) that failed the `security-audit` check. Only the development toolchain (`eslint` → `minimatch`) uses this dependency, so the published package and its runtime dependency do not change. The lockfile's root `engines` field now also records `>=24`. (#306)
+- CI now declares least-privilege `permissions` (`contents: read`). It cancels superseded runs per ref, except on `main`, and avoids duplicate jobs for pushed pull-request branches. Checkout uses `persist-credentials: false`. Package smoke tests use one OS matrix behind the `package-smoke` gate. (#298)
+- Added `SECURITY.md` (private vulnerability reporting and scope) and `CONTRIBUTING.md` (required checks, generated files, layer-coverage rules, and response-schema policy). `CLAUDE.md` no longer duplicates values from `src/constants.ts` by hand. (#300)
+- Added two type-checked examples. `examples/publish-ci-results.ts` performs one bulk `add_results_for_cases` write and closes the run after recording results. It avoids blind retries on indeterminate writes. `examples/bounded-pagination.ts` compares `get*()`, `get*Page()`, and `getAll*()`. It branches on `TestRailPaginationError.reason`. The README now notes that a cache hit deep-copies its entry and that `maxCacheSize` bounds the entry count rather than memory usage. (#304)
+- Updated `docs/RELEASING.md` to document the `npm-publish` deployment approval step again. Because the environment requires a reviewer, the 8.0.0 Internal note stating that publishing runs unattended was incorrect. We kept the 8.0.0 entry as published, except that the `RequestSpec` bullet now also appears under its BREAKING section. The release guide also notes that the single reviewer may approve their own deployment as an intentional pause. (#295)
+- `npm run verify` now explicitly builds the package and runs static checks, generated-document checks, coverage, and packed-package smoke tests without relying on lifecycle hooks. The build script uses the same portable Node entry point locally and in CI, with bounded removal retries for temporary Windows file locks. (#309)
+- The installed skill uses portable metadata, self-contained references, and a body under 500 lines. CI tests Node 24 and 26 on Linux, Windows, and macOS. (#309)
+- Updated the development toolchain: `vitest` and `@vitest/coverage-v8` `5.0.3`, `eslint` `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`, `fast-check` `4.10.2`, `prettier` `3.9.9`, and `tsx` `4.23.15`. The lockfile keeps `brace-expansion` `5.0.12`, and the runtime dependency remains Zod `4.6.5`. (#307)
 
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 
-A major because the supported-runtime floor moves. The bulk of the release is
-internal restructuring; the three fixes below and the runtime requirement are
-what a consumer actually notices.
+This release is a major version bump because it raises the minimum supported Node.js version. Most of the release refactors internal modules, while users see the new runtime requirement and the three fixes below.
 
 ### Changed — BREAKING
 
-- **Node 24 is now the minimum supported runtime.** `engines.node` narrows from
-  `^20.19.0 || ^22.13.0 || >=24` to `>=24`, and the packed-package smoke matrix
-  runs Node 24 only on Linux, Windows, and macOS. Consumers on Node 20 or 22
-  must stay on 7.2.0 or upgrade their runtime. Nothing in the shipped code
-  branches on the Node version — the change is the support contract, the CI
-  matrix, and the process-wide `AsyncLocalStorage` cost note (on Node 24 that is
-  `AsyncContextFrame` at ~1%, not the async_hooks promise hook the older lines
-  used).
-
-- **`RequestSpec` lost `retry`, `bypassCache` and `remainingTimeMs`.** Listed
-  here as well as under Internal because triaging a major bump means reading
-  this section. The type is not exported by name and `dist/index.d.ts` is
-  byte-identical to 7.2.0 — but `TestRailClientCore.request<T>(spec)` is
-  `public` and inherited by `TestRailClient`, so the parameter is reachable by
-  structure. Nothing documented routes through it; see the caveat under
-  _Seven deep-module refactors_ in Internal for what a caller who had found it
-  would see.
+- **Node 24 is now the minimum supported runtime.** `engines.node` changes from `^20.19.0 || ^22.13.0 || >=24` to `>=24`, and the packed-package smoke test matrix runs Node 24 on Linux, Windows, and macOS. Users on Node 20 or 22 must remain on 7.2.0 or upgrade Node.js. The shipped code does not branch on the Node version. This change updates the support contract, the CI matrix, and the `AsyncLocalStorage` overhead note. Node 24 uses `AsyncContextFrame` with approximately 1% overhead instead of the older `async_hooks` promise hook.
+- **`RequestSpec` no longer includes `retry`, `bypassCache`, or `remainingTimeMs`.** We list this change here as well as under Internal for visibility during major-version upgrades. The package does not export `RequestSpec` by name, and `dist/index.d.ts` is byte-identical to 7.2.0. However, `TestRailClientCore.request<T>(spec)` is `public` and inherited by `TestRailClient`, so callers can reach the parameter type structurally. No documented API uses `RequestSpec` directly. See _Seven deep-module refactors_ under Internal for details.
 
 ### Fixed
 
-- **Attachment uploads that supply a file descriptor no longer fail.** An upload
-  built from `{ path, fd }` closed the caller's descriptor immediately after
-  `openAsBlob()`, but a file-backed `Blob` reads lazily and re-opens
-  `/dev/fd/<N>` on the first stream pull — by then the path was dead, and the
-  upload died with `DOMException: The blob could not be read`. Because the CLI
-  always opens the file and passes its descriptor, **every**
-  `testrail attachment add-to-*` command using `--file <path>` crashed. The
-  descriptor is now held until the request body has been consumed and released
-  during request cleanup, so the `/dev/fd` TOCTOU protection is preserved.
-- **`testrail run watch` now polls upstream on every interval.** The CLI built
-  its client with the GET cache enabled at its 5-minute default TTL, which is
-  longer than any `--interval` the command accepts (5–600s). Every poll after
-  the first was served from the cached `get_run/{run_id}` entry, so the
-  effective upstream poll period was pinned at 300s and a run could complete
-  without the watcher ever emitting a change. Actions that re-read one endpoint
-  for the life of the process are now marked `polls` in the CLI action metadata
-  and build a non-caching client; one-shot actions keep the cache.
-
-- **A bounded `getAll*()` now reports `max_duration` when its own deadline
-  expires.** `collectAllPages` passes one absolute `deadlineAt` to every page
-  request, where the request budget schedules `setTimeout` against it. Node
-  timers can fire up to a millisecond earlier than `Date.now()` agrees, so the
-  budget rejected with a raw `TestRailApiError(408)` while the aggregate's
-  wall-clock check still read "not expired" — and the raw 408 escaped instead of
-  the documented `TestRailPaginationError` with `reason: 'max_duration'`. A
-  caller branching on `reason` silently stopped matching, under load only. The
-  aggregate now recognises its own budget's expiry directly rather than
-  re-deriving it from a clock.
+- **Attachment uploads that supply a file descriptor no longer fail.** Previously, an upload built from `{ path, fd }` closed the caller's file descriptor immediately after `openAsBlob()`. Because a file-backed `Blob` reads lazily and re-opens `/dev/fd/<N>` on the first stream read, the descriptor was already closed and the upload failed with `DOMException: The blob could not be read`. Because the CLI always opens the file and passes its descriptor, every `testrail attachment add-to-*` command with `--file <path>` failed. The client now keeps the descriptor open until the transport consumes the request body and closes it during request cleanup, preserving `/dev/fd` TOCTOU protection.
+- **`testrail run watch` now polls the server on every interval.** Previously, the CLI created its client with the GET cache enabled at the 5-minute default TTL, which is longer than most `--interval` values (5–600s). After the first poll, the client served every poll from the cached `get_run/{run_id}` entry, fixing the effective poll period at 300s. CLI action metadata now marks polling actions with `polls` and builds a non-caching client for them, while one-shot actions keep the cache.
+- **A bounded `getAll*()` call now reports `max_duration` when its deadline expires.** `collectAllPages` passes a single absolute `deadlineAt` to each page request, and the request budget schedules `setTimeout` against that timestamp. Node timers can fire up to a millisecond before `Date.now()` reaches the target timestamp. The request budget then threw a raw `TestRailApiError(408)` although the aggregate wall-clock check still saw time remaining. Consequently, the raw 408 error escaped instead of `TestRailPaginationError` with `reason: 'max_duration'`. The aggregate now detects its own budget expiration directly instead of rechecking the wall clock.
 
 ### Internal
 
-- Dependencies bumped to current latest: `zod` `^4.6.5` (the only runtime
-  dependency; a minor range bump with no consumer-visible change) and the dev
-  toolchain — `vitest`/`@vitest/coverage-v8` `5.0.1`, `eslint` `10.10.0`,
-  `@typescript-eslint/*` `8.70.0`, `@types/node` `26.6.1`, `fast-check`
-  `4.10.1`, `prettier` `3.9.8`. Vitest 5 requires Node >= 22.12, which the
-  Node 24 floor above satisfies.
-- The hand-maintained "Published to npm" list at the top of this file now has a
-  drift gate (`npm run published:check`, wired into `pretest`, CI, and the
-  release workflow). It verifies that the `package.json` version appears in the
-  list and that every entry is stable semver, unique, and in ascending order.
-  The list is the only in-repo record of which versions actually reached the
-  registry — several version headers here never did — and it was the last
-  version-bearing artifact without a check.
-- Removed the `prepublishOnly` script. It could never run for a real release:
-  the publish workflow uses `npm publish --ignore-scripts` and `.npmrc` sets
-  `ignore-scripts=true` globally, so it read as a safety net while being
-  attached to nothing. The release gates in `docs/RELEASING.md` and
-  `.github/workflows/publish.yml` are the authority.
-- `docs/RELEASING.md` no longer describes an `npm-publish` environment approval
-  step. The environment is declared, but no required reviewers are configured,
-  so publishing proceeds unattended once the GitHub Release is published; the
-  guide now says so and shows how to check.
+- Updated the sole runtime dependency to `zod` `^4.6.5`. Updated development dependencies to `vitest` and `@vitest/coverage-v8` `5.0.1`, `eslint` `10.10.0`, and `@typescript-eslint/*` `8.70.0`. Also updated `@types/node` to `26.6.1`, `fast-check` to `4.10.1`, and `prettier` to `3.9.8`. Vitest 5 requires Node >= 22.12, which the Node 24 requirement satisfies.
+- Added `npm run published:check` to check the "Published to npm" list at the top of this file. It runs in `pretest`, CI, and the release workflow. The check verifies that the `package.json` version appears in the list and that every entry is valid semver, unique, and in ascending order.
+- Removed the `prepublishOnly` script. Because the publish workflow runs `npm publish --ignore-scripts` and `.npmrc` sets `ignore-scripts=true`, that script never ran during a release. `docs/RELEASING.md` and `.github/workflows/publish.yml` enforce all release checks.
+- Updated `docs/RELEASING.md` to remove the `npm-publish` environment approval step description when no required reviewers are configured, and documented how to check the environment status.
+- **Seven deep-module refactors.** These refactors do not change the documented SDK or CLI surface. `dist/index.d.ts` is byte-identical to 7.2.0. Compile-time and structural checks replace manual conventions.
 
-- **Seven deep-module refactors.** No change to the documented SDK or CLI
-  surface — `dist/index.d.ts` is byte-identical to 7.2.0 — and each replaced a
-  convention that had to be remembered with one a caller cannot get wrong.
+    One structural note applies: `TestRailClientCore.request<T>(spec)` is `public` and inherited by `TestRailClient`, so callers can reach its unexported `RequestSpec` parameter structurally. `RequestSpec` removed `retry`, `bypassCache`, and `remainingTimeMs` and added `intent`. Passing `retry` directly to `request()` in an object literal now causes an excess-property type error. The client ignores the property when a caller passes it through a variable.
+    - _Derived retry policy._ `deriveRetryPolicy()` derives retry behavior from `body.kind`, `responseKind`, and `intent`. Multipart bodies never retry by design, and `intent` replaces `RequestSpec.retry` and `bypassCache`.
+    - _Centralized multipart upload handling (`src/upload-source.ts`)._ One module now manages platform path mapping, `openAsBlob`, `FormData` construction, stream ownership, single descriptor cleanup, and single-use `build()`.
+    - _Centralized request deadline budget (`src/request-budget.ts`)._ One module now manages per-call wall-clock deadlines, replacing 36 inline `deadlineAt` calculations and six separate 408 error constructions.
+    - _Callable `runCli(runtime)` interface._ Process-level concerns now live only in `src/cli.ts`. The CLI test suite no longer re-imports modules or polls `process.exitCode`, reducing full test suite execution time from ~25s to ~8s.
+    - _Unified diagnostic wrapper._ `withDiagnostics(request, deps, work)` now encapsulates the six-step CLI diagnostic lifecycle and removes three mutable flags.
+    - _Centralized CLI output (`src/cli/output.ts`)._ `createOutput` requires explicit writers, `HandlerContext` makes all five writers required, and ESLint forbids `process.stdout`, `process.stderr`, and `process.argv` outside `src/cli.ts`. This check also fixed a bug where `run watch` read `--quiet` from `process.argv` instead of the `argv` passed to `runCli`.
+    - _Explicit action arrays and derived pagination._ Named read/write arrays replace 29 `.slice(a, b)` calls on `ACTIONS`. One contract table keyed by `apiEndpoint` replaces `ActionSpec.pagination` and removes mapping gate E. A snapshot test verified that all 134 action entries remained identical.
 
-    One caveat, stated because "no published-API change" is not literally true at
-    the TypeScript structural level: `TestRailClientCore.request<T>(spec)` is
-    `public` and inherited by `TestRailClient`, so its `RequestSpec` parameter is
-    reachable by structure even though the type is not exported by name. That
-    interface lost `retry`, `bypassCache` and `remainingTimeMs` and gained
-    `intent`. Nothing documented routes through it — using it means
-    reverse-engineering endpoint strings and Zod schemas — but a caller who had
-    found it and passed `retry` would now see an excess-property error on an
-    object literal, or have the field silently ignored if passed via a variable,
-    since the policy is derived from the request's shape instead.
-    - _Retry policy is derived, not declared._ `deriveRetryPolicy()` selects from
-      `body.kind` + `responseKind` + `intent`, so a multipart body never retries by
-      construction and the combination that duplicated an upload is unspellable.
-      `RequestSpec.retry`/`bypassCache` gave way to a single `intent`.
-    - _One module owns a multipart upload end to end_ (`src/upload-source.ts`):
-      platform path mapping, `openAsBlob`, FormData append, stream ownership, one
-      descriptor close, single-use `build()`.
-    - _One call's wall-clock allowance became a module_ (`src/request-budget.ts`),
-      replacing 36 inline `deadlineAt` sites and six separate constructions of the
-      same 408.
-    - _`runCli(runtime)` is a callable interface._ Everything process-shaped moved
-      to `src/cli.ts`; the CLI suite dropped module re-imports and `process.exitCode`
-      polling, and the full suite went from ~25s to ~8s.
-    - _`withDiagnostics(request, deps, work)` absorbed a six-step protocol_ the CLI
-      previously executed by hand, shedding three mutable flags.
-    - _One module owns every byte the CLI emits._ `createOutput` requires its
-      writers; `HandlerContext`'s five writers are non-optional; ESLint forbids
-      `process.stdout`/`stderr`/`argv` outside `src/cli.ts`. This surfaced that
-      `run watch` read `--quiet` from `process.argv` rather than the argv `runCli`
-      was handed, so an embedded caller passing `--quiet` still got status lines.
-    - _The `ACTIONS` slice arithmetic is gone, and CLI pagination is derived._ 29
-      `.slice(a, b)` calls whose bounds nothing could check became named read/write
-      arrays; `ActionSpec.pagination` was deleted in favour of one contract table
-      keyed by `apiEndpoint`, retiring mapping gate E. Verified byte-neutral
-      against a pre-change snapshot of all 134 entries.
-
-- **Three silent-drop paths closed in the mapping generator's parser.** It fed
-  gates C, C2-reverse and D — all set-membership tests — and could return a short
-  or empty list without any signal, which those gates read as "nothing to check"
-  and passed. All now throw.
-- ARCH #4's charter ("one runtime declaration per endpoint; gates D/E become type
-  constraints") is recorded as unreachable rather than done: the endpoint
-  inventory must stay hand-curated, so a registry would be a second hand-maintained
-  copy, and a type-level gate D fires for the wrong author. See
-  `docs/archive/BACKLOG-ARCHIVE.md`.
+- **Fixed three silent-drop paths in the mapping generator's parser.** Previously, the parser for gates C, C2-reverse, and D could return an incomplete or empty list without an error. The set-membership checks then passed incorrectly. All three paths now throw an error on unexpected AST structures.
+- Recorded ARCH #4 ("one runtime declaration per endpoint; gates D/E become type constraints") as unreachable in `docs/archive/BACKLOG-ARCHIVE.md` because the endpoint inventory requires manual curation.
 
 ## [7.2.0] — 2026-09-17 — operation settlement and independent report execution
 
 ### Added
 
-- Public `client.trackOperation(callback)` returns independent `result` and
-  `settled` promises. Resource ownership includes started and coalesced DNS,
-  fetch, response reads/cancellation, upload streams, and retry work even when
-  the visible result has already reached its deadline.
-- Exported type `OperationHandle<T>` (`{ result: Promise<T>; settled: Promise<void> }`),
-  the return type of `trackOperation`, for callers annotating their own signatures.
-- Settlement tracking is opt-in and costs nothing until first use. Entering an
-  `AsyncLocalStorage` installs context propagation process-wide — on the Node
-  20/22 lines this package supports, roughly +170% on unrelated promise traffic —
-  so no request path, including multipart uploads, enters one until
-  `trackOperation` is called for the first time.
+- Added `client.trackOperation(callback)`, which returns independent `result` and `settled` promises. The `settled` promise tracks started and shared DNS lookups, fetch calls, response reads and cancellations, upload streams, and retries. Tracking continues after a timeout rejects the `result` promise.
+- Exported the `OperationHandle<T>` type (`{ result: Promise<T>; settled: Promise<void> }`), which is the return type of `trackOperation`.
+- Settlement tracking is opt-in and has zero overhead until its first call. Entering an `AsyncLocalStorage` enables context propagation across the process. On Node 20 and 22, this adds approximately 170% overhead to unrelated promises. Request paths enter `AsyncLocalStorage` only after the caller invokes `trackOperation`.
 
 ### Changed
 
-- **Report execution methods no longer cache, coalesce, or retry transport
-  failures.** `reports.runReport()` and `reports.runCrossProjectReport()` keep
-  their GET routes but now set cache bypass, so every explicit call executes
-  once instead of being served from cache or merged with a concurrent identical
-  call. They also no longer retry 5xx or network failures, whose outcome is
-  ambiguous for a report that may already have been generated and emailed; 429
-  is still retried (honoring `Retry-After`) because the rate limiter rejects
-  before execution. Callers that relied on the previous deduplication will see
-  more requests reach TestRail, and errors that were previously absorbed by
-  automatic retry now propagate. No other method's caching or retry behavior
-  changes.
+- **Report execution methods no longer cache, coalesce, or retry transport failures.** `reports.runReport()` and `reports.runCrossProjectReport()` still use GET requests. They now bypass the cache and concurrent request sharing, so every call executes on the server. They also no longer retry 5xx or network errors, because the server may have already generated and emailed the report. They still retry 429 responses (honoring `Retry-After`) because the rate limiter rejects requests before execution. Callers that relied on deduplication will now send more requests to TestRail, and 5xx or network errors now surface immediately. Caching and retry behavior for all other methods is unchanged.
 
 ### Fixed
 
-- Late fetch responses and unread error/redirect bodies receive observed
-  cancellation. Multipart cleanup observes actual stream reads and cancellation
-  while retaining native FormData encoding, and aborts an in-flight upload by
-  erroring its stream rather than closing it — a clean close would have sent a
-  truncated file under a valid closing boundary.
+- Late fetch responses and unread error or redirect bodies now cancel cleanly. Multipart cleanup now tracks stream reads and cancellations while preserving native `FormData` encoding. When an in-flight upload aborts, the client errors the upload stream. This prevents the server from accepting a truncated file as complete.
 
 ### Internal
 
-- Publication verification now allows up to five minutes for npm's accepted
-  upload to become visible in registry metadata, with bounded online lookups
-  and no repeated publish. This avoids reporting a failed release after npm
-  accepts a package but needs more than the previous 27-second polling window
-  to process it. Identity checks and immediate package-content mismatch failures
-  remain unchanged.
-- The packaged-executable smoke matrix now covers Node 22.13.0 in addition to
-  Node 24 on Windows and macOS, so the supported lower bound is exercised on
-  every platform rather than Linux alone.
+- Publication verification now waits up to five minutes for an accepted npm package upload to appear in registry metadata. It uses bounded online lookups without republishing. This prevents false release failures when npm takes longer than 27 seconds to index a new package. Identity checks and immediate content-mismatch failures are unchanged.
+- The package smoke test matrix now runs on Node 22.13.0 and Node 24 across Linux, Windows, and macOS.
 
 ## [7.1.0] — 2026-09-10 — CLI diagnostics and safer workflows
 
 ### Added
 
-- Opt-in CLI `--diagnostic-file <path>` writes bounded, redacted error details
-  to a new private file without changing request retries, default output, or
-  exit codes. Windows rejects the flag before dispatch because equivalent
-  private ACLs are not yet supported.
-- A tested case-field readiness example polls uncached inventories with
-  bounded attempts, deadlines, cancellation, and explicit field verification
-  before dependent writes, while retaining the successful creation result.
+- Added the opt-in CLI `--diagnostic-file <path>` flag. It writes bounded, redacted error details to a new private file. Request retries, default output, and exit codes remain unchanged. On Windows, the CLI rejects this flag before dispatch because Windows private ACLs are not supported yet.
+- Added a tested case-field readiness example that polls uncached inventories with bounded attempts, deadlines, cancellation, and explicit field verification before dependent writes.
 
 ### Security
 
-- **SSRF guard: IPv4-mapped IPv6 literals no longer bypass private-host blocking.**
-  A `baseUrl` such as `https://[::ffff:127.0.0.1]` or
-  `https://[::ffff:169.254.169.254]` passed both the construction-time literal
-  check and the per-request address check because the WHATWG URL parser
-  rewrites the host to the hex form (`[::ffff:7f00:1]`), which only the dotted
-  spelling was recognized for, and Node's `fetch` connects that address straight
-  to the IPv4 target. Both layers now classify addresses through one
-  `net.BlockList`, which applies the IPv4 rules to mapped addresses in every
-  spelling. Public mapped addresses (for example `::ffff:8.8.8.8`) remain
-  allowed.
-- Carrier-grade NAT `100.64.0.0/10` (RFC 6598) is now treated as private
-  alongside the RFC 1918 ranges.
-- The RFC 8215 local-use NAT64 prefix `64:ff9b:1::/48` is blocked explicitly
-  next to the well-known `64:ff9b::/96`. A router on such a network translates
-  `64:ff9b:1::a00:1` to private `10.0.0.1`, so the whole /48 is treated as
-  private on both the literal and the DNS-resolved path.
+- **SSRF guard: IPv4-mapped IPv6 literals no longer bypass private-host blocking.** Previously, a `baseUrl` such as `https://[::ffff:127.0.0.1]` or `https://[::ffff:169.254.169.254]` passed both the construction-time literal check and the per-request address check. The WHATWG URL parser rewrites the host into hexadecimal form (`[::ffff:7f00:1]`). The dotted-decimal check did not match this form. Node `fetch` connected directly to the underlying IPv4 address. Both checks now classify addresses using a shared `net.BlockList` that applies IPv4 rules to all IPv4-mapped IPv6 formats. Public mapped addresses (such as `::ffff:8.8.8.8`) remain allowed.
+- The host guard now treats the carrier-grade NAT range `100.64.0.0/10` (RFC 6598) as private alongside the RFC 1918 ranges.
+- The host guard now blocks the RFC 8215 local-use NAT64 prefix `64:ff9b:1::/48` alongside the well-known `64:ff9b::/96` prefix for both literal URLs and DNS answers.
 
 ### Fixed
 
-- CLI diagnostic reservations are cleaned up during normal process exit,
-  including SIGINT/SIGTERM, and `--dry-run` ignores diagnostic destinations.
-  Empty validation strings no longer count as available detail; known failures
-  before handler invocation report `not_dispatched`.
-- Diagnostic paths follow filesystem symlink/`..` traversal, and conflicting
-  download paths are rejected before dispatch so cleanup cannot delete a download.
-- Case-field skill recipes now use schema-valid creation payloads, nested
-  configuration scope, returned `system_name` properties, and the correct
-  Dropdown/Multiselect value shapes. The recipes document the reported
-  comma-label limitation without rewriting caller payloads.
-- **CLI: a string flag no longer silently swallows the following flag.**
-  `parseArgs` binds whatever token follows a string flag as that flag's value,
-  including another flag, so `testrail attachment add-to-case 1 --file r.bin
---filename --dry-run` parsed to `filename: '--dry-run'` with `--dry-run`
-  never registered: the upload ran for real instead of previewing. The same
-  omission silently disabled `--strict-responses` (schema drift stopped failing
-  closed), reduced `--all` to a single page presented as complete, and dropped
-  `--force`. Only the trailing-token spelling (`--filename` as the last
-  argument) was rejected before. Such an invocation now exits 1 with
-  `--filename requires a value, but the next argument was the flag --dry-run.`
-  Detection is structural — a consumed token leading with `--` plus at least one
-  more character — so it does not depend on how the swallowed flag was spelled:
-  the inline-valued `--filename --dry-run=true` and the typo `--filter --dryrun`
-  are rejected alongside the plain form. Validation is driven entirely by
-  per-occurrence argv tokens, so a repeated flag whose swallow hid on an earlier
-  occurrence (`--filter --dry-run --filter abc`) is caught too. Values that are
-  not flags are unaffected: `-5`, the `-` stdin/stdout sentinel, a bare `--`,
-  and any path or JSON body. **Compatibility:** any space-separated value that
-  begins with `--` is now rejected for every string flag, so an invocation that
-  previously passed such a value must pass it inline instead
-  (`--filter=<value>`); the rejection message says so. In practice this affects
-  the free-text filters (`--filter`, `--defects-filter`, `--refs`), since ids,
-  timestamps, URLs, paths, and JSON bodies cannot begin with `--`. One further
-  consequence: `testrail --base-url --help` now exits 1 instead of printing
-  help, because the `--help` was consumed as a value.
+- The CLI now cleans up diagnostic file reservations on normal process exit (including `SIGINT` and `SIGTERM`), and `--dry-run` ignores diagnostic file destinations. Empty validation strings no longer count as diagnostic details, and failures before handler execution report `not_dispatched`.
+- Diagnostic paths now resolve symlinks and `..` segments, and the CLI rejects conflicting download paths before dispatch so cleanup cannot delete a downloaded file.
+- Case-field skill recipes now use valid creation payloads, nested configuration scopes, returned `system_name` properties, and valid Dropdown and Multiselect value formats. The recipes also document TestRail's comma-label limitation.
+- **CLI: a string flag no longer consumes the following flag as its value.** Standard `parseArgs` treats any token after a string flag as that flag's value, even if the token is another flag. Previously, running `testrail attachment add-to-case 1 --file r.bin --filename --dry-run` set `filename` to `'--dry-run'` and ignored `--dry-run`, causing the upload to execute instead of previewing. The same behavior could silently disable `--strict-responses`, reduce `--all` to a single page, or drop `--force`. Now the CLI exits with code 1 and prints `--filename requires a value, but the next argument was the flag --dry-run.`. The parser checks consumed values in raw `argv` tokens. It rejects values that start with `--` and contain at least one more character. It catches `--filename --dry-run=true`, typos such as `--filter --dryrun`, and repeated flags such as `--filter --dry-run --filter abc`. This change does not affect non-flag values such as `-5`, the `-` stdio sentinel, a bare `--`, file paths, or JSON bodies. **Compatibility:** the CLI now rejects any space-separated value starting with `--` for a string flag. Pass such values inline instead (`--filter=<value>`). In addition, `testrail --base-url --help` now exits with code 1 instead of printing help because `--base-url` consumes `--help`.
 
 ### Changed
 
-- Construction-time private-host rejection now applies to IP literals and
-  `localhost` only. Hostnames that merely start with a private-looking prefix
-  (for example `127.0.0.1.nip.io` or `10.example.test`) were previously
-  rejected synchronously by a prefix regex; they now construct and are
-  classified by the per-request DNS check, which still rejects them before any
-  fetch when they resolve to a private address.
+- Construction-time private-host rejection now checks only IP literals and `localhost`. Previously, a prefix regular expression synchronously rejected valid public hostnames that started with numeric segments (such as `127.0.0.1.nip.io` or `10.example.test`). The client now allows these hostnames at construction and checks their resolved IP addresses via DNS before every request.
 
 ### Internal
 
-- The publish workflow retries package-content verification while a newly
-  published npm tarball propagates, using a fresh cache on each attempt.
-  A retrieved package whose contents differ still fails immediately.
-- Refreshed the bundled skill, generated API documentation, and architecture
-  guidance, including accurate retry behavior, exit codes, and CLI flag syntax.
-  Added a release guide covering validation, publication, and post-release checks.
+- The publish workflow now retries package-content verification with a fresh cache while a newly published npm tarball propagates. If a downloaded tarball's contents do not match, verification still fails immediately.
+- Updated the bundled skill, generated API documentation, architecture documentation, and release guide.
 
 ## [7.0.0] — 2026-09-02 — TestRail 10.7 API compatibility and stricter validation
 
 ### Added — TestRail 10.7.0 API compatibility
 
-- Added the cumulative API surface introduced through TestRail 10.7.0:
-  `edit_result`, dynamic-filter discovery/payloads, and run/plan reference
-  filters from 10.4; project BDD listing and lightweight case-title lookup
-  from 10.5; `get_version` from 10.6; and the repeated `refs[]` query form for
-  case and BDD lists from 10.7.
-- Added typed programmatic methods and matching CLI actions for
-  `case titles`, `bdd list`, `bdd update`, `result edit`, `version get`, and
-  `dynamic-filter-field list`. Existing scalar `refs` values remain supported;
-  arrays are serialized as repeated `refs[]` parameters where TestRail 10.7
-  requires them.
-- Completed the TestRail 10.5 label-management surface with create, update,
-  single-delete, and bulk-delete operations. Case add/update/bulk-update
-  payloads now type and validate mixed label IDs/titles instead of exposing
-  them only through passthrough fields.
-- Added Enterprise cross-project report discovery and execution through
-  `report list-cross-project` and `report run-cross-project`.
-- Expanded current case/run/plan list filters, including list-valued ID
-  filters, labels, references, and the `include_plan_runs` option where the
-  corresponding TestRail endpoint supports them. Test lists now expose the
-  documented label-ID filter as well.
-- Added `get_test`'s `with_data=0|1` projection to the SDK and CLI. The
-  enriched response is normalized to one test object with `results` and
-  `attachments` arrays.
-- Generated CLI help and the bundled skill now share one typed option
-  registry, so every accepted CLI flag has an agent-facing scope and behavior
-  description and option drift fails type-checking or generation checks.
-- Aligned run, plan, and plan-entry write payloads with the current request tables,
-  including `start_on`, `due_on`, and `refs`. Result edits use flat `custom_*`
-  fields as documented and reject empty updates. Dynamic-filter payloads now
-  require their documented `mode` and `filters` structure.
+- Added TestRail API endpoints and parameters introduced through TestRail 10.7.0. These include `edit_result`, dynamic-filter discovery and payloads, and run/plan reference filters (10.4). They also include project BDD listing and lightweight case-title lookup (10.5), `get_version` (10.6), and repeated `refs[]` query parameters for case and BDD lists (10.7).
+- Added typed SDK methods and CLI actions for `case titles`, `bdd list`, `bdd update`, `result edit`, `version get`, and `dynamic-filter-field list`. Scalar `refs` values remain supported, and the client serializes arrays as repeated `refs[]` parameters where TestRail 10.7 requires them.
+- Added full TestRail 10.5 label management (`add`, `update`, `delete`, and `delete-bulk`). Case add, update, and bulk-update payloads now type and validate mixed label IDs and titles directly.
+- Added Enterprise cross-project report discovery and execution (`report list-cross-project` and `report run-cross-project`).
+- Expanded case, run, and plan list filters with array-valued ID filters, labels, references, and `include_plan_runs` where supported. Test lists now also support the `label_id` filter.
+- Added the `with_data=0|1` parameter for `get_test` in the SDK and CLI. The client normalizes the enriched response to one test object with `results` and `attachments` arrays.
+- Unified CLI help generation and the bundled skill around one typed option registry so option drift fails type-checking or generation checks.
+- Updated run, plan, and plan-entry write schemas with `start_on`, `due_on`, and `refs`. Result edits now validate flat `custom_*` fields and reject empty updates. Dynamic-filter payloads now require `mode` and `filters`.
 
 ### Changed — BREAKING
 
-- The CLI now rejects known but action-irrelevant flags before authentication
-  instead of silently ignoring them. This includes rejecting real
-  `run close --soft` invocations because TestRail cannot preview a close;
-  `--dry-run --soft` remains a no-network client-side preview.
-- `TestRailConfigSchema` now covers every `TestRailConfig` field and aligns its
-  numeric bounds and function-valued hooks with client construction. Client
-  construction now also rejects invalid values for previously unchecked
-  optional cache, boolean, DNS-lookup, and process-handler settings instead of
-  allowing them to fail or behave unpredictably later. Zero-valued documented
-  sentinels remain accepted. The legacy `PaginationSchema` remains permissive;
-  use `PaginationRequestSchema` for strict request controls.
-
-- `UpdateLabelPayload` and `label update` now require the owning
-  `project_id`, matching TestRail's `update_label` request contract. Migrate
-  `{ "title": "New" }` payloads to
-  `{ "project_id": 123, "title": "New" }`.
-- `UpdatePlanEntryPayload` no longer declares `suite_id`, `config_ids`, or
-  `runs`: the current `update_plan_entry` contract omits `suite_id` and
-  explicitly does not support the other two fields. Because write schemas
-  preserve unknown keys for forward compatibility, those legacy keys are no
-  longer type-checked locally if supplied through an untyped object; remove
-  them instead of relying on client-side validation.
-- `UsersModule.getUsers()` now follows the documented optional project path
-  (`getUsers(projectId?)`) and no longer advertises unsupported pagination.
-  The CLI uses `user list --project-id` and the distinct `--user-email` lookup
-  flag, preventing lookup targets from colliding with authentication email.
-  `user list --limit/--offset` now fails explicitly instead of silently issuing
-  an unbounded request.
-- `UpdatePlanPayload` no longer advertises the undocumented `assignedto_id`
-  field. `AddPlanEntryPayload.suite_id` is now optional because TestRail only
-  requires it for multi-suite and baseline projects.
-- The `bdd add --dry-run` acknowledgement now reports `sectionId` rather than
-  the incorrect `caseId`. Update automation that reads this JSON field.
+- The CLI now rejects known flags that do not apply to the selected action before authentication instead of ignoring them. This includes rejecting `run close --soft` (without `--dry-run`) because TestRail cannot preview closing a run.
+- `TestRailConfigSchema` now validates every `TestRailConfig` field, matching the constructor's numeric bounds and function checks. The `TestRailClient` constructor now immediately rejects invalid cache, boolean, DNS-lookup, and process-handler settings. Documented zero-valued sentinels remain valid. Use `PaginationRequestSchema` for strict pagination validation. `PaginationSchema` remains permissive.
+- `UpdateLabelPayload` and `label update` now require `project_id` to match TestRail's `update_label` endpoint. Update `{ "title": "New" }` payloads to `{ "project_id": 123, "title": "New" }`.
+- `UpdatePlanEntryPayload` removes `suite_id`, `config_ids`, and `runs` because TestRail's `update_plan_entry` endpoint does not support them. Remove these keys from callers instead of relying on passthrough behavior.
+- `UsersModule.getUsers()` now accepts an optional `projectId` (`getUsers(projectId?)`) and removes unsupported pagination parameters. The CLI uses `user list --project-id` and `--user-email`, and `user list --limit` or `--offset` now exits with an error.
+- `UpdatePlanPayload` removes the undocumented `assignedto_id` field, and `AddPlanEntryPayload.suite_id` is now optional because TestRail requires it only for multi-suite and baseline projects.
+- The `bdd add --dry-run` output now reports `sectionId` instead of `caseId`. Update any scripts that read that JSON field.
 
 ### Fixed
 
-- Preserved the deprecated `GetRunsOptions.refsFilter` behavior across server
-  generations: the alias now emits both current `refs` and legacy
-  `refs_filter`; an explicit `refs` value takes precedence.
-- Corrected the `addBdd` parameter and CLI documentation from `caseId` to
-  `sectionId`. TestRail's `add_bdd/{section_id}` endpoint creates a new BDD
-  case under a section; the request path itself is unchanged.
-- Corrected result-list filters by endpoint: all three result reads support
-  status/defect filtering, while only `get_results_for_run` accepts creator
-  and creation-date filters. CLI default, page, and aggregate modes now retain
-  the same filters.
-- Added missing documented shared-step filters and `delete_shared_step`'s
-  `keep_in_cases` control, project completion and milestone-started filters,
-  dataset variable maps, project access assignments, and conditional case-field
-  configuration shapes.
-- Removed the obsolete no-op `--case-id` CLI flag and stopped advertising
-  undocumented user password/language fields and the false TestRail 7.5
-  requirement for `add_cases`.
+- Preserved the deprecated `GetRunsOptions.refsFilter` option by emitting both `refs` and `refs_filter` (an explicit `refs` value takes precedence).
+- Renamed the `addBdd` parameter and CLI documentation from `caseId` to `sectionId` to match TestRail's `add_bdd/{section_id}` endpoint.
+- Aligned result-list filters with each endpoint: all three result list endpoints support status and defect filters, while only `get_results_for_run` accepts creator and creation-date filters.
+- Added missing shared-step filters and the `keep_in_cases` option on `delete_shared_step`. Added project completion and milestone-started filters, dataset variable maps, project access assignments, and conditional case-field configuration schemas.
+- Removed the unused `--case-id` CLI flag, undocumented user password and language fields, and the inaccurate TestRail 7.5 version note on `add_cases`.
 
 ### Internal
 
-- Migrated the build and primary type-check to native TypeScript 7.0.2. The
-  compiler-API generators and typed ESLint stack use the aliased TypeScript 6
-  compatibility package while the native compiler has no stable Compiler API.
-  Packed-package smoke tests compile the published declarations with both
-  TypeScript 6 and 7, preserving the TypeScript 6+ consumer guarantee.
-- Refreshed every direct dependency to its current release: Zod 4.5.4,
-  `@types/node` 26.4.1, typescript-eslint 8.69.0, ESLint 10.9.1, Vitest and its
-  V8 coverage provider 4.1.11, lockfile-lint 5.0.1, and tsx 4.23.13. The
-  already-current `@eslint/js`, audit-ci, fast-check, and Prettier releases are
-  unchanged. The lockfile refresh also removes the obsolete js-yaml audit
-  exception; the dependency audit now passes without allowlisted advisories.
+- Migrated the build and primary type-check to native TypeScript 7.0.2 while keeping TypeScript 6 for Compiler API generators and typed ESLint rules. Package smoke tests verify the published type declarations against both TypeScript 6 and 7.
+- Updated direct dependencies: Zod 4.5.4, `@types/node` 26.4.1, `typescript-eslint` 8.69.0, ESLint 10.9.1, Vitest and `@vitest/coverage-v8` 4.1.11, `lockfile-lint` 5.0.1, and `tsx` 4.23.13. Removed the obsolete `js-yaml` audit exception.
 
 ## [6.0.0] — 2026-08-11 — advisory validation, safe pagination, and response coverage
 
-Entity-field response validation no longer fails closed. A TestRail response
-whose entity fields do not match their Zod schema is returned raw and reported
-to a new `onSchemaMismatch` hook instead of throwing. With a non-throwing hook,
-structural list/page invariants still fail closed: default list projections
-throw `TestRailApiError`, explicit page/all projections throw
-`TestRailPaginationError`, and the non-idempotent `addCases` / `updateCases`
-bulk writes throw an explicit indeterminate-outcome `TestRailApiError`. These
-guards prevent an unknown successful response from masquerading as zero rows or
-zero affected cases. A caller hook that throws takes precedence over the
-downstream decoder.
+Entity-field response validation is now advisory by default. When response entity fields do not match their Zod schema, the client returns the raw data. It passes mismatch details to the optional `onSchemaMismatch` callback without throwing an error. Even with a non-throwing hook, structural list and page checks still fail closed. Default list methods throw `TestRailApiError`, explicit page and all-page methods throw `TestRailPaginationError`, and the non-idempotent `addCases` and `updateCases` bulk writes throw an indeterminate-outcome `TestRailApiError`. These checks prevent an unrecognized response from appearing as zero rows or zero updated cases. If a custom `onSchemaMismatch` hook throws an error, that error propagates before the structural decoders run.
 
-The evidence for the change: response-schema corrections have consistently
-widened schemas to admit valid TestRail responses rather than narrowed them to
-reject invalid ones. Fail-closed response validation repeatedly converted wire
-shape differences into client-side outages. Because list endpoints validate a
-whole page at once, a single unmodelled row could discard an otherwise valid
-page.
+We made this change because previous schema updates consistently widened schemas to accept valid TestRail responses rather than rejecting invalid ones. Strict response validation turned minor API response differences into client failures. One unexpected field in one row could cause an entire list page to fail.
 
 ### Changed — BREAKING
 
-- **`parse()` no longer throws on a response mismatch.** Code that caught
-  `TestRailValidationError` around a read will no longer see it. Restore the old
-  behavior in one line:
-  `onSchemaMismatch: ({ error }) => { throw handleZodError(error) }`.
-  `handleZodError` (exported from the package root) reproduces the exact
-  `TestRailValidationError` older versions threw, so existing `instanceof`
-  handlers keep matching — a bare `throw error` throws a `ZodError` instead, and
-  those handlers silently stop matching.
-- **`TestRailClientCore.parse()` takes a required third argument** carrying the
-  originating `{ method, endpoint }`. Only relevant if you call `parse()`
-  directly; every in-package call site passes it.
-- **`onSchemaMismatch` must be synchronous.** A hook that returns a promise now
-  has its rejection consumed and immediately throws `TestRailValidationError`;
-  the response is neither returned nor cached. TypeScript permits an `async`
-  function where a `void` callback is expected, so this runtime guard prevents a
-  strict hook from failing open. Use a synchronous
-  `throw handleZodError(error)` when restoring 5.x behavior.
-- **A schema-invalid GET response is no longer cached.** It is still returned to
-  the caller, but caching it would pin a rejected body for the full TTL with no
-  further hook notifications. Each subsequent call now re-fetches and re-reports,
-  so a transient blip self-heals as it did in 5.x.
-- **The CLI reports entity-field drift safely and can opt back into strict
-  behavior.** Its default remains advisory, with at most 10 unique,
-  deduplicated warnings followed by a safe suppressed-count summary. Warnings
-  contain only the HTTP method, CLI resource/action, normalized Zod issue codes,
-  and shape-only paths with every segment masked; they never include the
-  endpoint, field/record keys, issue messages, or raw response.
-  `--strict-responses` or `TESTRAIL_STRICT_RESPONSES=1` stops at the
-  first mismatch with exit code 1. A successful mutating request instead throws
-  an indeterminate-outcome `TestRailApiError` so CI does not retry it blindly.
-  One-shot commands emit no mismatched value and bounded aggregates emit no
-  partial array; streaming `run watch` output from completed earlier polls
-  cannot be retracted. The environment variable accepts only `1`, `0`, an empty
-  value, or unset; every other value fails before authentication/network access.
-  `--strict-responses=<value>` forms are rejected. `--quiet` suppresses advisory
-  warnings.
-- **Malformed default-list outer responses are `TestRailApiError`s in
-  non-throwing advisory mode.** The
-  successful HTTP response had an unrecognized protocol shape, not a bad caller
-  argument, so it no longer surfaces as `TestRailValidationError`. The raw body
-  is available only through `.response`; it is never interpolated into the error
-  message. Explicit page/all failures retain the structured
-  `TestRailPaginationError` contract. Consumers that caught
-  `TestRailValidationError` around default list reads with the default hook must catch
-  `TestRailApiError` for this condition instead; page/all catch logic is
-  unchanged. A throwing hook still propagates before either structural decoder.
-- **`tests.updateTests()` returns `UpdateTestsResponse`, not `Test[]`.**
-  `update_tests` acknowledges the bulk label assignment —
-  `{ test_ids: [1, 2, 3], labels: [{ id, title }] }` — and does not return the
-  updated tests. The previous test-list schema was a guess made while the docs
-  were unreachable; because the acknowledgement has no `tests` key, **every
-  successful call resolved `[]`**, reporting "0 tests updated" for work the
-  server had done. New exports: `UpdateTestsResponse`,
-  `UpdateTestsResponseSchema`. The matching
-  `testrail test update-labels-bulk` command now emits this acknowledgement
-  object instead of a test array.
-- **Response types widened** where wire evidence exists. Each breaks code that
-  reads the field at its old narrow type:
-    - `Result.status_id`: `number` → `number | null`. Still a required property:
-      the key is always present, only the value is nullable. TestRail returns
-      `null` for comment-only results — a comment, defect, or assignment recorded
-      with no status change.
-    - `CaseStatus.abbreviation`: `string` → `string | null | undefined`, and
-      `CaseStatus.is_untested`: `boolean` → `boolean | null | undefined`. Two
-      independent defects that made `getCaseStatuses()` fail on affected
-      Enterprise instances: the built-in Approved/Draft statuses ship with a null
-      abbreviation, and `is_untested` belongs to `get_statuses`, not
-      `get_case_statuses`, so it is never emitted.
-    - `Label.created_by` and `LabelEmbedded.created_by`: `number` →
-      `number | string | null | undefined`. TestRail's Labels documentation quotes
-      this as `"2"` while leaving `created_on` unquoted in the same object, and no
-      wire capture exists for that API. `LabelEmbedded` rides on
-      `Case.labels[]` and `Test.labels[]`, so guessing wrong failed `getCase`,
-      `getCases`, `getTest`, and `getTests` page-wide.
+- **`parse()` no longer throws on an entity-field response mismatch.** Code that caught `TestRailValidationError` on read calls will no longer catch it by default. To restore the strict 5.x behavior, pass `onSchemaMismatch: ({ error }) => { throw handleZodError(error) }`. The exported `handleZodError` helper constructs the exact `TestRailValidationError` that 5.x threw, whereas throwing `error` directly throws a `ZodError`.
+- **`TestRailClientCore.parse()` now requires a third argument** with `{ method, endpoint }`. This affects only callers that invoke `parse()` directly.
+- **`onSchemaMismatch` must be synchronous.** If the callback returns a promise, the client consumes its rejection and immediately throws `TestRailValidationError` without returning or caching the response. Use a synchronous `throw handleZodError(error)` callback for strict mode.
+- **The client no longer caches schema-invalid GET responses.** The client returns the raw response without caching it. The next request fetches new data and calls `onSchemaMismatch` again if the mismatch remains.
+- **The CLI reports entity-field drift safely and supports strict mode.** By default, the CLI prints up to 10 unique warnings and a summary of suppressed warnings. Warnings include only the HTTP method, CLI resource and action, normalized Zod issue codes, and masked path shapes. Warnings never include endpoint URLs, field names, issue messages, or raw response data. Passing `--strict-responses` or setting `TESTRAIL_STRICT_RESPONSES=1` exits with code 1 on the first mismatch. Writes throw `TestRailApiError` with an indeterminate outcome, so CI does not blindly retry. `TESTRAIL_STRICT_RESPONSES` accepts only `1`, `0`, an empty string, or unset. Passing `--quiet` suppresses advisory warnings.
+- **Malformed outer responses on default list reads now throw `TestRailApiError` in advisory mode.** An unrecognized outer response shape is a protocol error. Default list reads therefore throw `TestRailApiError`, with the raw body on `.response`, instead of `TestRailValidationError`. Explicit page and all-page methods still throw `TestRailPaginationError`.
+- **`tests.updateTests()` now returns `UpdateTestsResponse` instead of `Test[]`.** TestRail's `update_tests` endpoint returns `{ test_ids: [1, 2, 3], labels: [{ id, title }] }` rather than an array of tests. Previously, the schema looked for a `tests` key and resolved every call to `[]`. The package now exports `UpdateTestsResponse` and `UpdateTestsResponseSchema`, and `testrail test update-labels-bulk` outputs this acknowledgement object.
+- **Widened response types** to match real TestRail responses:
+    - `Result.status_id`: `number` → `number | null`. TestRail returns `null` for comment-only, defect-only, or assignment-only results.
+    - `CaseStatus.abbreviation`: `string` → `string | null | undefined`, and `CaseStatus.is_untested`: `boolean` → `boolean | null | undefined`. Built-in Approved and Draft statuses can have `abbreviation: null`, and `get_case_statuses` omits `is_untested`.
+    - `Label.created_by` and `LabelEmbedded.created_by`: `number` → `number | string | null | undefined`.
     - `Milestone.is_started`: `boolean | undefined` → `boolean | null | undefined`.
-    - `CaseFieldConfig.context.project_ids` / `ResultFieldConfig.context.project_ids`:
-      `number[]` → `number[] | string | null | undefined`. The normalizing
-      `.transform()` that folded `null`/`""` into `[]` was **removed** — under
-      advisory parsing it was unsound, because a sibling field failing to parse
-      returns the raw body, delivering an untransformed `null` under a type that
-      claimed `number[]` and turning a caught validation error into an uncaught
-      `TypeError`. Narrow before indexing.
-    - Every `SoftDeletePreview` counter: `number | undefined` →
-      `number | null | undefined`. Narrow before arithmetic.
-    - `HistoryChange.options`: `unknown[] | null | undefined` →
-      `Record<string, unknown> | unknown[] | null | undefined`. Use
-      `Array.isArray()` before array operations.
-    - `CaseFieldConfig.options.items` / `ResultFieldConfig.options.items`:
-      `string | null | undefined` → `string | unknown[] | null | undefined`.
-      Narrow before calling string methods or iterating.
-- **Public response types now derive from the declared response-schema keys.**
-  Runtime schemas remain `.passthrough()`, but their inferred public types no
-  longer advertise a broad `[key: string]: unknown` signature. This removes
-  accidental property access from response models that do not support dynamic
-  fields and eliminates hand-written schema/type drift.
-- **Flat custom-field access is explicit and narrow.** Only `Case`, `Test`, and
-  `Result` expose a `custom_*` template-literal index returning `unknown`;
-  narrow a bracket-accessed value before use. Their nested `custom_fields` member is retained but marked
-  deprecated. Other response types no longer require or encourage casts for
-  fields TestRail does not emit there.
+    - `CaseFieldConfig.context.project_ids` and `ResultFieldConfig.context.project_ids`: `number[]` → `number[] | string | null | undefined`. Removed the `.transform()` that converted `null` or `""` to `[]` so raw advisory responses match the static TypeScript type. Narrow this field before indexing.
+    - All `SoftDeletePreview` counters: `number | undefined` → `number | null | undefined`. Narrow these fields before arithmetic.
+    - `HistoryChange.options`: `unknown[] | null | undefined` → `Record<string, unknown> | unknown[] | null | undefined`. Check `Array.isArray()` before calling array methods.
+    - `CaseFieldConfig.options.items` and `ResultFieldConfig.options.items`: `string | null | undefined` → `string | unknown[] | null | undefined`. Narrow this field before calling string or array methods.
+- **Public response types now derive directly from declared schema keys.** Runtime schemas still use `.passthrough()`, but the inferred TypeScript types no longer include `[key: string]: unknown`.
+- **Flat custom-field types are now restricted to `Case`, `Test`, and `Result`.** Only those three types include a `[key: `custom_${string}`]: unknown` index signature. We marked their nested `custom_fields` property as `@deprecated`.
 
 ### Added
 
-- **`TestRailConfig.onSchemaMismatch`** — called with
-  `{ method, endpoint, error, data }` when a response fails its schema. Unset by
-  default, in which case a mismatch is silent. Invoked outside any `try`, so
-  throwing from it propagates to the caller; that is the supported strict mode,
-  and it also prevents the cache write. Exported type: `SchemaMismatch`.
-- **Explicit bounded pagination on 23 audited list endpoints.** Existing
-  `get*()` methods remain one-response `Entity[]` reads. Each registered endpoint
-  also exposes `get*Page(): Page<Entity>` (preserves `offset`, `limit`, `size`,
-  and `_links`) and `getAll*(): Entity[]` (collects every response page).
-  Registered endpoints are cases and case history; projects, suites, sections,
-  plans, runs, tests, milestones, and all three result lists; labels; shared
-  steps and shared-step history; case/run/plan attachment lists; datasets,
-  variables, roles, groups, and case statuses. Test attachments, plan-entry
-  attachments, users, and ordinary metadata/configuration/report lists are
-  intentionally excluded.
-- **Safe continuation handling.** `_links.next` is authoritative for whether a
-  next page exists, but its host and path are never followed. The client parses
-  only a canonical offset and optional limit, then rebuilds the known endpoint
-  with the original filters. A legacy bare array is terminal. All-page reads
-  bypass GET cache reads/writes/coalescing and return no partial results.
-  Explicit page reads validate against a strict envelope schema and use a
-  separate cache namespace, so legacy collection-only wrappers cannot poison
-  `Page<T>` responses.
-- **Bounded aggregation and structured failures.** Defaults: page size 250,
-  offset 0, 100 pages, 25,000 items, five minutes, and 100 MiB serialized data;
-  hard ceilings are 250/page, five minutes, and 1 GiB. New
-  `TestRailPaginationError` extends `TestRailValidationError` and carries
-  `reason`, `pagesFetched`, and `itemsFetched`; reasons are `max_pages`,
-  `max_items`, `max_duration`, `max_bytes`, `invalid_page`,
-  `invalid_continuation`, and `non_progress`.
-- **CLI pagination projections.** The default remains a one-response item
-  array. `--page` emits the normalized page; `--all` emits the bounded complete
-  array and accepts `--page-size`, `--start-offset`, `--max-pages`,
-  `--max-items`, `--max-duration-ms`, and `--max-bytes`. `--page` and `--all`
-  conflict; `--all` rejects `--limit`/`--offset`; aggregate controls require
-  `--all`. Shared-step history, datasets, variables, roles, groups, and case
-  statuses are response-driven and reject caller-controlled page size/offset.
-- **Stable response fields and recursive milestones.** Added
-  `Test.refs_data`, `Test.case_title`, `Result.case_title`, `Result.case_refs`,
-  optional `Plan.is_archived` and `Plan.archived_on`,
-  `CaseField.is_indexed`, version-tolerant `CaseField.is_system` and
-  `ResultField.is_system` (`boolean | 0 | 1 | null | undefined`), plus writable
-  `AddCaseFieldPayload.is_indexed`. `Milestone.milestones` is now recursively
-  typed and validated instead of `unknown[]`.
-- **Bare-array tolerance on every wrapper-documented list read.** All of these
-  now accept both the paginated envelope and a bare top-level array, via the
-  shared `listOf()`/`unwrapList()` pair in `src/modules/list.ts` (the union
-  already proven on `getSuites`). Non-breaking: each method's contract stays
-  `Entity[]`.
-    - Previously single-shape, now bimodal (25 methods): `getCases`,
-      `getSections`, `getHistoryForCase`, `getUsers`, `getGroups`,
-      `getVariables`, `getDatasets`, `getProjects`, `getMilestones`, `getPlans`,
-      `getRuns`, `getTests`, `getResults`, `getResultsForCase`,
-      `getResultsForRun`, `getRoles`, `getLabels`, `getSharedSteps`,
-      `getSharedStepHistory`, `getAttachmentsForCase`, `getAttachmentsForTest`,
-      `getAttachmentsForRun`, `getAttachmentsForPlan`, `getCaseStatuses`,
-      `getAttachmentsForPlanEntry`. (`getSuites` already accepted both.)
-    - Also applied to the two bulk _writes_, `addCases` and `updateCases`: there
-      a shape mismatch used to resolve `[]`, reporting "0 created/updated" for
-      work the server had done, which a retrying caller would then duplicate.
-    - Endpoints whose response is a bare array to begin with are unchanged and
-      keep parsing `z.array(...)`: `getStatuses`, `getPriorities`,
-      `getCaseTypes`, `getTemplates`, `getCaseFields`,
-      `getResultFields`, `getConfigurations`, `addResults`,
-      `addResultsForCases`.
-    - Why the broad fix rather than another per-endpoint change: multiple methods
-      have returned a bare array despite a documented wrapper, and `get_users` is
-      a bulk endpoint whose own docs show a bare array. The documentation does
-      not reliably predict the shape, so every wrapper-documented list read now
-      accepts both.
-- **A list read cannot silently report zero rows.** The envelope branch requires
-  the key to be present (an explicit `null` still means an empty page), so a body
-  that is not the expected list — `{ error: ... }`, a single entity, a renamed
-  key — is reported through `onSchemaMismatch` instead of parsing "successfully"
-  to `{}` and unwrapping to `[]`. `unwrapList()` also guards the extracted member
-  with `Array.isArray`, so a key holding a scalar can no longer be returned typed
-  as `Entity[]`.
-- **Structural list/page corruption now fails closed.** Advisory parsing still
-  preserves rows whose entity fields drift. Every list projection rejects a
-  missing/wrong collection instead of returning an empty list; explicit
-  page/all projections additionally reject partial pagination metadata,
-  malformed `_links`, unsafe continuations, and non-advancing offsets.
-- **Bulk case writes fail closed on an unrecognized success body.**
-  `addCases()` and `updateCases()` still accept both documented envelopes and
-  bare arrays, but a body matching neither form now throws `TestRailApiError`
-  with an indeterminate-outcome message. The server-side write may already have
-  happened, so returning `[]` would invite a duplicate retry.
+- **Added `TestRailConfig.onSchemaMismatch` and exported `SchemaMismatch`.** The client calls this hook with `{ method, endpoint, error, data }` when a response fails schema validation.
+- **Added bounded pagination methods on 23 list endpoints.** Existing `get*()` methods still return `Entity[]` from a single response. Each paginated endpoint now also provides `get*Page(): Promise<Page<Entity>>` (preserving `offset`, `limit`, `size`, and `_links`) and `getAll*(): Promise<Entity[]>` (fetching all pages within safety bounds). Coverage includes cases, case history, projects, suites, sections, plans, runs, tests, and milestones. It also includes all three result lists, labels, shared steps, shared-step history, and case/run/plan attachments. Datasets, variables, roles, groups, and case statuses complete the set.
+- **Added safe continuation handling.** The client uses `_links.next` only to detect whether another page exists. It never follows the URL's host or path. Instead, it parses the `offset` and optional `limit` parameters and rebuilds the request against the known endpoint with the original filters. `getAll*()` bypasses the GET cache and request coalescing, and returns no partial results on error. `get*Page()` validates the pagination envelope strictly and uses a separate cache namespace.
+- **Added pagination bounds and `TestRailPaginationError`.** Default `getAll*()` limits are page size 250, offset 0, 100 pages, 25,000 items, 5 minutes, and 100 MiB. Hard ceilings are 250 items per page, 5 minutes, and 1 GiB. `TestRailPaginationError` extends `TestRailValidationError` and exposes `reason` (`max_pages`, `max_items`, `max_duration`, `max_bytes`, `invalid_page`, `invalid_continuation`, or `non_progress`), `pagesFetched`, and `itemsFetched`.
+- **Added CLI pagination flags.** List commands return one page of items by default. `--page` outputs the page envelope, and `--all` fetches all pages using `--page-size`, `--start-offset`, `--max-pages`, `--max-items`, `--max-duration-ms`, and `--max-bytes`.
+- **Added response fields and recursive milestones.** Added `Test.refs_data`, `Test.case_title`, `Result.case_title`, `Result.case_refs`, `Plan.is_archived`, `Plan.archived_on`, `CaseField.is_indexed`, `AddCaseFieldPayload.is_indexed`, and `boolean | 0 | 1 | null | undefined` support for `CaseField.is_system` and `ResultField.is_system`. `Milestone.milestones` now uses a recursive schema instead of `unknown[]`.
+- **Added bare-array support to all wrapper-documented list reads.** All 25 wrapper-documented list reads now use `listOf()` and `unwrapList()` from `src/modules/list.ts`. They accept paginated envelope objects and bare JSON arrays. `getSuites`, `addCases`, and `updateCases` also accept both forms.
+- **Prevented list reads and bulk case writes from silently returning empty arrays on malformed responses.** `unwrapList()` verifies that the expected wrapper key exists and holds an array (or `null` for an empty page). `addCases()` and `updateCases()` throw an indeterminate-outcome `TestRailApiError` if the response matches neither the wrapper object nor a bare array.
 
 ### Fixed
 
-- **`SoftDeletePreview` counters accept an explicit `null`.** All seven were
-  `.optional()` (`T | undefined`), which rejects `null` — a parse failure landing
-  on a destructive-delete preview. The schema post-dated the #130
-  optional→nullish sweep and was never covered by it.
-- **`HistoryChangeSchema.options` accepts the object TestRail actually sends.**
-  Declared `z.array(z.unknown())` after the doc's field table, but the wire
-  carries an object — `{ is_required, default_value, items }` — on any change to
-  some dropdown-style custom fields. `getHistoryForCase()` therefore failed for
-  affected histories. Now a union; the documented array form still parses.
-- **`FieldConfigOptionsSchema.items` accepts the array form.** A newline-delimited
-  string on dropdown fields, but an array of `{ name, machine_name }` on the
-  built-in `quality_rating` (type_id 16). `getResultFields()` failed on every
-  call, compounding the `default_value` defect fixed in #248.
-- **An Enterprise-license 403 is now always a `TestRailLicenseError`.** TestRail
-  phrases the condition two ways — `"Not an Enterprise license/subscription."`
-  (`get_variables`, `get_datasets`) and `"…(Requires Enterprise license…)"`
-  (`get_case_statuses`). The matcher anchored on the first, so `getCaseStatuses()`
-  raised a plain `TestRailApiError` and callers branching on
-  `instanceof TestRailLicenseError` to degrade gracefully missed it. Ordinary
-  permission 403s are unaffected, and the match still requires "Not an"/"Requires"
-  beside the phrase so an arbitrary 403 body that merely mentions Enterprise
-  licensing — a proxy error page, a project named "Enterprise Licensing" — is not
-  misclassified.
-- **`getHistoryForCase()` accepts TestRail's documented outer-array response.**
-  The published example wraps the pagination object in an array,
-  `[{ offset, limit, size, _links, history: [...] }]`. That shape matched neither
-  accepted branch, so the raw outer array was returned and the caller received the
-  envelope itself as `result[0]` — typed `HistoryEntry`, but carrying pagination
-  fields and no `id`/`user_id`. All three shapes now parse.
-- **The CLI no longer truncates pipe-backed output on Node 20/22.** Terminal
-  paths set `process.exitCode` and let stdout/stderr drain instead of calling
-  `process.exit()` immediately.
-
-Together with the widenings above and the bare-array tolerance, this covers the
-response-shape issues described in the defect report.
+- **`SoftDeletePreview` counters now accept `null`.** All seven counter fields now use `.nullish()` instead of `.optional()`. This schema was added after the optional-to-nullish audit in #130, which therefore did not cover it.
+- **`HistoryChangeSchema.options` now accepts an object as well as an array.** TestRail returns an `{ is_required, default_value, items }` object for changes to dropdown custom fields.
+- **`FieldConfigOptionsSchema.items` now accepts an array as well as a string.** TestRail returns an array of `{ name, machine_name }` objects for the built-in `quality_rating` field (type 16).
+- **Enterprise-license 403 responses consistently throw `TestRailLicenseError`.** The error check now matches both `"Not an Enterprise license/subscription."` and `"(Requires Enterprise license...)"` while still ignoring unrelated 403 messages.
+- **`getHistoryForCase()` now accepts TestRail's outer-array wrapper `[{ offset, limit, size, _links, history: [...] }]`** in addition to the standard pagination object and bare array.
+- **The CLI no longer truncates piped output on Node 20 and 22.** The CLI now sets `process.exitCode` and allows stdout and stderr to drain instead of calling `process.exit()` immediately.
 
 ### Internal
 
-- `tests/schema-conventions.test.ts` gains two zero-false-positive rules:
-  response schemas may not use `.optional()`, and may not carry format or length
-  validators (regression guard for #236). A "no bare required scalar" rule was
-  evaluated and rejected because it produced mostly false positives while
-  missing important wrapper-shape and wire-type risks.
-- devDependencies bumped. TypeScript held at `~6.0.3`: TypeScript 7's native port
-  does not expose the Compiler API, which both AST generators require.
-- **Release publication is now fail closed.** A GitHub Release must be a stable
-  `release/<version>` tag whose peeled commit matches the workflow SHA, is on
-  `main`, and matches `package.json` plus both lockfile version fields. The
-  read-only verification job runs the complete test, drift, audit, and packed
-  consumer-smoke gates before handing a digest-checked artifact to the separate,
-  manually approved npm Trusted Publishing job. Registry checks enforce a
-  monotonic stable version, exact `gitHead`, `latest`, package contents, and SLSA
-  provenance; an existing version is accepted only when every identity check
-  matches.
-- Packed-package smoke runs on Linux with Node 20.19, 22.13, and 24 plus Windows
-  with Node 24, behind the stable `package-smoke` CI gate. Pull-request CI also
-  enforces formatting, lockfile policy, and AGENTS.md drift, and uses the pinned
-  `audit-ci` dependency rather than a transient `npx` install.
+- Added two schema convention tests in `tests/schema-conventions.test.ts`: response schemas cannot use `.optional()`, and response schemas cannot use format or length validators.
+- Updated development dependencies while keeping TypeScript at `~6.0.3` for Compiler API compatibility.
+- **Hardened the release workflow.** Publishing now requires a `release/<version>` tag on `main` matching the workflow commit SHA, `package.json`, and lockfiles. Verification runs tests, drift checks, security audits, and package smoke tests before passing a digest-verified artifact to the npm Trusted Publishing job.
+- Expanded CI package smoke tests to Node 20.19, 22.13, and 24 on Linux, and Node 24 on Windows. Added formatting, lockfile, `AGENTS.md`, and pinned `audit-ci` checks.
 
 ### Known gaps
 
-- `AddResultPayloadSchema.status_id` remains **required**, so this client can read
-  comment-only results but cannot create them. Relaxing it needs authoritative
-  documentation or synthetic integration evidence for a successful comment-only
-  `add_result`. Documented in-place in `src/schemas/results.ts`.
-- Lower-risk over-strict fields identified by audit remain unwidened, by design
-  — they now degrade to a warning rather than an outage, and widen when evidence
-  arrives.
+- `AddResultPayloadSchema.status_id` remains required in 6.0.0, so the client can read comment-only results but cannot create them through the CLI schema yet (resolved in 9.0.0).
+- Other low-risk strict response fields remain unchanged until wire evidence requires widening them. Under advisory validation, mismatches log a warning instead of throwing an error.
 
 ## [5.3.0] — 2026-07-16 — configurable request timeout (per-request + CLI)
 
-The request timeout was only settable once, at construction (`config.timeout`).
-This release adds two override paths that surface the _existing_ timeout knob
-rather than introducing a new one — no breaking changes; every change is
-additive with an unchanged default (30s).
+Previously, callers could set the request timeout only once when constructing `TestRailClient` (`config.timeout`). This release adds per-request and CLI timeout overrides while keeping the 30-second default and full backward compatibility.
 
 ### Added
 
-- **`client.withTimeout(ms)` (SDK).** Returns a lightweight view of the client
-  that applies `ms` as the request timeout to every call made through it —
-  e.g. `client.withTimeout(120_000).cases.getCases(1)` gives one bulk export two
-  minutes without constructing a second client. The view **shares** the root
-  client's cache, rate-limiter budget, credential, and cleanup timer by
-  reference (it is not a second client) and is not registered for its own process
-  lifecycle. The body-read deadline (SEC #21) tracks the new timeout when
-  `bodyTimeout` was left at its default and is preserved when set explicitly.
-  Views chain (outermost wins) and validate `ms` with the same rule as
-  `config.timeout` (positive, finite, ≤ 5 minutes). Because a view shares state,
-  `destroy()` / `clearCache()` called on a view act on the shared root client —
-  `destroy()` on any handle zeroes the one credential and disables the root and
-  all its views.
-- **`--timeout <ms>` and `TESTRAIL_TIMEOUT` (CLI).** Override the request timeout
-  in milliseconds (flag > env var > 30s default), mapped straight to
-  `config.timeout`. A non-integer value exits 1; an out-of-range value is
-  rejected by the client. Parse errors name the actual source (`--timeout` vs
-  `TESTRAIL_TIMEOUT`).
+- **Added `client.withTimeout(ms)` in the SDK.** This method returns a lightweight client view. All calls through the view use `ms` as their request timeout, for example, `client.withTimeout(120_000).cases.getCases(1)`. The view shares the root client's cache, rate limiter, credentials, and cleanup timer by reference. When `bodyTimeout` uses its default value, the body-read deadline (SEC #21) also scales to `ms`. You can chain views (the outermost view takes precedence), and `withTimeout(ms)` validates `ms` using the same rule as `config.timeout` (positive integer up to 5 minutes). Calling `destroy()` or `clearCache()` on a view acts on the shared root client.
+- **Added `--timeout <ms>` and `TESTRAIL_TIMEOUT` in the CLI.** These options override the request timeout in milliseconds (`--timeout` takes precedence over `TESTRAIL_TIMEOUT`, which takes precedence over the 30s default). Invalid values exit with code 1 and identify the source in the error message.
 
 ### Internal
 
-- Timeout validation extracted to a shared `validateTimeout()` (`src/validation.ts`)
-  so `config.timeout` and `withTimeout()` reject identically; the per-request
-  `RequestSpec.timeout`/`bodyTimeout` overrides are validated at the single
-  `request()` chokepoint so no unvalidated value can reach the abort timer or
-  body-read deadline.
+- Extracted timeout validation into `validateTimeout()` in `src/validation.ts` so `config.timeout`, `withTimeout()`, and `request()` validate timeout values identically.
 
 ## [5.2.1] — 2026-07-14 — live-API schema fixes + skill-packaging hardening
 
-Two threads. **Live-API schema corrections (#248)** repair six client methods
-that threw on real TestRail Cloud responses in `5.2.0` — the fixes were merged to
-`main` on 2026-06-22 but landed _after_ the `5.2.0` tag, so they had never reached
-the registry until this release. **Skill-packaging and coverage-gate hardening
-(#249)** makes the bundled skill's frontmatter version track `package.json`
-automatically, verifies the installer end-to-end against the real shipped file,
-and adds a fifth API-mapping drift gate closing the SDK-to-CLI half of the
-layer-coverage invariant. No breaking changes — every schema fix _widens_ what
-parses, and `.passthrough()` is preserved throughout so an extra field from
-another instance or version degrades to an untyped extra rather than a reject.
+This patch release ships two sets of improvements:
+
+1. **Live-API schema fixes (#248)** repair six client methods that failed validation on real TestRail Cloud responses in `5.2.0`.
+2. **Skill-packaging and coverage-gate checks (#249)** synchronize the bundled skill version with `package.json`. They test installation with the real `skill/SKILL.md` file. New Gate D verifies that every SDK method has a CLI action.
+
+All changes are backward-compatible.
 
 ### Fixed
 
-Audited the client against a live TestRail Cloud instance (dual capture: raw
-fetch + shipped-schema parse) to find where real responses diverge from the Zod
-schemas; each fix is proven by a sanitized-fixture regression test
-(`tests/live-audit-regression.test.ts`, red before and green after). Full report
-in `docs/schema-audit-2026-06-22.md`. **These six paths threw on real data in
-`5.2.0`:**
+We audited the client against a live TestRail Cloud instance and added regression fixtures in `tests/live-audit-regression.test.ts` (see `docs/schema-audit-2026-06-22.md`). This release fixes six endpoints that failed on live data in `5.2.0`:
 
-- **`get_users` / `get_user` / `get_current_user` — `mfa_required`.** The wire
-  value is an integer `0`/`1`, not a boolean, so a bare `z.boolean()` rejected
-  the real response and `getUsers` / `getUser` / `getCurrentUser` all threw. Now
-  accepts `boolean | number`.
-- **`get_attachments_for_case` — `data_id`.** The wire value is a number
-  (e.g. `1000006328`), not the string the doc-derived schema assumed. Now a
-  `number | string` union; `cassandra_file_id` and the config-level `id` are
-  modeled too.
-- **All five `getAttachmentsFor*` list methods — bare-array response.** TestRail
-  returns a bare JSON array, not the `{ attachments: [...] }` wrapper the schema
-  required, so `z.object()` rejected every populated response. All five methods
-  now accept both the bare array and the wrapped shape.
-- **`get_case_fields` / `get_result_fields` — `default_value`.** The key is
-  omitted entirely on some field configs (step-results and BDD-scenario fields),
-  so a required `z.string()` threw. Now `.nullish()` — accepts present-string,
-  `null`, and key-omitted. Both endpoints share `FieldConfigOptionsSchema`, so
-  the one change covers both.
-- **`get_shared_step_history` — `id` / `user_id` + wrapper.** History-entry `id`
-  and `user_id` are numbers on Cloud (strings on doc-compliant self-hosted
-  servers); both are now `number | string` unions. The endpoint also returns a
-  bare array, not the `{ step_history: [...] }` wrapper — now accepts both.
-- **`update_group` — `group_id`.** TestRail requires `group_id` in the request
-  body, not just the path, so `updateGroup` returned `400`. The method now
-  injects it into the body.
+- **`get_users`, `get_user`, and `get_current_user` — `mfa_required`.** TestRail returns `0` or `1` instead of a boolean. The schema now accepts `boolean | number`.
+- **`get_attachments_for_case` — `data_id`.** TestRail returns a number (such as `1000006328`) instead of a string. The schema now accepts `number | string` and adds `cassandra_file_id` and `id`.
+- **All five `getAttachmentsFor*` list methods — bare-array response.** TestRail can return a bare JSON array instead of `{ attachments: [...] }`. All five methods now accept both formats.
+- **`get_case_fields` and `get_result_fields` — `default_value`.** TestRail omits `default_value` on some field configurations (such as step-results and BDD-scenario fields). `FieldConfigOptionsSchema` now marks `default_value` as `.nullish()`.
+- **`get_shared_step_history` — `id`, `user_id`, and wrapper.** TestRail Cloud returns numbers for `id` and `user_id` and can return a bare array instead of `{ step_history: [...] }`. The schema now accepts `number | string` for both IDs and accepts both response shapes.
+- **`update_group` — `group_id`.** TestRail requires `group_id` in the request body as well as the URL path. `updateGroup` now includes `group_id` in the request body.
 
-Additive typing (previously carried untyped via `.passthrough()`):
-`i18n_custom_id` on Status / CaseField / ResultField / CaseType / Template;
-`RoleSchema.is_project_admin`; `PlanEntrySchema.dynamic_filters`; and
-`has_expected` / `has_actual` / `has_additional` / `has_reference` on step-style
-field-config options.
+We added optional `i18n_custom_id` types on `Status`, `CaseField`, `ResultField`, `CaseType`, and `Template`. We also typed `RoleSchema.is_project_admin`, `PlanEntrySchema.dynamic_filters`, and step-field options `has_expected`, `has_actual`, `has_additional`, and `has_reference`.
 
 ### Added
 
-- **Skill version auto-sync (`replaceFrontmatterVersion`).**
-  `scripts/generate-skill.ts` now rewrites the `version:` field inside
-  `skill/SKILL.md`'s YAML frontmatter to match `package.json` on every
-  `npm run skill` regeneration, so the bundled skill can no longer drift out
-  of sync with the published package version.
-- **Install-verification test for the real bundled skill.**
-  `tests/install-skill.test.ts` now installs the actual repo `skill/SKILL.md`
-  (not just the synthetic fixture used elsewhere in that file) into a temp
-  target and asserts the installed frontmatter's `name` / `description` /
-  `version` / `license` / `homepage` are all populated and that `version`
-  exactly matches `package.json`.
-- **Gate D — SDK-to-CLI coverage gate.** `scripts/generate-mapping.ts` /
-  `scripts/mapping-renderer.ts` now enforce a fifth drift gate (the mirror
-  image of gate C): every `@testrail`-tagged SDK method must be claimed by at
-  least one `ActionSpec.apiEndpoint`, with no exemption escape hatch, closing
-  the gap where the SDK→CLI half of the layer-coverage invariant was
-  previously upheld only in manual review.
+- **Automated skill version synchronization (`replaceFrontmatterVersion`).** `scripts/generate-skill.ts` now updates the `version:` field in `skill/SKILL.md` to match `package.json` whenever `npm run skill` runs.
+- **Added an installation test for the bundled skill.** `tests/install-skill.test.ts` now installs the repository skill into a temporary directory. It verifies that `name`, `description`, `version`, `license`, and `homepage` exist, and that `version` matches `package.json`.
+- **Added Gate D (SDK-to-CLI coverage gate).** `scripts/generate-mapping.ts` and `scripts/mapping-renderer.ts` now verify that every `@testrail`-tagged SDK method maps to at least one `ActionSpec.apiEndpoint` without exemptions.
 
 ### Documentation
 
-- **`skill/SKILL.md` documents the CLI-to-SDK fallback rule.** A new
-  "Falling back to the programmatic SDK" section clarifies that agents
-  should only drop to the programmatic SDK on CLI-side rejections that
-  never reach the network (unrecognized flag, stricter payload validation,
-  unsurfaced operations) — never on TestRail API errors, auth failures, or
-  rate limits, which fail identically through either surface.
+- **Documented the CLI-to-SDK fallback rule in `skill/SKILL.md`.** The new "Falling back to the programmatic SDK" section states the fallback rule. Switch to the SDK only when the CLI rejects an operation locally before a network request. Do not switch after HTTP errors, authentication failures, or rate limits.
 
 ## [5.2.0] — 2026-06-21 — #242 bulk-case wire-shape fixes
 
-All three TestRail bulk-case endpoints were broken (each always threw); confirmed
-first-hand by a live canary probe against a real instance, which also corrected the
-exact wire shapes. None of these methods could succeed before, so no working caller
-is affected — except the `copyCasesToSection` return type, which narrows.
+Live testing against a TestRail instance showed that all three bulk-case endpoints failed due to request or response wrapper mismatches. This release fixes those wrappers and updates the return type of `copyCasesToSection`.
 
 ### Fixed
 
-- **`cases.addCases` — request and response wrappers.** The request body is now
-  sent as `{ cases: [...] }` (a bare array is rejected by TestRail with
-  `400 "Field :cases is a required field."`), and the response is unwrapped from
-  `{ cases: [...] }` (the server wraps under `cases`, not `added_cases`). The
-  caller still passes a plain array — only the wire shape changed.
-- **`cases.updateCases` — response wrapper.** The response is now unwrapped from
-  `{ updated_cases: [...] }` instead of a bare array.
+- **`cases.addCases` — request and response wrappers.** The client now sends the request body as `{ cases: [...] }`. TestRail rejected the previous bare array with HTTP 400 `"Field :cases is a required field."`. The client now unwraps responses from `{ cases: [...] }` instead of `{ added_cases: [...] }`. Callers still pass a plain array of case payloads.
+- **`cases.updateCases` — response wrapper.** The client now unwraps the response from `{ updated_cases: [...] }` instead of expecting a bare array.
 
 ### Changed (breaking for `copyCasesToSection` return type)
 
-- **`cases.copyCasesToSection` now returns `void`** (was `Promise<Case[]>`).
-  TestRail returns `HTTP 200` with an empty body, so the prior bare-array schema
-  always threw. The method resolves to `void`; its JSDoc is corrected.
+- **`cases.copyCasesToSection` now returns `Promise<void>` instead of `Promise<Case[]>`.** TestRail returns HTTP 200 with an empty body for `copy_cases_to_section`, so the previous array schema always failed validation.
 
 ## [5.1.0] — 2026-06-21 — Live-audit corrections
 
-Findings from a read-only/structural audit of the client against a real TestRail
-Cloud instance. All changes are backward-compatible except the pagination guard
-noted below.
+This release incorporates findings from a read-only audit against a live TestRail Cloud instance. All changes are backward-compatible except for the client-side pagination `limit` check below.
 
 ### Added
 
-- **`TestRailLicenseError` (subclass of `TestRailApiError`).** A `403` carrying
-  TestRail's `{"error":"Not an Enterprise license/subscription."}` body (observed
-  on `get_datasets` / `get_variables` on non-Enterprise instances) is now thrown
-  as `TestRailLicenseError`, so callers can branch on license gating with
-  `instanceof`. It IS-A `TestRailApiError`, so existing `catch` handlers are
-  unaffected; ordinary `403`s remain plain `TestRailApiError`. Exported from the
-  package root.
-- **Server-extra response fields now modeled.** The audit observed real fields
-  the response schemas didn't declare (carried opaquely via `.passthrough()`).
-  They are now typed `.nullish()` fields so typed consumers can reach them:
-  `is_archived` / `archived_on` / `dynamic_filters` on Run; `is_archived` /
-  `archived_on` on Plan; `refs_data` / `ai_automated_test` on Case;
-  `comments` on history entries; `case_id` / `quality_rating` / `defects_data` /
-  `attachment_ids` on Result; `sections_display_order` / `cases_display_order` /
-  `refs_data` / `case_comments` / `ai_automated_test` on Test. Typed where the
-  wire capture supported it, `unknown` where the value shape was never observed.
+- **Added `TestRailLicenseError` (subclass of `TestRailApiError`).** When a non-Enterprise TestRail instance returns HTTP 403 with `{"error":"Not an Enterprise license/subscription."}` (for example, on `get_datasets` or `get_variables`), the client now throws `TestRailLicenseError`. Because `TestRailLicenseError` extends `TestRailApiError`, existing `catch` blocks continue to work, while callers can use `instanceof TestRailLicenseError` to detect license restrictions.
+- **Typed additional server response fields.** Added `.nullish()` schema fields for properties observed in live responses. `Run` adds `is_archived`, `archived_on`, and `dynamic_filters`; `Plan` adds `is_archived` and `archived_on`. `Case` adds `refs_data` and `ai_automated_test`; history entries add `comments`. `Result` adds `case_id`, `quality_rating`, `defects_data`, and `attachment_ids`. `Test` adds `sections_display_order`, `cases_display_order`, `refs_data`, `case_comments`, and `ai_automated_test`.
 
 ### Changed
 
-- **Pagination `limit` is now bounded client-side at 250 (behavior change).**
-  TestRail rejects `limit` outside `[1, 250]` with a `400`. `validatePaginationParams`
-  already rejected `limit <= 0`; it now also rejects `limit > 250` with
-  `TestRailValidationError`. A too-large `limit` that previously round-tripped to
-  the server (and `400`'d) now throws before the request.
+- **Bounded pagination `limit` at 250 on the client.** TestRail rejects `limit` values outside `[1, 250]` with HTTP 400. `validatePaginationParams` already rejected `limit <= 0` and now also throws `TestRailValidationError` when `limit > 250` before sending a network request.
 
 ### Documentation
 
-- README notes that TestRail Cloud emits no rate-limit headers under normal load,
-  so the client's `Retry-After` handling is dormant in practice and the
-  sliding-window limiter is the effective throttle.
+- Documented in `README.md` that TestRail Cloud does not send rate-limit headers under normal load, so the client's sliding-window rate limiter provides the primary throttling.
 
 ## [5.0.2] — 2026-06-07 — Piped stdin for write commands
 
-Backward-compatible bug fix; no public API, type, or CLI surface changed.
+This release is a backward-compatible bug fix with no changes to the public API, types, or CLI surface.
 
 ### Fixed
 
-- **Piped stdin now accepted as a request body for write commands (#226).** The
-  body-source gate used `isTTY === false`, but Node leaves `isTTY` `undefined`
-  (never `false`) for a pipe, so `echo '{…}' | testrail run add …` always failed
-  with "Body required". The gate now fires on `isTTY !== true`, and only when
-  neither `--data` nor `--data-file` is supplied, so an explicit body flag still
-  wins in non-interactive environments (CI, Docker, cron). Mirrors the
-  `--api-key-stdin` fix from #221.
+- **Write commands now accept piped stdin as a request body (#226).** Previously, the stdin check required `isTTY === false`, but Node.js sets `process.stdin.isTTY` to `undefined` for pipes. Consequently, `echo '{...}' | testrail run add ...` failed with `"Body required"`. The check now runs when `isTTY !== true` and the caller passes neither `--data` nor `--data-file`, matching the `--api-key-stdin` check from #221.
 
 ### Maintenance
 
-- `package.json` `bin.testrail` is now `"dist/cli.js"` (was `"./dist/cli.js"`).
-  npm strips the leading `./` from `bin` entries on publish, so the old value
-  triggered a `script name … was invalid and removed` warning; the published
-  `bin` value and CLI behavior are unchanged.
+- Changed `bin.testrail` in `package.json` from `"./dist/cli.js"` to `"dist/cli.js"` to prevent npm's publish-time path normalization warning.
 
 ## [5.0.1] — 2026-06-04 — Accumulated CLI + cache fixes
 
-First patch on the `5.0.0` line. Every change is a backward-compatible bug fix;
-no public API, type, or CLI surface changed.
+This release is the first patch on the `5.0.0` line. All changes are backward-compatible bug fixes.
 
 ### Fixed
 
-- **Stale GET cache repopulation after writes (#217).** A GET issued before a
-  mutating request could land in the cache _after_ that write's `clearCache()`,
-  re-seeding a pre-write entry; the invalidation is now honored for both raw and
-  schema-parsed GET cache keys.
-- **`case list` now forwards `--limit` / `--offset` (#219).** `handleCaseList`
-  parsed only `--project-id` / `--suite-id` and silently dropped the pagination
-  flags, making it impossible to page past the first `get_cases` result set from
-  the CLI. Both flags are now parsed via `optInt` and forwarded to `getCases()`,
-  matching every other paginated `list` subcommand.
-- **Piped stdin accepted for `--api-key-stdin` (#221).** The gate used
-  `isTTY !== false`, but Node leaves `isTTY` `undefined` (never `false`) for a
-  pipe, so the documented `echo $KEY | testrail … --api-key-stdin` usage was
-  always rejected. It now rejects only an interactive terminal (`isTTY === true`).
-- **YAML output quotes scalars with a leading quote character (#218).**
-  `--format yaml` emitted a string beginning with `'` as a bare scalar, which a
-  conforming parser reads as an unterminated single-quoted scalar. Such values
-  (e.g. a case title like `'Login' button is disabled`) are now double-quoted.
-- **`uninstall-skill` no longer crashes on a dangling symlink (#222).** The command
-  gated on `existsSync`, which follows symlinks and returns `false` for a broken
-  link, so a dangling skill symlink slipped past the guard. It now uses the
-  canonical `lstat`/`ENOENT` pattern: a dangling symlink reaches the existing
-  symlink-refusal path, while a genuinely absent target stays the ordinary no-op.
+- **Prevented stale GET cache repopulation after writes (#217).** Previously, an in-flight GET request that started before a write could finish after the write's `clearCache()` call and write stale data into the cache. Cache invalidation now prevents in-flight pre-write GET requests from populating either raw or parsed cache entries.
+- **`case list` now forwards `--limit` and `--offset` (#219).** Previously, `handleCaseList` parsed only `--project-id` and `--suite-id` and ignored pagination flags. It now parses `--limit` and `--offset` and forwards them to `getCases()`.
+- **`--api-key-stdin` now accepts piped stdin (#221).** Previously, the terminal check rejected stdin whenever `isTTY !== false`, which rejected pipes because Node.js leaves `isTTY` as `undefined` on pipes. The check now rejects only interactive terminals (`isTTY === true`).
+- **YAML output now quotes strings that start with a single quote (#218).** Previously, `--format yaml` emitted strings starting with `'` as unquoted scalars, which YAML parsers reject. The YAML formatter now wraps those strings in double quotes.
+- **`uninstall-skill` no longer fails on a broken symlink (#222).** Previously, `uninstall-skill` checked `existsSync`, which follows symlinks and returns `false` for broken links. It now uses `lstat` and catches `ENOENT` so broken symlinks hit the symlink refusal check while missing files remain a no-op.
 
 ### Maintenance
 
-- Updated funding metadata format and bumped devDependencies (#220). No change to
-  the published runtime artifact.
+- Updated funding metadata and development dependencies (#220) with no changes to the published runtime package.
 
 ## [5.0.0] — 2026-06-02 — Namespaced client + everything accumulated since 4.1.0
 
-First npm release since `4.1.0` (2026-05-21). This major collapses the entire
-unreleased line that had built up on `main` (previously numbered `5.0.0` through
-`7.1.0`) into one bump. SemVer is measured from what consumers last installed —
-`4.1.0` — so every breaking change since then is bundled under this single major.
-No source was reverted; only the version number and this changelog were reconciled.
+This is the first npm release since `4.1.0` (2026-05-21). It combines all unreleased changes on `main` (previously numbered `5.0.0` through `7.1.0`) into a single major version bump from `4.1.0`. This release did not revert any code. It only aligned the version number and changelog with the npm registry.
 
 ### Changed (BREAKING)
 
-- **Flat `TestRailClient` facade removed (ARCH #7).** The ~131 flat pass-through
-  methods on the client are gone; the 18 namespaced domain modules
-  (`client.projects.*`, `client.runs.*`, `client.results.*`, …) are now the single
-  access path. This is a pure call-path rename — no signature, argument, or
-  behaviour change.
+- **Removed the flat `TestRailClient` method facade (ARCH #7).** This release removes the ~131 flat pass-through methods on `TestRailClient`. Call methods through the 18 domain modules instead (`client.projects.*`, `client.runs.*`, `client.results.*`, and so on). Method names, parameters, and return types are unchanged.
 
-    **Migration.** Insert the owning module field between `client` and the method:
-    `client.getProject(1)` → `client.projects.getProject(1)`. The non-obvious maps
-    are the metadata reads (`getStatuses`, `getCaseFields`, `getPriorities`, …) →
-    `client.metadata.*` and the group methods (`getGroups`, `addGroup`, …) →
-    `client.users.*`.
+    **Migration:** Insert the domain module name between `client` and the method name (for example, change `client.getProject(1)` to `client.projects.getProject(1)`). Metadata methods (`getStatuses`, `getCaseFields`, `getPriorities`, and others) live on `client.metadata.*`, and group methods (`getGroups`, `addGroup`, and others) live on `client.users.*`.
 
-- **Plan-entry attachment `entryId` is a GUID string, not a number.**
-  `attachments.getAttachmentsForPlanEntry` / `addAttachmentToPlanEntry` — and the
-  CLI `attachment list-for-plan-entry` / `add-to-plan-entry` — now take a UUID
-  string, matching what `get_plan` actually returns (a numeric id was rejected by
-  the server with HTTP 400).
-
-- **Validation/URL delegate methods removed (ARCH #6).** The validation and
-  URL-building helpers previously delegated through the client were extracted to
-  standalone leaf modules; import the pure helpers directly instead of calling them
-  on a client instance.
-
-- **Stale public type aliases dropped.** Dead re-exported type aliases were removed
-  from the public surface.
+- **Plan-entry attachment `entryId` is now a UUID string instead of a number.** `attachments.getAttachmentsForPlanEntry`, `attachments.addAttachmentToPlanEntry`, and the CLI `attachment list-for-plan-entry` and `add-to-plan-entry` commands now require a UUID string, matching the `id` returned by `get_plan`.
+- **Removed validation and URL helper methods from `TestRailClient` (ARCH #6).** Import validation and URL helpers directly from their standalone modules instead of calling them on a client instance.
+- **Removed deprecated public type aliases.** This release removes unused re-exported type aliases from the package root.
 
 ### Added
 
-- **camelCase list-filter options** for `getPlans`, `getResults`, `getTests`, and
-  `getMilestones` (`createdAfter`, `createdBy`, `statusId`, `milestoneId`,
-  `isCompleted`, …), aligning them with `getCases` / `getRuns`. The original
-  snake_case keys remain as `@deprecated` aliases for one major.
-- **UUID attachment ids** accepted by `attachments.getAttachment` /
-  `deleteAttachment` and the CLI `attachment get` / `attachment delete` (TestRail
-  7.1+ RFC-4122 GUID ids), alongside the existing integer ids.
-- Additional response-schema fields for TestRail 7.3+ / Enterprise and SPEC-driven
-  schema parity, plus an injectable `fetch` adapter and an injectable DNS lookup
-  for restricted-DNS environments.
+- **Added camelCase list-filter options** for `getPlans`, `getResults`, `getTests`, and `getMilestones` (`createdAfter`, `createdBy`, `statusId`, `milestoneId`, `isCompleted`, and others) to match `getCases` and `getRuns`. The legacy `snake_case` keys remain available as `@deprecated` aliases.
+- **Added UUID attachment ID support** to `attachments.getAttachment`, `attachments.deleteAttachment`, and the CLI `attachment get` and `attachment delete` commands (supporting TestRail 7.1+ RFC 4122 UUIDs alongside integer IDs).
+- Added response-schema fields for TestRail 7.3+ and Enterprise, plus injectable `fetch` and `dnsLookup` options in `TestRailConfig`.
 
 ### Fixed
 
-- **`users.getGroups()` parses the paginated wrapper.** `get_groups` returns
-  `{ offset, limit, size, _links, groups: [...] }`, not a bare array; the schema now
-  mirrors `getUsers()` and returns `groups ?? []`.
-- **Programmatic list-filter ID arrays are now validated before fetch.** `getPlans`,
-  `getTests`, and the `getResults*` methods previously serialized `createdBy`,
-  `statusId`, and `milestoneId` arrays straight into the URL, so values like `0`
-  or `-1` crossed the network despite the client's "all numeric IDs validated before
-  any request" contract. These methods now reject invalid filter items locally with
-  `TestRailValidationError`, matching `getRuns()` and the CLI's strict ID parsing.
-- **`metadata.getRoles()` parses the paginated wrapper.** `get_roles` (TestRail 7.3+)
-  is a bulk-API endpoint and returns `{ offset, limit, size, _links, roles: [...] }`
-  from the version it was introduced — never a bare array. The schema parsed
-  `z.array(RoleSchema)`, so every call (and the `role list` CLI command) threw
-  `TestRailValidationError` against a real server; the unit test passed only because
-  it mocked a bare array. Now parses the wrapper and returns `roles ?? []` — the
-  same fix class as `getGroups` above.
-- **`suites.getSuites()` accepts both the bare-array and paginated-wrapper shapes.**
-  `get_suites` returns a bare array up to TestRail 9.3.0 and a
-  `{ offset, limit, size, _links, suites: [...] }` wrapper from 9.3.1+ (documented
-  breaking change). The client now accepts either, so it works regardless of server
-  version.
-- **`variables.getVariables()` and `datasets.getDatasets()` parse the paginated
-  wrapper.** `get_variables` and `get_datasets` are bulk-API endpoints and return
-  `{ offset, limit, size, _links, variables: [...] }` /
-  `{ ..., datasets: [...] }` — the standard pagination envelope every bulk endpoint
-  has emitted since TestRail 6.7, never a bare array. Both schemas parsed
-  `z.array(...)`, so every call (and the `variable list` / `dataset list` CLI
-  commands) threw `TestRailValidationError` against a real server; the unit tests
-  passed only because they mocked a bare array. Now parses the wrapper and returns
-  `variables ?? []` / `datasets ?? []` — the same fix class as `getRoles` /
-  `getGroups` above.
-- **LRU cache** no longer evicts an innocent entry on a re-set at capacity, and the
-  **rate limiter** now records retries without spuriously rejecting a retried
-  request as a local 429.
-- **`--format table` no longer drops columns missing from the first row.** The
-  table renderer derived its column set from `rows[0]` only, so any field present
-  on a later row but omitted from the first was silently dropped — data and all.
-  This was reachable with real TestRail data: response schemas use `.nullish()`,
-  so the API omits unset fields, and a list's first entity can legitimately lack a
-  key (e.g. `milestone_id`) that a later one carries. The renderer now takes the
-  union of keys across all rows (first-seen order), matching `--format csv`; the
-  omitting row renders an empty cell instead of losing the column. `--format json`
-  / `csv` were already correct.
+- **`users.getGroups()` now parses the paginated wrapper.** Because `get_groups` returns `{ offset, limit, size, _links, groups: [...] }` instead of a bare array, the schema now unwraps `groups ?? []`.
+- **The client now validates list-filter ID arrays before sending a request.** `getPlans`, `getTests`, and `getResults*` previously serialized `createdBy`, `statusId`, and `milestoneId` arrays directly into the URL without validating each ID. They now validate every array item with `validateId()` and throw `TestRailValidationError` on invalid IDs.
+- **`metadata.getRoles()` now parses the paginated wrapper.** TestRail's `get_roles` endpoint returns `{ offset, limit, size, _links, roles: [...] }` rather than a bare array. `getRoles()` now parses the wrapper and returns `roles ?? []`.
+- **`suites.getSuites()` now accepts both a bare array and a paginated wrapper.** TestRail returns a bare array through version 9.3.0 and `{ offset, limit, size, _links, suites: [...] }` in 9.3.1 and later. `getSuites()` now supports both formats.
+- **`variables.getVariables()` and `datasets.getDatasets()` now parse the paginated wrapper.** Both bulk endpoints return `{ offset, limit, size, _links, variables: [...] }` and `{ ..., datasets: [...] }` rather than bare arrays. Both methods now unwrap the paginated object and return the item array.
+- **Fixed LRU cache eviction on key updates and rate-limiter retry counting.** Updating an existing key when the cache is full no longer evicts another entry. The rate limiter no longer rejects retried requests with a local 429 error.
+- **`--format table` now includes columns from all rows.** Previously, the table formatter collected column names only from `rows[0]`, dropping any field that the first row omitted but later rows included. It now collects the union of keys across all rows in first-seen order, matching `--format csv`.
 
 ### Security
 
-- Unified HTTP pipeline with manual-redirect blocking (SSRF guard), response-body
-  byte caps and wall-clock deadlines, additional IPv6 SSRF ranges,
-  multipart-upload hardening, opt-in process signal handlers, and supply-chain
-  hardening (`.npmrc` + lockfile-lint, OIDC trusted publishing with provenance).
+- Unified the HTTP pipeline with manual redirect blocking, response-body byte limits, and wall-clock deadlines. Expanded IPv6 SSRF blocks, hardened multipart uploads, and made process signal handlers optional. Added supply-chain checks through `.npmrc`, `lockfile-lint`, and OIDC trusted publishing with provenance.
 
 ## [4.1.0] — 2026-05-21
 
-Published directly to npm (no GitHub release or git tag); backfilled here so the
-changelog matches the registry.
+We published this version directly to npm without a GitHub release or git tag, and recorded it here to match the npm registry history.
 
 ### Fixed
 
-- **Accept nullable TestRail response fields.** Response schemas were widened to
-  `.nullish()` wherever TestRail may return `null` or omit a key, so otherwise
-  valid API responses with null or absent fields no longer fail validation.
+- **Accepted nullable TestRail response fields.** Response schemas now use `.nullish()` for fields where TestRail can return `null` or omit the property.
 
 ## [4.0.0] — 2026-05-20 — CLI hardening release
 
-First npm publish since `2.1.0` (2026-05-13). Closes the CLI/library safety
-cluster opened across the unpublished 3.x line and ships every additive
-feature accumulated since the last release in a single major bump.
+This is the first npm release since `2.1.0` (2026-05-13). It includes all security fixes from the unpublished `3.x` series and adds a second confirmation gate for destructive CLI commands.
 
-**Why a major version jump from 2.1.0?** Seven `!`-tagged commits land
-breaking changes across the `testrail` CLI binary — which is part of the
-package surface and thus governed by SemVer. The library API also gains
-one breaker: process signal handlers are now opt-in
-(`registerProcessHandlers: true`, default `false`) so the client no longer
-hijacks the host process's shutdown chain (SEC #8). Two distinct waves of
-breakage justify the gap from `2.1.0`:
+**Why this release jumps from `2.1.0` to `4.0.0`:** Seven commits introduce breaking changes to the `testrail` CLI binary and library lifecycle:
 
-- **Wave 1 (would have been 3.x):** CLI security cluster — `--api-key`
-  removed in favor of `--api-key-stdin`, unknown-flag rejection, `--yes`
-  gate on `run close` and single-entity destructive deletes, stdin body
-  cap at 1 MiB, terminal-control-char stripping, SSRF/3xx-redirect block,
-  retry policy tightened on writes, response-body byte + wall-clock caps.
-- **Wave 2 (this 4.0):** destructive-ops env-var gate
-  (`TESTRAIL_ALLOW_DESTRUCTIVE=1`) — every destructive CLI action now
-  requires the env var **in addition to** `--yes`. New exit code `2` to
-  let CI branch on "missing env var" vs other failures.
+- **Wave 1 (from the unpublished `3.x` series):** Replaced `--api-key` with `--api-key-stdin` and rejected unknown CLI flags. Required `--yes` on `run close` and single-entity delete commands. Limited stdin JSON bodies to 1 MiB and removed terminal control characters from output. Blocked 3xx redirects and stopped retrying non-idempotent writes on 5xx and network errors. Added response-body byte and time limits. Made process signal handlers opt-in (`registerProcessHandlers: true`, default `false`).
+- **Wave 2 (new in `4.0.0`):** All destructive CLI actions now require `TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes`. A missing environment variable causes exit code `2`.
 
-Nothing 3.x was ever published to npm; consumers leap `2.1.0` → `4.0.0` in
-one hop. Per-version chronology preserved in [3.0.0]–[3.5.0] entries below
-so the breaker timeline is auditable.
+Because we never published `3.x` to npm, users upgrade directly from `2.1.0` to `4.0.0`. The `[3.0.0]`–`[3.5.0]` sections below remain in this file to preserve the detailed change history and migration notes.
 
 ### Added
 
-- **CLI binary stdio (`-` sentinel) for attachments and BDD.** `--file -`
-  streams a binary upload from `process.stdin`; `--out -` streams the
-  download to `process.stdout` while the JSON ack is rerouted to stderr.
-  Enables pipeline composition without temp files
-  (e.g. `curl … | testrail attachment add-to-case 42 --file -`,
-  `testrail attachment get 17 --out - | xxd`).
-- **`MAX_STDIN_UPLOAD_BYTES`** (100 MiB) and **`STDIN_READ_TIMEOUT_MS`**
-  (30 s) constants gate the stdin reader. The byte cap defends against
-  memory exhaustion; the wall-clock deadline (via `stream.destroy()`
-  surfaced through the async iterator) defends against slowloris-style
-  producers that never EOF — partial mitigation of `SEC #24` for the
-  binary-upload path. `readBoundedStdin` (text body / `--api-key-stdin`)
-  still has no deadline; that follow-up remains open.
-- **`HandlerContext.err` / `HandlerContext.errRaw`** — quiet-aware stderr
-  writers passed to handlers so the `--out -` JSON ack can land on stderr
-  without bypassing `--quiet`.
+- **Added CLI binary stdio (`-` sentinel) for attachments and BDD.** Passing `--file -` streams a binary upload from `process.stdin`. Passing `--out -` streams a download to `process.stdout` and writes the JSON acknowledgement to `stderr`. This supports shell pipelines without temporary files (for example, `curl ... | testrail attachment add-to-case 42 --file -` or `testrail attachment get 17 --out - | xxd`).
+- **Added `MAX_STDIN_UPLOAD_BYTES` (100 MiB) and `STDIN_READ_TIMEOUT_MS` (30 s) limits** for binary stdin uploads to prevent memory exhaustion and hanging reads (`SEC #24`).
+- **Added `HandlerContext.err` and `HandlerContext.errRaw`** so handlers can write the `--out -` JSON acknowledgement to `stderr` while respecting `--quiet`.
 
 ### Security
 
-- **`--file -` mutex gates:** rejected on non-upload actions, alongside
-  `--data` / `--data-file`, alongside `--api-key-stdin`, or when stdin is
-  a TTY. Each conflict surfaces a structured stderr error before any API
-  call is issued.
-- **`--out -` rejects `--format table`** (binary is binary; the format
-  hint is meaningless and was previously a silent foot-gun).
-- **TTY warning on `--out -`** when stdout is a terminal — emitted to
-  stderr, not blocking, so intentional pipelines to `xxd` / `hexdump`
-  still work.
+- **Added mutual-exclusion checks for `--file -`.** The CLI rejects `--file -` on non-upload actions, when combined with `--data`, `--data-file`, or `--api-key-stdin`, or when `stdin` is a TTY.
+- **`--out -` now rejects `--format table`** because the CLI cannot format binary output as a table.
+- **Added a stderr warning for `--out -` when `stdout` is a terminal** without blocking intentional pipelines.
 
 ### Added (continued)
 
-- **CLI: `--format yaml` and `--format csv` output formats.** Closes [BACKLOG CLI
-  format yaml/csv](docs/archive/BACKLOG-ARCHIVE.md). Every read, list, and write action now
-  accepts `--format <json|table|yaml|csv>` (default unchanged: `json`).
-    - `yaml` emits a zero-dependency YAML 1.2 document with 2-space indent.
-      Strings that could parse as numbers, booleans, null tokens, or carry
-      reserved YAML leaders (`-`, `?`, `:`, `#`, `|`, `>`, etc.) are
-      force-quoted in double-quoted form with full C-style escapes. NaN /
-      Infinity are emitted as the YAML 1.2 sentinels (`.nan`, `.inf`,
-      `-.inf`). No new runtime dependency — the emitter is hand-rolled to
-      respect the project's zero-runtime-dep policy.
-    - `csv` emits RFC 4180 with CRLF line terminators. Headers are the
-      sorted union of top-level keys across rows (deterministic output for
-      diff-friendly exports). Nested objects/arrays are JSON-stringified
-      into a single cell (no dot-path flattening) so the column count is
-      stable regardless of payload shape. Single-object responses become a
-      1-row CSV preserving insertion order.
-    - Unknown `--format` values now exit 1 with a clear error listing the
-      valid values, instead of silently falling through to JSON.
-    - See `README.md` for the format matrix and pipeline examples
-      (`yq`-piping for YAML, spreadsheet exports for CSV).
-- **Programmatic TypeScript API recipes** in `skill/SKILL.md`. A new
-  `## Programmatic TypeScript API` section gives copy-paste-runnable
-  snippets for every major resource (projects, suites, sections, cases,
-  runs, results, milestones, attachments, plans, users, datasets,
-  variables, groups, shared steps, configurations) using `TestRailClient`
-  directly. Each snippet compiles against the published types — no
-  pseudo-code. Includes an `instanceof`-narrowing pattern for
-  `TestRailApiError` / `TestRailValidationError` and a tuning example
-  covering retries, rate limits, body caps, and `registerProcessHandlers`.
-- **Cursor rule** at `.cursor/rules/testrail.mdc`. Auto-generated from
-  the same source as `skill/SKILL.md`; includes the standard
-  `description` / `globs` / `alwaysApply` frontmatter per the
-  [Cursor rules spec](https://docs.cursor.com/context/rules-for-ai).
-  Regenerate via `npm run cursor-rules`. CI drift gate:
-  `npm run cursor-rules:check` (wired into `pretest`).
-- **Continue rule** at `.continue/rules/testrail.md`. Plain-markdown
-  format per [continue.dev rules spec](https://docs.continue.dev/customization/rules).
-  Regenerate via `npm run continue-rules`. CI drift gate:
-  `npm run continue-rules:check`.
-- **Vendor-neutral `AGENTS.md`** at the repo root, following the
-  [agents.md](https://agents.md/) convention. Acts as a "what every AI
-  agent should know" entry point that doesn't bind to a specific
-  harness. Regenerate via `npm run agents-md`. CI drift gate:
-  `npm run agents-md:check`.
-- **`testrail uninstall-skill`** — symmetric reverse of `install-skill`.
-  Removes a previously-installed skill from `./.claude/skills/testrail-cli/`
-  (default) or `~/.claude/skills/testrail-cli/` (`--global`). Best-effort
-  cleanup of the empty `testrail-cli/` directory after unlinking the
-  skill file. Does NOT touch `.cursor/rules/testrail.mdc`,
-  `.continue/rules/testrail.md`, or `AGENTS.md` — those have an
-  independent lifecycle (generated from `src/cli/metadata.ts` and live
-  alongside other agent-tool configuration). HELP text and README
-  document this boundary.
-- **Shared `scripts/rules-content.mjs` module** — single source of truth
-  for the body of the three rule artifacts. Each format wraps the shared
-  body in its own header/frontmatter so usage guidance lives in one
-  place.
+- **Added `--format yaml` and `--format csv` CLI output formats.** Every read, list, and write action now accepts `--format <json|table|yaml|csv>` (default: `json`).
+    - `yaml` outputs YAML 1.2 with 2-space indentation using a built-in serializer with no extra runtime dependencies. The serializer double-quotes ambiguous strings and reserved YAML characters with C-style escapes, and formats `NaN` and `Infinity` as `.nan`, `.inf`, and `-.inf`.
+    - `csv` outputs RFC 4180 CSV with CRLF line endings. Column headers contain the sorted union of top-level keys across all rows. The formatter serializes each nested object or array as a JSON string in one cell.
+    - Passing an unknown `--format` value now exits with code 1 and lists the valid formats.
+- **Added programmatic TypeScript API examples** in `skill/SKILL.md` covering all major resources, error narrowing with `instanceof`, and client configuration.
+- **Added a generated Cursor rule** at `.cursor/rules/testrail.mdc` (`npm run cursor-rules` and `npm run cursor-rules:check`). Its `description`, `globs`, and `alwaysApply` frontmatter follows the [Cursor rules specification](https://docs.cursor.com/context/rules-for-ai).
+- **Added a generated Continue rule** at `.continue/rules/testrail.md` (`npm run continue-rules` and `npm run continue-rules:check`). The plain Markdown format follows the [Continue rules specification](https://docs.continue.dev/customization/rules).
+- **Added a generated `AGENTS.md` file** at the repository root following the [agents.md](https://agents.md/) convention (`npm run agents-md` and `npm run agents-md:check`).
+- **Added `testrail uninstall-skill`** to remove an installed skill from `./.claude/skills/testrail-cli/` (default) or `~/.claude/skills/testrail-cli/` (`--global`) and remove the `testrail-cli/` directory if empty. It does not modify `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`, or `AGENTS.md`.
+- **Added `scripts/rules-content.mjs`** as the single source of truth for the generated rule files.
 
 ### Safety
 
-The new `uninstall-skill` command uses TOCTOU-aware filesystem checks
-that mirror the existing `install-skill` patterns:
+The `uninstall-skill` command uses `lstat` to prevent symlink traversal:
 
-- `lstat` (not `stat`) so symlinks are detected without following.
-- Refuses to unlink anything that is a symlink — `install-skill` only
-  ever produces regular files via `copyFileSync`, so anything else
-  indicates either tampering or unrelated user-managed content.
-- Refuses to unlink non-files (e.g. a directory planted at the target
-  path).
-- After unlinking the skill, attempts to remove the parent
-  `testrail-cli/` directory ONLY if empty — never touches
-  `.claude/skills/` or higher.
+- It calls `lstat` instead of `stat` so it detects symlinks without following them.
+- It refuses to delete symlinks or non-regular files (such as directories).
+- After deleting `SKILL.md`, it removes the parent `testrail-cli/` directory only if it is empty, and never modifies `.claude/skills/` or parent directories.
 
-Related backlog: SEC #5 (TOCTOU symlink-clobber on `install-skill`
-target) remains open as a separate, pre-existing concern. This PR does
-not introduce a parallel hazard but does not fix the existing one.
+Note: We track SEC #5 (TOCTOU symlink check on `install-skill`) separately.
 
 ### Tooling / CI
 
-- Four new npm scripts plus `:check` drift-gate variants:
-  `cursor-rules`, `continue-rules`, `agents-md`, and the existing
-  `skill` script unchanged.
-- `pretest` now also runs `cursor-rules:check`, `continue-rules:check`,
-  and `agents-md:check`. PRs that update `src/cli/metadata.ts` without
-  regenerating fail in CI.
-- All generated files are deterministic (no timestamps, no random IDs,
-  stable iteration order). `tests/generate-rules.test.ts` asserts
-  byte-equality of committed vs. re-rendered output.
+- Added npm scripts and `:check` verification scripts for `cursor-rules`, `continue-rules`, and `agents-md`.
+- Added `cursor-rules:check`, `continue-rules:check`, and `agents-md:check` to `pretest`.
+- Made all generated files deterministic and verified byte-for-byte equality in `tests/generate-rules.test.ts`.
 
 ### Tests
 
-- `tests/uninstall-skill.test.ts` (12 cases): happy paths (project +
-  global), missing-file, quiet semantics, install/uninstall round-trip,
-  TOCTOU defenses (symlink refusal + non-file refusal), sibling-file
-  preservation, lifecycle messaging.
-- `tests/generate-rules.test.ts` (13 cases): pure-renderer determinism,
-  frontmatter shape (cursor has YAML; continue does not),
-  `AGENTS.md` self-references, committed-output drift checks.
-- `tests/cli.test.ts` adds a smoke test confirming `uninstall-skill` is
-  reachable via `--help` (full behaviour coverage lives in the unit
-  test where the filesystem can be sandboxed).
+- Added `tests/uninstall-skill.test.ts` (12 tests covering local and global paths, missing files, `--quiet`, round-trip install/uninstall, symlink and directory refusal, and sibling file preservation).
+- Added `tests/generate-rules.test.ts` (13 tests covering determinism, frontmatter, self-references, and drift checks).
+- Added a CLI smoke test in `tests/cli.test.ts` verifying that `uninstall-skill` appears in `--help`.
 
 ### Added (CLI bulk case creation, run watcher, attachment pagination)
 
-- **`case add-bulk` CLI action + `addCases()` programmatic method** for
-  bulk-creating cases under a section in one API call (TestRail 7.5+).
-  Wraps `POST add_cases/{section_id}`; the `--data` body is a JSON array of
-  case payloads (each item the same shape as `AddCasePayload`). Empty arrays
-  and array items that fail `AddCasePayloadSchema` are rejected client-side
-  before any network call. **Version-aware error wrap:** older TestRail
-  servers return 400/404 with `"Invalid uri"` because the endpoint doesn't
-  exist; the module rethrows that as `TestRailApiError(status, 'TestRail server >= 7.5 required for add_cases bulk endpoint', <original response>)`
-  so callers can tell "your TestRail is too old" from "your payload is
-  malformed". `--dry-run` previews the parsed array with a `count` field.
-- **`run watch <run_id>` CLI action** — long-running command that polls
-  `GET get_run/{run_id}` on a configurable interval (default 30s;
-  `--interval N` where N is in `[5, 600]`; `--once` for single poll then
-  exit) and emits a compact JSON event line per poll. Diff detection runs
-  over a closed set of fields (`is_completed`, `untested_count`,
-  `passed_count`, `failed_count`, `retest_count`, `blocked_count`) so
-  mutable timestamps don't trigger noise. Exits 0 when TestRail flips
-  `is_completed=true`; exits 130 on SIGINT (writes a one-line `interrupted`
-  summary to stderr before the client's signal handler runs). Polling uses
-  recursive `setTimeout` (not `setInterval`) so a slow poll can't stack
-  pending timers; transient `getRun` rejections surface to stderr but don't
-  abort the watcher.
-- **Pagination on `attachment list-for-{case,run,test}` CLI actions and
-  the corresponding programmatic methods** — `getAttachmentsForCase` /
-  `getAttachmentsForRun` / `getAttachmentsForTest` now accept
-  `GetAttachmentsOptions { limit?, offset? }`. `--limit` and `--offset`
-  forward to TestRail's `&limit=` / `&offset=` query params (server
-  default page size 250). Plan-scoped variants (`list-for-plan`,
-  `list-for-plan-entry`) intentionally don't paginate — TestRail returns
-  the full tree.
+- **Added the `case add-bulk` CLI action and `addCases()` SDK method** to create multiple cases under a section in a single `POST add_cases/{section_id}` call (TestRail 7.5+). The client validates that the payload is a non-empty array of `AddCasePayload` items before sending the request. If an older TestRail server returns 400 or 404 with `"Invalid uri"`, the client throws `TestRailApiError` with the message `'TestRail server >= 7.5 required for add_cases bulk endpoint'`. `--dry-run` previews the parsed array and item count.
+- **Added the `run watch <run_id>` CLI action** to poll `GET get_run/{run_id}`. The default interval is 30 seconds; `--interval N` accepts 5 to 600 seconds. `--once` performs one poll. Each poll emits one JSON line when status counts or `is_completed` change. The command exits with code 0 when `is_completed` becomes `true`, or code 130 on `SIGINT`. It schedules polls with recursive `setTimeout` calls so slow polls cannot overlap.
+- **Added pagination options (`GetAttachmentsOptions { limit?, offset? }`)** to `getAttachmentsForCase`, `getAttachmentsForRun`, `getAttachmentsForTest`, and the CLI `attachment list-for-{case,run,test}` commands. Plan-level attachment lists (`list-for-plan` and `list-for-plan-entry`) remain unpaginated because TestRail returns the full list.
 
 ### Changed
 
-- New types exported from package root: `AddCasesBulkPayload`,
-  `AddCasesBulkPayloadSchema`, `GetAttachmentsOptions`.
-- New CLI flags: `--interval <seconds>`, `--once` (both consumed only by
-  `run watch`); attachment list actions now honor the existing `--limit` /
-  `--offset` flags.
-- **`requestMultipart` now streams file uploads from disk** instead of buffering the entire payload into the heap. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) and any programmatic caller using the new `{ path: string; type?: string }` input shape pull bytes via `node:fs.openAsBlob`, so `fetch` reads the file on demand and the process never materializes the whole attachment in memory. Benchmark on a 100 MB file: heap +2.30 MB / RSS +175.61 MB before → heap +0.00 MB / RSS +0.02 MB after.
-- Public API is backwards compatible. `addAttachmentToCase`, `addAttachmentToResult`, `addAttachmentToRun`, `addAttachmentToPlan`, `addAttachmentToPlanEntry`, and `addBdd` accept the existing `Blob | Uint8Array | File` inputs plus the new `{ path }` descriptor. In-memory inputs are unchanged.
-- The CLI's `resolveFile()` no longer returns `contents`; the `read` option on `ResolveFileOptions` is preserved for source-compat but is now a no-op (the multipart pipeline reads from disk lazily).
-- Upload invariants are preserved: no retry on 5xx/429/network errors, `AbortSignal` honored throughout the body upload, DNS-pin/SSRF guard still applied before fetch, 3xx still rejected by `assertNotRedirect`.
+- Exported `AddCasesBulkPayload`, `AddCasesBulkPayloadSchema`, and `GetAttachmentsOptions` from the package root.
+- Added `--interval <seconds>` and `--once` for `run watch`, and enabled `--limit` and `--offset` on attachment list actions.
+- **`requestMultipart` now streams file uploads from disk** using `node:fs.openAsBlob` instead of reading the entire file into memory. A 100 MB file upload benchmark measured heap growth of +0.00 MB, down from +2.30 MB. RSS growth dropped from +175.61 MB to +0.02 MB.
+- `addAttachmentToCase`, `addAttachmentToResult`, `addAttachmentToRun`, `addAttachmentToPlan`, `addAttachmentToPlanEntry`, and `addBdd` remain backward-compatible and now accept `{ path: string; type?: string }` in addition to `Blob | Uint8Array | File`.
+- `resolveFile()` in the CLI no longer buffers file `contents` in memory. `ResolveFileOptions.read` remains as a no-op for backward compatibility.
+- Preserved all upload safety rules: no retries on 5xx, 429, or network errors, `AbortSignal` support during upload, pre-fetch DNS/SSRF validation, and 3xx redirect blocking.
 
 ### Changed (BREAKING) — Destructive-ops env-var gate
 
-Closes [BACKLOG CLI: destructive env-var gate](docs/archive/BACKLOG-ARCHIVE.md). Adds a
-**second gate** for destructive CLI actions (`*:delete`, `run close`,
-`plan close`): a `TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable that
-must be set **in addition to** the existing `--yes` flag. The check runs in
-the dispatcher (`src/cli/dispatch.ts`) before the handler is invoked — so
-even a future destructive handler added without an `if (!confirmDestructive)`
-check cannot escape the env-var gate (defense-in-depth).
+Closes [BACKLOG CLI: destructive env-var gate](docs/archive/BACKLOG-ARCHIVE.md). Destructive CLI actions (`*:delete`, `run close`, and `plan close`) now require the environment variable `TESTRAIL_ALLOW_DESTRUCTIVE=1` **in addition to** the `--yes` flag. The CLI dispatcher (`src/cli/dispatch.ts`) enforces this check before invoking any handler.
 
-- **BREAKING — Destructive CLI actions now require `TESTRAIL_ALLOW_DESTRUCTIVE=1`
-  in addition to `--yes`.** Existing CI users must set this environment
-  variable before any destructive command. The env var must be **exactly**
-  the string `'1'` (not `'true'` / `'yes'` / `'on'` / `'1 '` with whitespace).
-- **New exit code `2`** for "destructive action blocked by missing env var".
-  Distinct from the generic exit code `1` (used for argv / auth / validation
-  / HTTP failures) so CI can branch on "needs `TESTRAIL_ALLOW_DESTRUCTIVE`"
-  vs everything else.
-- `--dry-run` continues to bypass both gates (preview is non-destructive by
-  definition; no API call leaves the process). Use `--dry-run` for safe CI
-  preview without setting up the gates.
+- **BREAKING: Destructive CLI actions require `TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes`.** The environment variable must equal the exact string `'1'`.
+- **Added exit code `2`** when a missing `TESTRAIL_ALLOW_DESTRUCTIVE=1` blocks a destructive action. Argument, authentication, validation, and HTTP errors continue to use exit code `1`.
+- `--dry-run` continues to bypass both gates so you can preview commands safely without network calls.
 
 ### Migration (env-var gate)
 
-> Migration guidance for the **other** Wave-1 breakers (`--api-key`
-> removal, `--yes` on `run close`, unknown-flag rejection, stdin body cap,
-> `registerProcessHandlers` opt-in) lives in the [3.0.0]–[3.5.0] entries
-> below — each unpublished 3.x section retains its own migration notes
-> intact for auditability.
+> See the `[3.0.0]`–`[3.5.0]` sections for Wave 1 migration notes. These cover `--api-key` removal, `--yes` on `run close`, unknown flags, the stdin body limit, and opt-in `registerProcessHandlers`.
 
-**For CI users running destructive `testrail` commands:**
+**For CI workflows running destructive `testrail` commands:**
 
-Add the env var to your CI step (export it once; it applies to every
-subsequent destructive command in that step):
+Set `TESTRAIL_ALLOW_DESTRUCTIVE=1` in your CI step before running destructive commands:
 
 ```bash
 # Before (3.5.x):
@@ -1523,236 +513,121 @@ export TESTRAIL_ALLOW_DESTRUCTIVE=1
 testrail run delete 5 --yes
 ```
 
-Or as a one-liner:
+Or set it inline for a single command:
 
 ```bash
 TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
 ```
 
-**Affected actions** (all currently destructive resources): `case delete`,
-`case delete-bulk`, `run delete`, `run close`, `section delete`,
-`suite delete`, `milestone delete`, `project delete`, `plan close`,
-`plan delete`, `plan delete-entry`, `plan delete-run-from-entry`,
-`variable delete`, `group delete`, `dataset delete`, `shared-step delete`,
-`configuration delete`, `configuration-group delete`, `attachment delete`.
+**Affected actions:** `case delete`, `case delete-bulk`, `run delete`, `run close`, `section delete`, `suite delete`, `milestone delete`, `project delete`, `plan close`, `plan delete`, `plan delete-entry`, `plan delete-run-from-entry`, `variable delete`, `group delete`, `dataset delete`, `shared-step delete`, `configuration delete`, `configuration-group delete`, and `attachment delete`.
 
-**For agents / scripts using `--dry-run`:** No action required. `--dry-run`
-bypasses the env-var gate (and the `--yes` gate) so CI preview workflows
-continue to work without configuration.
+**For agents and scripts using `--dry-run`:** You do not need to make any changes. `--dry-run` bypasses both gates.
 
-**For programmatic library users (`TestRailClient.deleteRun(…)` etc.):** No
-action required. The gate only applies to the CLI dispatcher — the
-programmatic API surface is unchanged.
+**For programmatic SDK users:** You do not need to make any changes. This gate applies only to the CLI.
 
 ### Why two gates?
 
-The env var is a **process-wide, audit-friendly switch** (visible in
-`printenv`, CI step logs, crash dumps). The `--yes` flag is **per-invocation
-explicit intent**. Together they make accidental destructive operations
-meaningfully harder:
+The `TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable provides a process-wide setting visible in CI logs and environment dumps, while `--yes` confirms intent for each command invocation:
 
-- A script run with a stale env still needs `--yes`.
-- A typo with `--yes` still needs the env var.
-- A handler added without `--yes` validation still can't escape the dispatcher.
+- A script running in an environment with `TESTRAIL_ALLOW_DESTRUCTIVE=1` still requires `--yes` on each destructive command.
+- A command that includes `--yes` by mistake still requires `TESTRAIL_ALLOW_DESTRUCTIVE=1`.
+- The dispatcher enforces both checks centrally before any command handler runs.
 
-The strict `'1'` comparison (no `'true'` / `'yes'` aliasing) keeps the
-audit trail unambiguous: in CI logs you can tell `unset` from `set-to-wrong-value`
-from `set-to-allow` at a glance.
+Requiring the exact value `'1'` keeps CI logs unambiguous.
 
 ### Unchanged (env-var gate)
 
-- Per-handler `--yes` semantics and exit-1 behavior on missing `--yes`.
-- `--dry-run` wins-over-`--yes` precedence (preview without API call).
-- `--soft` server-side preview semantics on soft-capable deletes.
-- Programmatic library API (`TestRailClient.deleteRun(…)`, etc.) — no env
-  var required for direct client calls.
+- Missing `--yes` still exits with code 1.
+- `--dry-run` still takes precedence over `--yes` and makes no API call.
+- `--soft` still performs a server-side preview on delete endpoints that support it.
+- Programmatic SDK methods do not require the environment variable.
 
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 
-Closes [BACKLOG SEC #8](docs/archive/BACKLOG-ARCHIVE.md). Before this release, **every**
-`TestRailClient` construction silently registered three process-level listeners
-(`exit`, `SIGINT`, `SIGTERM`) on the Node.js `process` object. The SIGINT and
-SIGTERM handlers additionally called `process.exit(130)` / `process.exit(143)`.
-For library consumers — Express servers, NestJS apps, background daemons,
-Electron processes, or any host that already manages graceful shutdown — this
-meant:
+Closes [BACKLOG SEC #8](docs/archive/BACKLOG-ARCHIVE.md). Previously, every `TestRailClient` constructor registered global `exit`, `SIGINT`, and `SIGTERM` listeners. The `SIGINT` and `SIGTERM` listeners called `process.exit(130)` and `process.exit(143)`. For applications that manage their own graceful shutdown (such as web servers, daemons, and test runners), this caused three problems:
 
-- The host's own SIGINT/SIGTERM handler chain ran in an indeterminate order
-  alongside the client's, and the client could shortcut the process via
-  `process.exit()` before the host finished closing sockets, flushing logs,
-  rolling back transactions, or persisting state.
-- The host could not opt out: the side effect ran inside the constructor.
-- A test that instantiated the client polluted the process for the rest of
-  the worker's lifetime (handlers cannot be safely deregistered without
-  ownership tracking across all clients in the process).
+- The client's signal handlers could call `process.exit()` before the host application finished closing sockets, flushing logs, or rolling back transactions.
+- Callers could not disable the listeners because the constructor registered them unconditionally.
+- Instantiating a client in tests left listeners attached to the worker process.
 
 ### Fixed
 
-- **New `registerProcessHandlers?: boolean` option on `TestRailConfig`,
-  defaulting to `false`.** No process listeners are installed unless the
-  caller explicitly opts in. Library consumers now get an inert client that
-  leaves `exit`/`SIGINT`/`SIGTERM` to the host.
-- **The bundled CLI (`testrail` binary) opts in** by passing
-  `registerProcessHandlers: true`, preserving the established CLI behavior
-  (`destroy()` on Ctrl-C, conventional 130/143 exit codes) for users of the
-  shipped command.
-- **Existing behavior is unchanged once the flag is set to `true`** — the
-  handler implementation, the `activeClients` registry it iterates, and the
-  exit codes it emits are all preserved.
+- **Added `registerProcessHandlers?: boolean` to `TestRailConfig` (default: `false`).** The client no longer registers process signal listeners unless you pass `registerProcessHandlers: true`.
+- **The `testrail` CLI binary passes `registerProcessHandlers: true`**, preserving its existing shutdown behavior and 130/143 exit codes.
+- **When you set `registerProcessHandlers: true`, behavior is unchanged** from 3.4.0.
 
 ### Migration
 
-- **CLI users:** no action required. The `testrail` binary opts in on your
-  behalf and behaves identically to previous releases.
-- **Library users who relied on the implicit handlers** (rare — the behavior
-  was undocumented): add `registerProcessHandlers: true` to your
-  `TestRailConfig` to keep the prior shutdown contract. The recommended path
-  is to call `client.destroy()` explicitly from your own shutdown hook
-  instead; that has always been the supported lifecycle API.
-- **Library users embedding the client in a server/daemon:** no action
-  required. The opt-out you've been working around is now the default; your
-  signal handling and exit codes are no longer overridden.
+- **CLI users:** You do not need to make any changes.
+- **SDK users who relied on automatic signal handlers:** Pass `registerProcessHandlers: true` in `TestRailConfig`, or call `client.destroy()` from your application's shutdown handler (recommended).
+- **SDK users in servers or daemons:** You do not need to make any changes. The client no longer overrides your signal handlers.
 
 ### Unchanged
 
-- `destroy()` semantics, the `activeClients` registry, the cache cleanup
-  timer, and the credential-zeroing behavior are all identical to 3.4.0.
-- The handler-install path itself is bit-identical when the flag is `true`;
-  this release adds a single guard in the constructor.
+- `destroy()`, the `activeClients` registry, the cache cleanup timer, and credential zeroing behave identically to 3.4.0.
 
 ## [3.4.0] — 2026-05-18 — Block HTTP redirects to close SSRF guard bypass
 
-Closes [BACKLOG #4](BACKLOG.md). Before this release, the SSRF guard
-(`validateBaseUrl` + DNS pin) validated only the **initial** request host.
-`fetch` follows redirects by default, so a TestRail server (or any reverse
-proxy in front of it) that returned a `301`/`302`/`303`/`307`/`308` with a
-`Location` pointing at a private IP — `127.0.0.1`, `169.254.169.254`
-(cloud metadata), `10.0.0.0/8`, link-local, etc. — would silently make the
-client issue a request to the protected host, leaking credentials and
-returning the attacker-controlled body to the caller. The guard was bypassed
-without ever surfacing an error.
+Closes [BACKLOG #4](BACKLOG.md). Previously, the SSRF guard (`validateBaseUrl` and DNS pinning) validated only the initial request host. `fetch` follows HTTP redirects by default. A server or reverse proxy could return `301`, `302`, `303`, `307`, or `308` with a private address in `Location`. The client then followed that address, including `127.0.0.1`, `169.254.169.254`, `10.0.0.0/8`, or link-local ranges.
 
 ### Fixed
 
-- **All four fetch sites (`request<T>`, `requestText`, `requestMultipart`,
-  `requestBinary`) now set `redirect: 'manual'`** so the runtime never
-  follows a `Location` header automatically.
-- **3xx responses are rejected as `TestRailApiError`** via a new private
-  `assertNotRedirect()` helper. The error preserves the original `status`
-  and `statusText`; the `response` field embeds the `Location` value
-  (when present) so callers can diagnose a misconfigured `baseUrl` or
-  reverse proxy without losing the redirect target.
-- **3xx never retries.** A redirect is not transient: retrying would either
-  loop or amplify the SSRF surface if `redirect: 'manual'` were ever
-  removed. Affects all four fetch sites uniformly.
-- **3xx never poisons the GET cache.** The redirect rejection fires before
-  any cache write, so a single redirected request cannot serve a bad value
-  for the full TTL.
+- **All four fetch methods (`request<T>`, `requestText`, `requestMultipart`, and `requestBinary`) now set `redirect: 'manual'`** so `fetch` never follows `Location` headers automatically.
+- **The client now rejects 3xx responses with `TestRailApiError`** via `assertNotRedirect()`. The error preserves `status` and `statusText` and includes the `Location` header value in `error.response` to aid debugging.
+- **The client never retries 3xx responses** across all four fetch methods.
+- **3xx responses never write to the GET cache.**
 
 ### Unchanged
 
-- `GET` retry behavior for `5xx`/`429`/network errors is unchanged.
-- The existing SSRF allow-list (`allowPrivateHosts`) and the DNS-pin behavior
-  are unchanged — this release closes the redirect-shaped hole next to them.
-- The TestRail JSON API itself does not return `3xx` for `/index.php?/api/v2/...`
-  endpoints, so no real call site loses functionality.
+- `GET` retry behavior for `5xx`, `429`, and network errors is unchanged.
+- `allowPrivateHosts` and DNS-pinning behavior are unchanged.
+- Standard TestRail API endpoints (`/index.php?/api/v2/...`) do not return 3xx redirects.
 
 ### Migration
 
-No code changes required for callers hitting standard TestRail instances.
-If your deployment fronts TestRail with a redirecting reverse proxy
-(e.g. a `301` from an old hostname to a new one), update `baseUrl` to the
-final URL. The error body now includes the blocked `Location` value, making
-this trivial to diagnose.
+Standard TestRail deployments do not require any code changes. If a reverse proxy in front of TestRail redirects from an old hostname to a new hostname, update `baseUrl` to the final URL.
 
 ## [3.3.0] — 2026-05-18 — Stop retrying non-idempotent writes on 5xx and network errors
 
-Closes [BACKLOG #13](BACKLOG.md). Before this release, every retryable failure
-(`5xx`, `429`, network error) triggered a transparent retry up to `maxRetries`,
-regardless of HTTP method. For mutating requests this masked a data-integrity
-hazard: when a TestRail POST returned `502`/`503` or the connection reset
-mid-flight, the server may already have processed the write. The retry then
-produced a duplicate record — duplicate runs, duplicate cases, duplicate
-results — with no warning to the caller.
+Closes [BACKLOG #13](BACKLOG.md). Previously, the client retried every `5xx`, `429`, and network error up to `maxRetries` regardless of the HTTP method. A POST could reach the server before returning `502`, `503`, or a connection reset. Retrying that write could create duplicate runs, cases, or results.
 
 ### Fixed
 
-- **`request<T>()` and `requestText()` no longer retry non-`GET` methods on
-  `5xx` responses or network errors.** A `503` returned for `add_case`,
-  `update_run`, `delete_milestone`, etc. now surfaces immediately to the caller
-  as a `TestRailApiError`, preventing silent duplicate writes. Likewise, a
-  `fetch` `TypeError` (e.g. `ECONNRESET`) during a mutating request throws
-  rather than retrying, because the request bytes may already have reached
-  the server.
+- **`request<T>()` and `requestText()` no longer retry non-`GET` requests on `5xx` responses or network errors.** Any `5xx` or network error during a write request now throws `TestRailApiError` immediately so the client cannot create duplicate records.
 
 ### Unchanged
 
-- `429` (rate limit) still retries for **all methods**, including writes.
-  TestRail's rate limiter rejects requests before they execute, so a retry
-  on a 429-blocked write cannot duplicate state. `Retry-After` handling is
-  unchanged.
-- `GET` retry behavior is unchanged: `5xx`, `429`, and network errors all
-  retry up to `maxRetries`.
-- `requestUpload()` (attachment POST) already opted out of retry entirely
-  prior to this change.
+- **All methods still retry on `429` (rate limit),** honoring `Retry-After`, because TestRail's rate limiter rejects requests before execution.
+- `GET` requests still retry on `5xx`, `429`, and network errors up to `maxRetries`.
+- `requestUpload()` (attachment POST) already disabled retries.
 
 ### Migration
 
-No code changes required. Calling code that previously succeeded after a
-transient `5xx` retry on a write will now see the original error surface.
-The recommended fix is application-level idempotency (check whether the
-resource already exists before retrying) — masking the failure inside the
-client was unsafe.
+You do not need to make any code changes. Callers that relied on automatic `5xx` write retries now receive `TestRailApiError` directly. Check whether the server created the resource before retrying.
 
 ## [3.2.0] — 2026-05-18 — Fix schema-invalid responses poisoning the GET cache
 
-Closes [BACKLOG #9](docs/archive/BACKLOG-ARCHIVE.md). Before this release, the GET cache
-recorded the raw JSON-parsed response **before** the module validated it with
-Zod. When TestRail returned a schema-invalid body, the bad data persisted for
-the full TTL — every subsequent identical GET returned the same poisoned
-value and re-threw the same `TestRailValidationError`, with no way to recover
-short of calling `clearCache()` or waiting out the TTL. The failure mode
-masked transient upstream bugs as permanent client failures.
+Closes [BACKLOG #9](docs/archive/BACKLOG-ARCHIVE.md). Previously, the GET cache stored the parsed JSON response before the domain module validated it against its Zod schema. If TestRail returned a malformed response, that invalid entry remained in the cache for the full `cacheTtl` (5 minutes by default). Subsequent identical GET calls then failed with `TestRailValidationError` until the caller cleared the cache or the entry expired.
 
 ### Fixed
 
-- **GET cache no longer stores schema-invalid responses.** Validation now
-  happens before the cache write, so a malformed payload triggers a single
-  `TestRailValidationError` and the next call re-fetches fresh. Previously
-  malformed responses stuck for `cacheTtl` ms (5 minutes by default).
+- **The GET cache no longer stores schema-invalid responses.** The client now validates responses before caching them. A malformed response fails once, and the next call fetches a fresh server response.
 
 ### Added
 
-- `TestRailClientCore.requestParsed<T>(method, endpoint, schema, data?)` —
-  new public method that performs the request, validates the response
-  against a Zod schema, and writes the GET cache only after validation
-  succeeds. Used internally by every domain module that returns a typed
-  response. Prefer this over the legacy `parse(schema, await request(...))`
-  pattern in new code. Validated responses live in a separate cache
-  namespace (`PARSED:GET:${endpoint}`) so they cannot collide with raw
-  entries written by direct `request()` callers — neither side can poison
-  the other, even when both target the same endpoint.
+- **Added `TestRailClientCore.requestParsed<T>(method, endpoint, schema, data?)`.** This public method executes the request and validates the response with the supplied Zod schema. Valid GET responses use the separate `PARSED:GET:${endpoint}` cache namespace.
 
 ### Changed
 
-- All 17 domain modules now use `requestParsed` for typed responses.
-  `request()` and `parse()` remain public and back-compatible — external
-  callers that invoke them directly retain the previous semantics, including
-  the legacy GET cache-write inside `request()`.
+- All 17 domain modules now call `requestParsed` for typed responses. `request()` and `parse()` remain public and backward-compatible for direct callers.
 
 ### Migration
 
-No action required. The behavior change is strictly opt-out of a buggy
-caching path: every existing caller benefits automatically. Custom code that
-imports `request()` + `parse()` from `TestRailClientCore` directly continues
-to work; switch to `requestParsed` to opt into the cache-poisoning fix on
-your own endpoints.
+Standard SDK callers do not need to make any changes. Callers that invoke `request()` and `parse()` directly on `TestRailClientCore` can switch to `requestParsed()` to avoid caching invalid responses.
 
 ## [3.1.0] — 2026-05-18 — Destructive single-entity delete CLI surface
 
-Closes the remaining destructive-delete gap in the CLI surface. The
-programmatic API gains optional `{ soft?: boolean }` overloads on four
-delete methods; all changes are additive — no breaking changes.
+This release adds the remaining single-entity delete commands to the CLI and adds optional `{ soft?: boolean }` preview overloads to four SDK delete methods. All changes are backward-compatible.
 
 ### Added
 
@@ -1767,26 +642,13 @@ testrail milestone delete <milestone_id>         --yes   # --soft NOT supported
 testrail project   delete <project_id>           --yes   # --soft NOT supported; highest blast radius
 ```
 
-Each follows the destructive-ops convention locked in by `attachment
-delete` / `case delete-bulk` / `run close`: `--yes` gates execution;
-`--dry-run` wins over `--yes` (preview with no API call); the skill
-generator surfaces `destructive: true` so agents see the gate up front.
+Each action follows the destructive-command rules: `--yes` is required to execute, and `--dry-run` previews locally without calling the API.
 
-`--soft` invokes TestRail's `?soft=1` server-side preview — the API
-call still happens but nothing is deleted; TestRail returns counts of
-affected entities (`affected_tests`, `affected_cases`, `affected_sections`,
-`affected_runs`, `affected_plans`, …). Distinct from `--dry-run` which
-short-circuits before any API call. `milestone delete` and `project
-delete` reject `--soft` explicitly — TestRail's endpoints don't accept
-it, and silently dropping the flag would mask a destructive intent
-mismatch.
+Passing `--soft` sends `?soft=1` to TestRail for a server-side preview. TestRail deletes nothing and returns counts of affected entities (`affected_tests`, `affected_cases`, `affected_sections`, `affected_runs`, `affected_plans`, and others). `milestone delete` and `project delete` reject `--soft` because TestRail does not support soft deletes on those endpoints.
 
 #### Programmatic API
 
-`deleteCase`, `deleteRun`, `deleteSection`, `deleteSuite` gain
-`{ soft?: boolean }` overloads mirroring the existing `deleteCases`
-precedent. The hard-delete signature is unchanged. The soft-mode return
-type is the new shared `SoftDeletePreview` (Zod-derived, `.passthrough()`).
+`deleteCase`, `deleteRun`, `deleteSection`, and `deleteSuite` now accept an optional `{ soft?: boolean }` parameter, matching `deleteCases`. When you pass `{ soft: true }`, they return `SoftDeletePreview`.
 
 ```ts
 // Hard delete (unchanged)
@@ -1799,41 +661,29 @@ const preview = await client.deleteCase(42, { soft: true });
 
 #### New public exports
 
-- `SoftDeletePreview` — type (re-exported from package root)
-- `SoftDeletePreviewSchema` — Zod schema (re-exported)
-- `SoftDeleteOptions` — `{ soft?: boolean }` interface (in `types.js`)
+- `SoftDeletePreview` — response type re-exported from the package root
+- `SoftDeletePreviewSchema` — Zod schema re-exported from the package root
+- `SoftDeleteOptions` — `{ soft?: boolean }` options interface in `types.js`
 
 ### Changed
 
-`DeleteCasesOptions` and `DeleteCasesPreview` (in `src/modules/cases.ts`)
-are now `@deprecated` type aliases for `SoftDeleteOptions` and
-`SoftDeletePreview` respectively. Existing imports continue to work —
-the alias preserves source compatibility.
+Marked `DeleteCasesOptions` and `DeleteCasesPreview` in `src/modules/cases.ts` as `@deprecated` aliases for `SoftDeleteOptions` and `SoftDeletePreview`. Existing imports continue to work.
 
 ### Fixed
 
-- CODEMAP.md size sanity bound raised from 200 KB to 256 KB
-  (`tests/generate-codemap.test.ts`). Legitimate growth from the new
-  public API surface pushed the file to ~201 KB; bumping to 256 KB
-  gives headroom for the next several releases.
+- Increased the `CODEMAP.md` size limit in `tests/generate-codemap.test.ts` from 200 KB to 256 KB to accommodate the expanded public API.
 
 ## [3.0.0] — 2026-05-18 — CLI safety cluster
 
-Hardens the `testrail` CLI surface against several CTF-audit findings.
-The programmatic library API (`new TestRailClient({ apiKey, … })`) is
-**unchanged** — these breaking changes affect CLI invocations only.
+This release hardens the `testrail` CLI against security audit findings. The programmatic SDK API (`new TestRailClient({ apiKey, ... })`) is unchanged. These breaking changes affect only the CLI.
 
 ### BREAKING CHANGES
 
 #### `--api-key <key>` argv flag removed (CTF #11)
 
-Argv is visible via `/proc/<pid>/cmdline`, shell history, CI step logs
-(retained 30+ days on most providers, project-readable), container
-audit trails (`kubectl get pod -o yaml`, auditd, cloud audit), and
-crash/sysdig dumps. CWE-214 — the same class that drove
-`docker login --password-stdin`.
+Command-line arguments are visible to other processes via `/proc/<pid>/cmdline`, shell history, CI logs, container audit logs, and crash dumps (CWE-214).
 
-**Migration:** use the env var (recommended) or pipe the key on stdin.
+**Migration:** Pass the API key via the `TESTRAIL_API_KEY` environment variable (recommended) or pipe it to `stdin` with `--api-key-stdin`.
 
 ```sh
 # Before (v2.x):
@@ -1848,17 +698,11 @@ echo "$TESTRAIL_API_KEY" | testrail project list --api-key-stdin \
     --email me@example.com --base-url …
 ```
 
-Note: `--api-key-stdin` consumes `fd 0`, so JSON write bodies for the
-same invocation must come from `--data` or `--data-file`, **not** piped
-stdin. Pick one channel for stdin per command.
+Note: Because `--api-key-stdin` reads from `stdin` (`fd 0`), pass JSON request bodies for write commands via `--data` or `--data-file` when using `--api-key-stdin`.
 
 #### `run close` now requires `--yes` (CTF #6)
 
-Closing a run is irreversible (TestRail offers no `open_run` endpoint
-and the web UI has no reopen action). Joins the destructive-ops
-convention introduced in v2.2 (`--yes` gates anything the API can't
-undo; `--dry-run` wins for preview) that previously covered only
-`attachment delete` and `case delete-bulk`.
+TestRail cannot reopen a closed test run. `run close` now requires `--yes` (or `--dry-run` for a local preview), matching `attachment delete` and `case delete-bulk`.
 
 **Migration:**
 
@@ -1874,58 +718,31 @@ testrail run close 42 --yes --dry-run
 
 #### Unknown / typo'd flags now exit 1 (CTF #10)
 
-`parseArgs` is invoked with `strict: false` for defensive future-Node
-tolerance, but a post-parse strict gate now rejects any flag not in
-the canonical `KNOWN_FLAGS` set. Previously a typo like `--dryrun`
-(missing hyphen) was silently accepted as a free-form key while
-`values['dry-run']` stayed undefined — so a user-intended preview
-executed for real on a destructive command.
+The CLI now validates parsed flags against `KNOWN_FLAGS` and exits with code 1 on any unrecognized flag. Previously, the parser ignored a typo such as `--dryrun` (missing hyphen), which allowed a destructive command intended as a dry-run preview to execute for real.
 
-**Migration:** fix the typo. Errors are now of the form
-`Error: unknown flag '--dryrun'. Run --help for the full list.`
+**Migration:** Remove or fix unrecognized flags. The CLI reports `Error: unknown flag '--dryrun'. Run --help for the full list.`
 
 #### Stdin body reads capped at 1 MiB (CTF #24)
 
-`readFileSync(0, 'utf-8')` was unbounded; pipes larger than container
-memory (typical CI runner: 512 MB–1 GB) OOM-killed the process.
-1 MiB covers the largest realistic JSON body (bulk case payloads with
-thousands of cases) while making OOM impossible.
+`readBoundedStdin` now limits `stdin` JSON payloads to 1 MiB to prevent out-of-memory crashes from large pipes.
 
-**Migration:** split oversized payloads across multiple requests, or
-write to a file and pass `--data-file <path>` (which is read with the
-host's normal file-read semantics, unaffected by this cap).
+**Migration:** Split large payloads across multiple requests, or write the payload to a file and pass `--data-file <path>`.
 
 ### Fixed (non-breaking)
 
-- **CTF #16** — strip terminal control chars (C0/C1/DEL) from stderr
-  error messages. Defends against ANSI/OSC injection where a
-  TestRail-controlled string (server error body, validation echo) or
-  argv-controlled string (typo'd flag name) embeds escape sequences
-  the user's terminal would then execute — colour overrides, cursor
-  moves, window-title spoofing, OSC 7/9 / iTerm2 dynamic-action codes
-  that can chain into command injection on terminals that honour them.
-- **CTF #18** — same sanitization on the `--format table` success
-  path. Every cell value and column key routes through
-  `sanitizeForTerminal` before concatenation.
+- **CTF #16:** Stripped terminal control characters (C0, C1, and DEL) from `stderr` error messages to prevent ANSI and OSC escape sequence injection.
+- **CTF #18:** Applied `sanitizeForTerminal` to all cell values and column headers in `--format table` output.
 
 ### Internal
 
-- New modules: `src/cli/flags.ts` (single source of truth for the
-  `parseArgs` options table + derived `KNOWN_FLAGS`), `src/cli/sanitize.ts`
-  (control-char stripper), `src/cli/stdin.ts` (`readBoundedStdin` helper).
-- `docs/archive/BACKLOG-ARCHIVE.md` security findings #6, #10, #11, #16, #18, #24 marked
-  `[SHIPPED]`.
-- Coverage: 97.23% global / 100% on new modules.
+- Added `src/cli/flags.ts` (`KNOWN_FLAGS` and `parseArgs` options), `src/cli/sanitize.ts` (terminal control-character sanitizer), and `src/cli/stdin.ts` (`readBoundedStdin`).
+- Marked security findings #6, #10, #11, #16, #18, and #24 as `[SHIPPED]` in `docs/archive/BACKLOG-ARCHIVE.md`.
+- Test coverage: 97.23% overall and 100% on the new modules.
 
 ### Known limitations
 
-- The stdin cap (`readBoundedStdin`) addresses **memory-exhaustion DoS**
-  only. A producer that keeps the pipe open without ever sending more
-  than 1 MiB (e.g. `tail -f`, a FIFO writer that never closes) still
-  causes the CLI to block indefinitely on the read. Wall-clock deadline
-  for stdin reads is tracked separately in `BACKLOG.md` as a follow-up
-  on CTF #24.
+- `readBoundedStdin` prevents memory exhaustion, but does not enforce a wall-clock timeout if a producer keeps the pipe open while sending fewer than 1 MiB. We track a wall-clock timeout for `stdin` reads in `BACKLOG.md` under CTF #24.
 
 ## [2.2.0] — earlier
 
-See [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.md) Decision Log section.
+See the Decision Log section in [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.md).

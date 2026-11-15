@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 export default [
     {
-        ignores: ['**/*.js', '**/*.d.ts', 'dist/**/*', 'coverage/**/*'],
+        ignores: ['**/*.js', '**/*.d.ts', 'dist/**/*', 'coverage/**/*', '.claude/**/*'],
     },
     js.configs.recommended,
     // TypeScript support

@@ -1,8 +1,8 @@
 # CODEMAP
 
-Machine-readable symbol index for coding agents. Run `npm run codemap` to regenerate.
+This file is the machine-readable symbol index for coding agents. Run `npm run codemap` to regenerate it.
 
-Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sourceHash`.
+Schema: `codemap.v2`. This file contains no timestamps. The generator detects stale output with `sourceHash`.
 
 ```json
 {
@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "c48784c94a66a8cd8d5e365f97e4f445ce1d14cb4053bd54e2a5525e6312674e",
+  "sourceHash": "8316f1dfeb6a879683aac3ef15a0d4c87345264b7ff84b751b762216c510dbcb",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
