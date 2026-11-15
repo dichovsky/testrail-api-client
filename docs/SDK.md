@@ -69,6 +69,16 @@ Although each field is optional in TypeScript, the schema rejects an empty objec
 Schemas preserve `custom_*` fields and do not coerce types: `"5"` stays a string.
 The [CLI](CLI.md) validates write payloads automatically. Its destructive-action gates apply only to CLI commands.
 
+### Delete previews
+
+`cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()` accept `{ soft: true }` for server-side previews.
+These previews send `soft=1` and return `SoftDeletePreview` without deleting data.
+Without soft mode, the methods delete data and return `undefined`.
+
+Each method reads `options.soft` once when called.
+That value determines the URL, response schema, and whether the method returns a preview.
+Changing `options.soft` while the request is pending does not change these choices.
+
 ## Configuration
 
 Only `baseUrl`, `email`, and `apiKey` are required.
@@ -259,6 +269,12 @@ Structural checks still apply after a non-throwing hook:
 The hook runs before these checks. A throwing hook stops further decoding.
 A hook error does not prove that a write failed: the server might already have changed state.
 Reconcile uncertain writes before retrying them.
+
+Direct `client.parse(schema, data, ctx)` calls retain advisory validation and mismatch-hook behavior.
+Domain methods validate responses through `request()`, without calling public `parse()`.
+Subclass or instance overrides of `parse()` therefore do not customize endpoint responses.
+Use the supported `onSchemaMismatch` hook for mismatch reporting or strict validation, as shown below.
+Apply response transformations explicitly after awaiting a domain method.
 
 The constructor requires a function for `onSchemaMismatch`. The hook must be synchronous; returning a Promise throws `TestRailValidationError`.
 To report mismatches, log only safe metadata. Exclude raw endpoint queries, bodies, issue messages, and field names:

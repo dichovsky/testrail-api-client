@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
 import { TestRailApiError, TestRailClient, TestRailLicenseError, TestRailValidationError } from '../src/client.js';
-import type { SchemaMismatch, SoftDeleteOptions } from '../src/types.js';
+import type { Project, SchemaMismatch, SoftDeleteOptions } from '../src/types.js';
 import { BASE_CONFIG, MOCK_MILESTONE, MOCK_PROJECT, MOCK_RUN, mockOk } from './helpers.js';
 
 /**
@@ -497,27 +497,36 @@ describe('advisory response validation (6.0.0)', () => {
             {
                 name: 'deleteCase',
                 endpoint: 'delete_case/7',
-                call: (target, options = {}) => target.cases.deleteCase(7, options),
+                call: (target, options) =>
+                    options === undefined ? target.cases.deleteCase(7) : target.cases.deleteCase(7, options),
             },
             {
                 name: 'deleteCases',
                 endpoint: 'delete_cases/7&project_id=3',
-                call: (target, options = {}) => target.cases.deleteCases(7, 3, { case_ids: [1, 2] }, options),
+                call: (target, options) =>
+                    options === undefined
+                        ? target.cases.deleteCases(7, 3, { case_ids: [1, 2] })
+                        : target.cases.deleteCases(7, 3, { case_ids: [1, 2] }, options),
             },
             {
                 name: 'deleteRun',
                 endpoint: 'delete_run/7',
-                call: (target, options = {}) => target.runs.deleteRun(7, options),
+                call: (target, options) =>
+                    options === undefined ? target.runs.deleteRun(7) : target.runs.deleteRun(7, options),
             },
             {
                 name: 'deleteSection',
                 endpoint: 'delete_section/7',
-                call: (target, options = {}) => target.sections.deleteSection(7, options),
+                call: (target, options) =>
+                    options === undefined
+                        ? target.sections.deleteSection(7)
+                        : target.sections.deleteSection(7, options),
             },
             {
                 name: 'deleteSuite',
                 endpoint: 'delete_suite/7',
-                call: (target, options = {}) => target.suites.deleteSuite(7, options),
+                call: (target, options) =>
+                    options === undefined ? target.suites.deleteSuite(7) : target.suites.deleteSuite(7, options),
             },
         ];
         const writes: {
@@ -573,10 +582,12 @@ describe('advisory response validation (6.0.0)', () => {
         );
 
         it.each(writes)(
-            '$name invalidates cached reads before propagating a hook error without replay',
+            '$name clears cached data before a hook starts another read, without replaying the write',
             async ({ call, endpoint, raw }) => {
                 const failure = new Error('strict response mismatch');
+                let readFromHook: Promise<Project> | undefined;
                 const hook = vi.fn(() => {
+                    readFromHook = strict.projects.getProject(1);
                     throw failure;
                 });
                 const strict = new TestRailClient({ ...BASE_CONFIG, onSchemaMismatch: hook });
@@ -594,7 +605,8 @@ describe('advisory response validation (6.0.0)', () => {
                     expect(hook).toHaveBeenCalledExactlyOnceWith(
                         expect.objectContaining({ method: 'POST', endpoint, data: raw }),
                     );
-                    expect(mockFetch).toHaveBeenCalledTimes(2);
+                    await expect(readFromHook).resolves.toEqual(refreshed);
+                    expect(mockFetch).toHaveBeenCalledTimes(3);
                     await expect(strict.projects.getProject(1)).resolves.toEqual(refreshed);
                     expect(mockFetch).toHaveBeenCalledTimes(3);
                 } finally {
@@ -602,6 +614,40 @@ describe('advisory response validation (6.0.0)', () => {
                 }
             },
         );
+
+        describe.each([
+            { mode: 'preview', initialSoft: true },
+            { mode: 'hard deletion', initialSoft: false },
+        ])('$mode selected when the call starts', ({ initialSoft }) => {
+            it.each(deletes)('$name ignores later changes to options.soft', async ({ call, endpoint }) => {
+                let releaseResponse!: (response: Response) => void;
+                const response = new Promise<Response>((resolve) => {
+                    releaseResponse = resolve;
+                });
+                let markRequestStarted!: () => void;
+                const requestStarted = new Promise<void>((resolve) => {
+                    markRequestStarted = resolve;
+                });
+                mockFetch.mockImplementationOnce(() => {
+                    markRequestStarted();
+                    return response;
+                });
+                const options = { soft: initialSoft };
+                const raw = { affected_cases: 'three' };
+                const pending = call(client, options);
+                await requestStarted;
+                // Simulate a caller reusing its options while TestRail is replying.
+                options.soft = !initialSoft;
+                releaseResponse(mockOk(raw));
+
+                await expect(pending).resolves.toEqual(initialSoft ? raw : undefined);
+                expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
+                    `${BASE_CONFIG.baseUrl}/index.php?/api/v2/${endpoint}${initialSoft ? '&soft=1' : ''}`,
+                    expect.objectContaining({ method: 'POST' }),
+                );
+                expect(mismatches).toHaveLength(initialSoft ? 1 : 0);
+            });
+        });
 
         describe.each([
             { mode: 'omitted', options: undefined },

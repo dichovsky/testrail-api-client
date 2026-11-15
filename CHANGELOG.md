@@ -21,6 +21,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Delete modes are fixed when called.** `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()` now snapshot `options.soft`. Previously, changing it while a request was pending could change response validation and whether the method returned a preview. The dispatched mode now determines the URL, response schema, and return value.
+- **Internal response checks no longer call public `parse()`.** This affects the five delete previews above, plus `bdd.addBdd()` and `bdd.updateBdd()`. Subclass or instance overrides of `parse()` previously handled these replies; they no longer run for them. Direct `client.parse()` calls retain their behavior. Migrate mismatch reporting or strict validation to `onSchemaMismatch`; apply response transformations after awaiting the method. See [SDK response validation](docs/SDK.md#response-validation).
 - CLI text and binary stdin now use explicit runtime readers. Binary limits, timeouts, and dry-run behavior remain unchanged.
 - Multipart uploads now have one owner for transport observation and cleanup. Released upload sources cannot reopen their original paths.
 - Updated Zod to `^4.6.7`. Zod remains the only runtime dependency.

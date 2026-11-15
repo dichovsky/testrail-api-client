@@ -56,7 +56,8 @@ if it gains an independent admission policy.
 
 Domain modules pass response schemas to `request()`. It reports mismatches with
 the originating method and endpoint. A mismatch returns raw data unless the hook throws.
-The inherited `client.parse()` helper remains available to existing callers.
+The inherited `client.parse()` helper remains available for direct calls.
+Domain methods do not call it; overriding it does not customize endpoint response validation.
 `src/validation.ts` supplies preflight checks; `src/url.ts` builds endpoint paths
 and query strings.
 
