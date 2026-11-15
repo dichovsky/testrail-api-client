@@ -1,12 +1,11 @@
 # Releasing
 
-Stable releases use `release/<version>` tags and the [`Publish` workflow](../.github/workflows/publish.yml).
+Only the maintainer runs releases. Stable releases use `release/<version>` tags and the [`Publish` workflow](../.github/workflows/publish.yml).
 Publishing a GitHub Release starts verification. A second job publishes the tested artifact through npm Trusted Publishing with provenance.
 The workflow does not require a persistent npm token.
 
-The `.nvmrc` file selects Node `26`. The publish workflow uses Node `26.13.1`.
-The package requires Node 26 or newer (`engines.node: >=26`). CI tests Node 26 on Linux, Windows, and macOS.
-Other major versions satisfy the engine range but are outside the CI matrix.
+Use the [contributor setup](../CONTRIBUTING.md#setup) for local development. The publish workflow pins Node `26.13.1`.
+The package requires Node 26 or newer. CI covers Node 26 on Linux, Windows, and macOS; other majors are outside the matrix.
 
 > **Creating the GitHub Release starts publication. An approval gate stops the workflow before the publish job.**
 >
@@ -32,7 +31,7 @@ Other major versions satisfy the engine range but are outside the CI matrix.
 9. Include compatibility notes, security fixes, and operational changes in the release notes.
 10. Add the new version to the npm release-history list.
     Publication must succeed before this list becomes final.
-11. Check `README.md`, architecture docs, agent instructions, examples, CLI help, and manual skill sections against the release changes.
+11. Check the README, user guides, architecture docs, agent instructions, examples, CLI help, and manual skill sections against the release changes.
     Dated audits and archived plans remain historical records.
 12. Verify that every SDK endpoint has a CLI action and every CLI action has a skill recipe.
 13. Install the locked dependencies without lifecycle scripts:
@@ -50,7 +49,7 @@ npm run mapping
 npm run codemap
 ```
 
-Do not edit generated files manually.
+Follow the [generated-file ownership rules](../CONTRIBUTING.md#generated-files).
 The `agents-md` script builds the client first. The `skill` script also updates the payload-schema reference.
 The `mapping` script validates the current skill recipe anchors.
 The CLI reads its version from `package.json`. Generators write the version into the skill and codemap files.
@@ -61,31 +60,18 @@ For the 9.0.0 DNS-pinning release, the required breaking-change notes covered th
 - The strict `dnsLookup` address-family contract.
 - Forced output paths that accept only regular files.
 
-Keep links to the [proxy and CA migration](../README.md#proxies-and-custom-certificate-authorities), [DNS resolver migration](../README.md#custom-dns-resolvers), and CLI stdout discard example.
+Keep links to the [proxy and CA migration](NETWORKING.md#proxies-and-custom-certificate-authorities), [DNS resolver migration](NETWORKING.md#custom-dns-resolvers), and [CLI stdout discard example](CLI.md#output-and-exit-codes).
 Do not tell users to disable the host guard.
 
 ## Validate and merge
 
-`.npmrc` disables automatic lifecycle scripts.
-Format modified files before verification. Run every release check explicitly:
+Format modified files first. Run [standard repository verification](../CONTRIBUTING.md#verification-checks), then the additional release checks:
 
 ```bash
-npm run typecheck
-npm run typecheck:ts6
-npm run lint
-npm run format:check
-npm run lockfile-lint
-npm run test:coverage
+npm run verify
 RUN_FUZZ=1 npx vitest run tests/cli-fuzz.test.ts
 npm audit --omit=dev --audit-level=moderate
 npm run audit:dependencies
-npm run build
-npm run codemap:check
-npm run mapping:check
-npm run agents-md:check
-npm run skill:check
-npm run published:check
-npm run package:smoke -- --prepared
 ```
 
 1. Open a release pull request with the version, scope, compatibility notes, and validation results.

@@ -2,6 +2,10 @@
 
 `@dichovsky/testrail-api-client` is a type-safe TypeScript client for the TestRail API. It has one runtime dependency: Zod. It uses ESM only (`type: "module"`).
 
+Use [CONTRIBUTING.md](CONTRIBUTING.md) for setup, verification, and contributor conventions.
+This file records implementation rules and endpoint procedures.
+Package users can start with the [SDK](docs/SDK.md), [CLI](docs/CLI.md), and [networking](docs/NETWORKING.md) guides.
+
 ## Commands
 
 ```bash
@@ -48,7 +52,7 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `src/index.ts`                                                       | Public package exports                                                                                                                                                             |
 | `skill/SKILL.md`                                                     | Bundled agent skill body: usage rules, authentication, safety gates, output and pagination rules, and links to reference files                                                     |
 | `skill/reference/commands.md`                                        | Generated CLI command table and option reference (contains `command-table` and `option-reference` markers)                                                                         |
-| `skill/reference/recipes.md`                                         | 133 numbered CLI recipes with `<!-- recipe-for: -->` tags for gate C2                                                                                                              |
+| `skill/reference/recipes.md`                                         | Numbered CLI recipes with `<!-- recipe-for: -->` tags for gate C2                                                                                                                  |
 | `skill/reference/typescript-api.md`                                  | Programmatic TypeScript SDK reference                                                                                                                                              |
 | `CODEMAP.md`                                                         | Generated `codemap.v2` symbol index in JSON-in-Markdown format                                                                                                                     |
 | `codemap.config.json`                                                | Configuration for the codemap generator (`sourceDirs`, `entrypoints`, `exclude`, `maxSignatureLength`)                                                                             |

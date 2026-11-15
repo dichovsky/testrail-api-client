@@ -88,7 +88,7 @@ try {
   `custom_*` fields pass through `.passthrough()` unchanged.
   Schemas do not coerce types (`"5"` does not convert to `5`).
 - **Caching**: The client caches GET responses in memory for 5 minutes by default.
-  Any write clears the entire cache. `get*Page()` caches pages in a separate strict
+  Any successful write clears the entire cache. `get*Page()` caches pages in a separate strict
   namespace. `getAll*()` bypasses cache reads, cache writes, and in-flight sharing.
   In-flight request sharing requires matching header and body timeouts.
 - **Pagination**: 24 list endpoints provide three methods.
@@ -99,8 +99,8 @@ try {
 - **CLI response validation**: Entity-field mismatches print a redacted warning by default.
   Pass `--strict-responses` or set `TESTRAIL_STRICT_RESPONSES=1` to fail on the first mismatch.
   Warnings include only the HTTP method, CLI command, and masked issue paths.
-- **Retry policy**: GET requests retry on 5xx, 429, and network errors with exponential
-  backoff. Write requests (POST, PUT, DELETE) retry only on 429 to prevent duplicate writes.
+- **Retry policy**: Ordinary GET requests retry on 5xx, 429, and network errors with exponential backoff.
+  Report execution GETs and write requests (POST, PUT, DELETE) retry only on 429 to prevent duplicate operations.
   Multipart uploads never retry. The client honors the `Retry-After` header.
 - **Redirects**: Every request sets `redirect: "manual"`. The client rejects all 3xx
   responses with `TestRailApiError` and never caches them.
@@ -178,11 +178,15 @@ All destructive CLI commands require both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIV
 
 ## See also
 
-- `CLAUDE.md` — Repository architecture and development rules
-- `skill/SKILL.md` — Claude Code skill body and links to `skill/reference/`
-- `CODEMAP.md` — Generated index of all public methods, types, error classes, and constants
-- `docs/API-MAPPING.md` — Coverage table for TestRail endpoints, client methods, CLI commands, and skill recipes
-- `README.md` — Installation, configuration, and SDK usage guide
+- [CONTRIBUTING.md](CONTRIBUTING.md): Setup, verification, and contributor conventions
+- [CLAUDE.md](CLAUDE.md): Implementation rules and endpoint procedures
+- [skill/SKILL.md](skill/SKILL.md): Installed CLI agent guidance and references
+- [CODEMAP.md](CODEMAP.md): Generated index of public methods, types, errors, and constants
+- [docs/API-MAPPING.md](docs/API-MAPPING.md): Endpoint, SDK, CLI, and recipe coverage
+- [README.md](README.md): Installation and quick starts
+- [docs/SDK.md](docs/SDK.md): SDK configuration, lifecycle, and response handling
+- [docs/CLI.md](docs/CLI.md): CLI authentication, payloads, output, and diagnostics
+- [docs/NETWORKING.md](docs/NETWORKING.md): Private servers, DNS, proxies, and certificates
 
 ## Build / verify commands
 

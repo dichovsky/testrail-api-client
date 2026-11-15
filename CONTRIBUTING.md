@@ -1,6 +1,9 @@
 # Contributing
 
-This document explains the repository rules, verification checks, and code conventions for contributors.
+Use this guide to set up the repository, make changes, and verify them before a pull request.
+
+For package usage, read the [SDK guide](docs/SDK.md) or [CLI guide](docs/CLI.md).
+For implementation details, read [the architecture guide](docs/ARCHITECTURE.md) and [CLAUDE.md](CLAUDE.md).
 
 Report security vulnerabilities through [SECURITY.md](SECURITY.md). Do not open a public issue for security reports.
 
@@ -15,13 +18,18 @@ npm run verify
 
 `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run lifecycle scripts automatically. Run build and code generation commands explicitly with `npm run`.
 
+The build and primary type check use native TypeScript 7.
+Code generators and typed ESLint rules use the TypeScript 6 compiler API.
+The package smoke test checks published declaration files with both TypeScript 6 and TypeScript 7.
+
 ## Verification checks
 
-Run `npm run verify` to build the project and execute all local verification checks. CI runs these same checks in separate steps:
+Run `npm run verify` before pushing changes. It builds the package and runs the checks below.
+CI runs these checks in separate steps.
 
 ```bash
 npm run build           # Required before AGENTS.md check and package smoke test
-npm run typecheck        # TypeScript 7 check
+npm run typecheck       # TypeScript 7 check
 npm run typecheck:ts6    # TypeScript 6 compatibility check
 npm run lint
 npm run format:check
@@ -35,7 +43,12 @@ npm run test:coverage
 npm run package:smoke -- --prepared
 ```
 
-`npm test` runs only the Vitest test suite. Because `.npmrc` disables implicit `pre` and `post` hooks, always run `npm run verify` before you push changes. CI also runs the fuzz test suite and dependency security audits.
+`npm test` runs only Vitest; it does not run static or drift checks.
+CI also runs fuzz tests and dependency security audits.
+The [release checklist](docs/RELEASING.md#validate-and-merge) includes the commands for those additional checks.
+
+During development, run a relevant test file with `npx vitest run tests/client-endpoints.test.ts`.
+Run both `npm run typecheck` and `npm run typecheck:ts6` before committing.
 
 ## Generated files
 
@@ -48,7 +61,15 @@ Do not edit generated files manually. Use the corresponding `npm run` command to
 | `AGENTS.md`                                                                                                                       | `npm run agents-md` |
 | `skill/SKILL.md` (generated sections), `skill/reference/commands.md` (generated sections), `skill/reference/payload-schemas.yaml` | `npm run skill`     |
 
-Each generated file has a `:check` script that fails the build if the committed file does not match the generator output. You can directly edit the manual sections of `skill/SKILL.md`, `skill/reference/recipes.md`, and `skill/reference/typescript-api.md`. `npm run skill` keeps those manual sections unchanged.
+Each generator has a `:check` script that detects differences between its output and the committed files.
+Edit `scripts/rules-content.ts` to change `AGENTS.md` prose. The `agents-md` command builds the package before generating that file.
+
+You can edit prose outside generated markers in `skill/SKILL.md` and `skill/reference/commands.md`.
+The skill generator also owns `metadata.version` and the entire payload-schema reference.
+Recipes and `skill/reference/typescript-api.md` are handwritten; `npm run skill` preserves them.
+Recipe headings and `recipe-for:` tags supply links in the API mapping.
+
+After changing CLI metadata, schemas, or module method JSDoc tags, run all four generators above.
 
 ## Add an endpoint
 
@@ -59,23 +80,26 @@ This repository enforces a strict layer-coverage rule:
 
 Gates D and C2 check both parts of this rule automatically. Do not add an endpoint without its CLI command and skill recipe in the same change.
 
-Follow the step-by-step instructions in `CLAUDE.md` ("Add API endpoint", "Add CLI write action", and "Add CLI attachment-style action").
+Follow the [endpoint and CLI procedures in CLAUDE.md](CLAUDE.md#common-tasks).
 
 ## Code conventions
 
-- **Keep Zod as the only runtime dependency.** Do not add other runtime dependencies.
-- **Do not use `any`.** Use `unknown` and narrow the type.
-- **Do not mutate objects in place.** Always return new objects.
-- **Do not hardcode numbers.** Export named constants from `src/constants.ts`.
-- **Validate all IDs before network requests.** Call `validateId(id, 'name')` from `src/validation.ts` for numeric IDs, or `validateEntryId` for UUID plan-entry IDs.
-- **Do not ignore errors silently.** Handle each error: rethrow it, return a structured error, or set a status flag that the caller checks.
+- Keep Zod as the only runtime dependency.
+- Use `unknown` instead of `any`, then narrow the type. Declare explicit parameter and return types on public APIs.
+- Return new objects instead of mutating inputs.
+- Export named numeric constants from `src/constants.ts`.
+- Validate IDs before network requests. Use `validateId(id, 'name')` for numeric IDs and `validateEntryId` for UUID plan-entry IDs, both from `src/validation.ts`.
+- Handle errors by rethrowing, returning a structured error, or setting a status flag that the caller checks.
   If you safely ignore an error, add a comment that explains why.
 
 ### Widen response schemas instead of narrowing them
 
-Response validation is advisory (see `CLAUDE.md`). Live TestRail responses can differ from the published TestRail documentation. Widen response schemas when live responses include additional shapes or types. Do not make response schemas stricter based only on documentation.
+Response validation is advisory. Live TestRail responses can differ from the published TestRail documentation.
+Widen response schemas when live responses include additional shapes or types.
+Do not make response schemas stricter based only on documentation.
 
-`CLAUDE.md` defines five schema rules. `tests/schema-conventions.test.ts` checks three of these rules automatically:
+[CLAUDE.md](CLAUDE.md#schema-authoring-conventions-srcschemasts) defines five schema rules.
+`tests/schema-conventions.test.ts` checks three of these rules automatically:
 
 - Rule 2: Response schemas must use `.nullish()` instead of `.optional()` and must not use format validators.
 - Rule 3: Schemas must not call `.extend()` across request and response directions.
@@ -117,4 +141,5 @@ For defect fixes, include the failing output.
 
 ## Releases
 
-Only the maintainer runs releases. Follow [docs/RELEASING.md](docs/RELEASING.md); its instructions take precedence over general npm release advice. Publishing starts when a GitHub Release is published, not when a git tag is pushed.
+Only the maintainer runs releases. Follow [the release checklist](docs/RELEASING.md); it takes precedence over general npm release advice.
+Publishing a GitHub Release starts publication. Pushing a tag alone does not.

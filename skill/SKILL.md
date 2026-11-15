@@ -14,15 +14,15 @@ metadata:
 Use this CLI to query (`get`, `list`) and write (`add`, `update`, `add-bulk`, `add-entry`, `close`) TestRail entities.
 Supported entities include projects, suites, cases, runs, plans, results, milestones, and users.
 
-This skill is for **coding agents** that run shell commands. It is not a TestRail user manual.
-Refer to the official TestRail documentation for the web browser UI.
+This skill gives coding agents the rules for running shell commands.
+Use the official TestRail documentation for browser UI workflows.
 
 ## When to use this skill
 
 - The user mentions TestRail or asks about test cases, test runs, test results, or test plans in TestRail.
 - The user wants to look up, list, fetch, count, inspect, create, update, or publish TestRail entities from the shell or CI.
 
-## Install / verify
+## Install and verify
 
 The npm package `@dichovsky/testrail-api-client` provides the `testrail` binary.
 It requires Node.js 26 or newer (`engines.node: ">=26"`). Version `7.2.0` supports Node.js 20 and 22.
@@ -43,7 +43,7 @@ npm exec --package=@dichovsky/testrail-api-client -- testrail --version
 
 ## Authentication
 
-The CLI requires three credentials. Use environment variables for the API key (CTF #11, v3.0):
+Set the TestRail URL, account email, and API key. Use an environment variable for the API key:
 
 | Purpose       | Env var             | Flag                                                                  |
 | ------------- | ------------------- | --------------------------------------------------------------------- |
@@ -94,8 +94,7 @@ Do not use stdin for the JSON body when you pass `--api-key-stdin`. Only one inp
 
 ### `--dry-run`
 
-Pass `--dry-run` to validate the payload against the Zod schema and print the preview without an API call.
-Use `--dry-run` to verify the payload structure before you use the TestRail rate limit.
+Pass `--dry-run` to validate the payload and print a local preview. It makes no API call and uses no TestRail quota.
 
 ```bash
 testrail case add 5 --data '{"title":"x"}' --dry-run
@@ -103,13 +102,13 @@ testrail case add 5 --data '{"title":"x"}' --dry-run
 
 ## Destructive operations
 
-A **two-gate model** protects every destructive CLI action (all `delete` commands, `run close`, and `plan close`).
-Satisfy both gates to send a destructive request to the API:
+Every destructive CLI action requires both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`.
+This includes all `delete` commands, `run close`, and `plan close`.
 
 1. **`--yes` flag**: Confirms the command for one invocation. Pass `--yes` on every destructive command. Without `--yes`, the CLI exits with code `1` and prints `Destructive action; pass --yes to confirm.`
 2. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env var**: Unlocks destructive actions for the process. Set this variable to the exact string `'1'`. The CLI rejects `'true'`, `'yes'`, `'on'`, and `'1 '`. If this variable is missing or invalid, the CLI exits with code `2`.
 
-One gate alone is not sufficient. `run close` and `plan close` are permanent. TestRail cannot reopen a closed run or plan.
+TestRail cannot reopen a closed run or plan.
 
 ```bash
 # Blocked: --yes set, env var missing → exit code 2
@@ -122,8 +121,7 @@ TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5
 TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
 ```
 
-**`--dry-run` bypasses BOTH gates.** Preview mode does not send an API request.
-CI agents can preview destructive commands with `--dry-run` without unlocking either gate:
+`--dry-run` bypasses both gates and sends no API request:
 
 ```bash
 # Safe in any environment — no gates required, no API call made
@@ -217,19 +215,18 @@ testrail project list --format table    # Table
 testrail run get 5 --quiet              # Exit code 0/1 only
 ```
 
-### Filtering output (preserve context budget)
+### Filter output
 
-The CLI outputs the complete JSON object for each entity.
-Large list responses can fill the context window of an agent. Filter output in the shell when possible:
+The CLI outputs complete entities. Filter large responses in the shell to keep only the fields needed for the task.
 
-**Preferred:** Use `jq` when it is available:
+Use `jq` when available:
 
 ```bash
 testrail run get 5 | jq '.passed_count'
 testrail case list --project-id 1 | jq '.[] | {id, title}'
 ```
 
-**Fallback:** Use a Node.js one-liner:
+Otherwise, use Node.js:
 
 ```bash
 testrail run get 5 | node -e 'const d=JSON.parse(require("fs").readFileSync(0));console.log(d.passed_count)'
@@ -291,7 +288,7 @@ Only `Case`, `Test`, and `Result` provide flat `custom_*` index access, which re
 The nested `custom_fields` property is deprecated.
 Stable fields include `Test.refs_data`, `Test.case_title`, `Result.case_title`, `Result.case_refs`, case/result field system flags, and recursive milestone children.
 
-## Errors & exit codes
+## Errors and exit codes
 
 | Exit | Meaning                                                                            |
 | ---- | ---------------------------------------------------------------------------------- |
@@ -337,8 +334,8 @@ Do not repeat a failed write command only to capture a diagnostic file.
 ## Limits
 
 - **Rate limit:** The default limit is 100 requests per 60 seconds. The CLI throws an error immediately when the limit is exceeded.
-- **GET cache:** The client caches GET responses in memory for 5 minutes. Any POST request clears the entire cache. `run watch` disables the cache so every poll queries TestRail. `getAll*()` bypasses the cache and request coalescing. `get*Page()` uses a separate strict-schema cache namespace.
-- **Retry:** GET requests retry on 5xx responses, 429 responses, and network errors. Side-effecting GET actions (`report run` and `report run-cross-project`) retry only on 429. JSON write requests retry only on 429 to prevent duplicate writes. Multipart uploads never retry. The client retries up to 3 times with exponential backoff and honors `Retry-After`. It does not retry other 4xx errors, timeouts, redirects, or body-limit errors.
+- **GET cache:** The client caches eligible GET responses in memory for 5 minutes. Successful writes clear the entire cache. `run watch` disables the cache so every poll queries TestRail. `getAll*()` bypasses the cache and request coalescing. `get*Page()` uses a separate strict-schema cache namespace.
+- **Retry:** Ordinary GET requests retry on 5xx responses, 429 responses, and network errors. Report execution GETs (`report run` and `report run-cross-project`) retry only on 429. JSON write requests retry only on 429 to prevent duplicate writes. Multipart uploads never retry. The client retries up to 3 times with exponential backoff and honors `Retry-After`. It does not retry other 4xx errors, timeouts, redirects, or body-limit errors.
 - **No coercion on write payloads:** The CLI does not convert `"5"` to `5`. This rule catches type errors before sending an API request.
 - **`custom_*` fields:** Zod `.passthrough()` schemas preserve custom fields. Only `Case`, `Test`, and `Result` expose flat `custom_*` bracket access as `unknown`. Narrow these values before use.
 - **Terminal output sanitization (v3.0):** The CLI strips C0, C1, and DEL control bytes from stderr messages and `--format table` cells. This prevents terminal escape-sequence injection. As a result, `--format table` removes literal `\n` and `\t` characters from cell values. Use `--format json` to preserve raw characters.
@@ -369,9 +366,7 @@ testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "prior
 testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "priority_id": 3}' --dry-run
 ```
 
-Read `./reference/typescript-api.md` for schema parsing examples, typed SDK calls, and shutdown handling.
-
-## When NOT to use this skill
+## When to use another interface
 
 - **Unsupported CRUD operations:** `./reference/commands.md` lists every supported endpoint. Operations missing from that table are also absent from the SDK. Use the TestRail web UI for unsupported operations. For example, case statuses are read-only in both the CLI and SDK.
 - **Browser UI workflows:** This CLI is non-interactive.
@@ -382,7 +377,10 @@ For TypeScript or JavaScript code that imports the package, read `./reference/ty
 
 ## See also
 
-- [Package README](https://github.com/dichovsky/testrail-api-client/blob/main/README.md) — installation and configuration
-- [Source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) — public methods, types, errors, and constants
-- `./reference/payload-schemas.yaml` — shipped write-payload field reference
+- [Package README](https://github.com/dichovsky/testrail-api-client/blob/main/README.md): installation and quick starts
+- [CLI guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CLI.md): human-readable usage and troubleshooting
+- [SDK guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md): client configuration and response handling
+- [Networking guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/NETWORKING.md): private servers, DNS, proxies, and certificates
+- [Source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md): public methods, types, errors, and constants
+- `./reference/payload-schemas.yaml`: shipped write-payload field reference
 - TestRail API docs: <https://support.testrail.com/hc/en-us/articles/7077083596436-Introduction-to-the-TestRail-API>
