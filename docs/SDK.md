@@ -234,7 +234,7 @@ Structural checks still apply after a non-throwing hook:
 
 | Response problem                                               | Error                                                    |
 | -------------------------------------------------------------- | -------------------------------------------------------- |
-| Malformed default list                                         | `TestRailApiError`                                       |
+| Malformed outer structure from a paginated endpoint's `get*()` | `TestRailApiError`                                       |
 | Malformed page or aggregate continuation                       | `TestRailPaginationError`                                |
 | Malformed `cases.addCases()` or `cases.updateCases()` response | `TestRailApiError` with an indeterminate-outcome message |
 
@@ -312,7 +312,7 @@ try {
 }
 ```
 
-Numeric IDs and list filters must contain positive integers.
+Numeric IDs and numeric list filters must contain positive integers.
 Invalid arrays such as `createdBy`, `statusId`, or `milestoneId` throw `TestRailValidationError` before any request.
 The [CLI guide](CLI.md#diagnostic-files) explains redacted diagnostic files.
 

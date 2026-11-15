@@ -104,7 +104,7 @@ Check the resource's `--help` before assuming it supports `--page` or `--all`.
 
 ## Response validation
 
-Entity-field mismatches produce advisory warnings by default. Malformed list structures still fail.
+Entity-field mismatches produce advisory warnings by default. Paginated list endpoints still reject malformed outer structures.
 The CLI prints up to 10 unique warnings to stderr, then reports how many it suppressed.
 Warnings contain the HTTP method, CLI resource/action, issue codes, and paths with every segment masked as `*`.
 They exclude endpoint URLs, field names, record keys, issue messages, and raw responses.

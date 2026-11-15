@@ -77,13 +77,13 @@ See the [CLI guide](https://github.com/dichovsky/testrail-api-client/blob/main/d
 
 ## Behavior to know
 
-| Topic       | Default behavior                                                                                                           |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Lists       | Return one response. Use `getAll*()` or CLI `--all` for bounded pagination.                                                |
-| Responses   | Entity-field mismatches are advisory. CLI `--strict-responses` makes them errors; malformed list structures still fail.    |
-| Caching     | Cache eligible GET responses for five minutes. Successful writes clear the cache; aggregate reads bypass it.               |
-| Retries     | Ordinary GETs retry transient failures. JSON writes and report execution retry only on `429`; uploads never retry.         |
-| Connections | Block private hosts and redirects. See the networking guide for trusted private servers, proxies, and custom certificates. |
+| Topic       | Default behavior                                                                                                                       |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Lists       | Return one response. Use `getAll*()` or CLI `--all` for bounded pagination.                                                            |
+| Responses   | Entity-field mismatches are advisory. CLI `--strict-responses` makes them errors; paginated lists still enforce their outer structure. |
+| Caching     | Cache eligible GET responses for five minutes. Successful writes clear the cache; aggregate reads bypass it.                           |
+| Retries     | Ordinary GETs retry transient failures. JSON writes and report execution retry only on `429`; uploads never retry.                     |
+| Connections | Block private hosts and redirects. See the networking guide for trusted private servers, proxies, and custom certificates.             |
 
 A response-validation error can occur after a write executes. Check the server state before retrying an uncertain write.
 The guides below explain limits, exceptions, and configuration.
