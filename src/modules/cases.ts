@@ -229,16 +229,16 @@ export class CaseModule {
     async deleteCase(caseId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteCase(caseId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         validateId(caseId, 'caseId');
+        const soft = options?.soft === true;
         const endpoint = buildEndpoint(`delete_case/${caseId}`, {
-            ...(options?.soft === true && { soft: 1 }),
+            ...(soft && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
-        if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
-                method: 'POST',
-                endpoint,
-            });
-        }
+        const result = await this.client.request<SoftDeletePreview>({
+            method: 'POST',
+            endpoint,
+            ...(soft && { schema: SoftDeletePreviewSchema }),
+        });
+        if (soft) return result;
     }
 
     /**
@@ -317,21 +317,18 @@ export class CaseModule {
     ): Promise<void | SoftDeletePreview> {
         validateId(suiteId, 'suiteId');
         validateId(projectId, 'projectId');
+        const soft = options?.soft === true;
         const endpoint = buildEndpoint(`delete_cases/${suiteId}`, {
             project_id: projectId,
-            ...(options?.soft === true && { soft: 1 }),
+            ...(soft && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>({
+        const result = await this.client.request<SoftDeletePreview>({
             method: 'POST',
             endpoint,
             body: { kind: 'json', data: payload },
+            ...(soft && { schema: SoftDeletePreviewSchema }),
         });
-        if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
-                method: 'POST',
-                endpoint,
-            });
-        }
+        if (soft) return result;
     }
 
     /**

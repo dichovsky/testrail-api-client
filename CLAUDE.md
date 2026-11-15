@@ -234,7 +234,9 @@ Do not add a rule that rejects all required response scalars. Primary keys, fore
 
 ## Response validation is advisory (6.0.0)
 
-`TestRailClientCore.parse()` uses `safeParse`. When a response does not match its Zod schema:
+Pass response schemas to `TestRailClientCore.request()`. It uses `safeParse` and supplies the originating method and endpoint to the mismatch hook.
+The public `client.parse()` helper remains available for callers that validate response data separately.
+When a response does not match its Zod schema:
 
 - The client returns the raw response data.
 - The client calls `TestRailConfig.onSchemaMismatch` if configured.

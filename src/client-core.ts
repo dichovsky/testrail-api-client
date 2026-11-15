@@ -1103,13 +1103,13 @@ export class TestRailClientCore {
      * the constructor and CLI write payloads in `resolveBody()`, neither of
      * which routes through this method. Both still fail closed.
      *
+     * Domain modules pass their response schema to {@link request}, which
+     * supplies the originating method and endpoint. This public helper remains
+     * available for callers that validate response data separately.
+     *
      * @param schema Zod schema describing the expected response shape.
      * @param data   Raw parsed response body.
-     * @param ctx    Originating request, forwarded to the mismatch hook. Required
-     *               so a mismatch can always name the call that produced it — the
-     *               direct callers (BDD, soft-delete previews) thread it by hand,
-     *               and a destructive-op preview reporting an empty endpoint
-     *               would be worse than useless.
+     * @param ctx    Originating request, forwarded to the mismatch hook.
      */
     public parse<T>(schema: ZodType, data: unknown, ctx: { method: string; endpoint: string }): T {
         return this.parseAdvisory<T>(schema, data, ctx).value;

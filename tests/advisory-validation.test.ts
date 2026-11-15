@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { TestRailApiError, TestRailClient, TestRailLicenseError, TestRailValidationError } from '../src/client.js';
-import type { SchemaMismatch } from '../src/types.js';
-import { BASE_CONFIG, MOCK_MILESTONE, MOCK_RUN, mockOk } from './helpers.js';
+import type { SchemaMismatch, SoftDeleteOptions } from '../src/types.js';
+import { BASE_CONFIG, MOCK_MILESTONE, MOCK_PROJECT, MOCK_RUN, mockOk } from './helpers.js';
 
 /**
  * 6.0.0 — response validation is advisory.
@@ -487,7 +488,64 @@ describe('advisory response validation (6.0.0)', () => {
         });
     });
 
-    describe('soft-delete previews survive an explicit null counter', () => {
+    describe('soft-delete and BDD write response validation', () => {
+        const deletes: {
+            name: string;
+            endpoint: string;
+            call: (target: TestRailClient, options?: SoftDeleteOptions) => Promise<unknown>;
+        }[] = [
+            {
+                name: 'deleteCase',
+                endpoint: 'delete_case/7',
+                call: (target, options = {}) => target.cases.deleteCase(7, options),
+            },
+            {
+                name: 'deleteCases',
+                endpoint: 'delete_cases/7&project_id=3',
+                call: (target, options = {}) => target.cases.deleteCases(7, 3, { case_ids: [1, 2] }, options),
+            },
+            {
+                name: 'deleteRun',
+                endpoint: 'delete_run/7',
+                call: (target, options = {}) => target.runs.deleteRun(7, options),
+            },
+            {
+                name: 'deleteSection',
+                endpoint: 'delete_section/7',
+                call: (target, options = {}) => target.sections.deleteSection(7, options),
+            },
+            {
+                name: 'deleteSuite',
+                endpoint: 'delete_suite/7',
+                call: (target, options = {}) => target.suites.deleteSuite(7, options),
+            },
+        ];
+        const writes: {
+            name: string;
+            endpoint: string;
+            raw: unknown;
+            call: (target: TestRailClient) => Promise<unknown>;
+        }[] = [
+            ...deletes.map(({ name, endpoint, call }) => ({
+                name: `${name} preview`,
+                endpoint: `${endpoint}&soft=1`,
+                raw: { affected_cases: 'three', future_counter: 4 },
+                call: (target: TestRailClient): Promise<unknown> => call(target, { soft: true }),
+            })),
+            {
+                name: 'addBdd',
+                endpoint: 'add_bdd/7',
+                raw: { id: '7', title: 'Uploaded case', custom_future: true },
+                call: (target) => target.bdd.addBdd(7, new globalThis.Blob(['Feature: example']), 'example.feature'),
+            },
+            {
+                name: 'updateBdd',
+                endpoint: 'update_bdd/7',
+                raw: { id: '7', title: 'Updated case', custom_future: true },
+                call: (target) => target.bdd.updateBdd(7, new globalThis.Blob(['Feature: example']), 'example.feature'),
+            },
+        ];
+
         it('parses a preview where a counter is null rather than omitted', async () => {
             // `.optional()` is `T | undefined` and rejects an explicit null, so
             // a null counter used to fail the parse of a destructive-delete
@@ -498,17 +556,89 @@ describe('advisory response validation (6.0.0)', () => {
             expect(mismatches).toHaveLength(0);
         });
 
-        it('reports the originating endpoint when a preview does drift', async () => {
-            // The soft-delete previews call parse() directly rather than
-            // through request(), so they have to thread the request context by
-            // hand. Without it the hook fires with empty method/endpoint and
-            // cannot say which call drifted — on a destructive operation.
-            mockFetch.mockResolvedValueOnce(mockOk({ affected_cases: 'three' }));
-            await client.cases.deleteCase(7, { soft: true });
+        it.each(writes)(
+            '$name returns a raw mismatch with its exact request context',
+            async ({ call, endpoint, raw }) => {
+                mockFetch.mockResolvedValueOnce(mockOk(raw));
+                const result = await call(client);
+                expect(result).toEqual(raw);
+                expect(mismatches).toHaveLength(1);
+                expect(mismatches[0]).toMatchObject({ method: 'POST', endpoint, data: raw });
+                expect(mismatches[0]?.data).toBe(result);
+                expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
+                    `${BASE_CONFIG.baseUrl}/index.php?/api/v2/${endpoint}`,
+                    expect.objectContaining({ method: 'POST' }),
+                );
+            },
+        );
 
+        it.each(writes)(
+            '$name invalidates cached reads before propagating a hook error without replay',
+            async ({ call, endpoint, raw }) => {
+                const failure = new Error('strict response mismatch');
+                const hook = vi.fn(() => {
+                    throw failure;
+                });
+                const strict = new TestRailClient({ ...BASE_CONFIG, onSchemaMismatch: hook });
+                const refreshed = { ...MOCK_PROJECT, name: 'Refreshed project' };
+                mockFetch
+                    .mockResolvedValueOnce(mockOk(MOCK_PROJECT))
+                    .mockResolvedValueOnce(mockOk(raw))
+                    .mockResolvedValueOnce(mockOk(refreshed));
+                try {
+                    await strict.projects.getProject(1);
+                    await strict.projects.getProject(1);
+                    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+                    await expect(call(strict)).rejects.toBe(failure);
+                    expect(hook).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ method: 'POST', endpoint, data: raw }),
+                    );
+                    expect(mockFetch).toHaveBeenCalledTimes(2);
+                    await expect(strict.projects.getProject(1)).resolves.toEqual(refreshed);
+                    expect(mockFetch).toHaveBeenCalledTimes(3);
+                } finally {
+                    strict.destroy();
+                }
+            },
+        );
+
+        describe.each([
+            { mode: 'omitted', options: undefined },
+            { mode: 'false', options: { soft: false } },
+        ])('hard deletion with soft $mode', ({ options }) => {
+            it.each(deletes)(
+                '$name ignores a nonempty response without preview validation',
+                async ({ call, endpoint }) => {
+                    mockFetch.mockResolvedValueOnce(mockOk({ affected_cases: 'three' }));
+                    await expect(call(client, options)).resolves.toBeUndefined();
+                    expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
+                        `${BASE_CONFIG.baseUrl}/index.php?/api/v2/${endpoint}`,
+                        expect.objectContaining({ method: 'POST' }),
+                    );
+                    expect(mismatches).toHaveLength(0);
+                },
+            );
+        });
+    });
+
+    describe('inherited public parse compatibility', () => {
+        const schema = z.object({ count: z.number().default(1) });
+        const context = { method: 'POST', endpoint: 'custom_endpoint/7&soft=1' };
+
+        it('returns parsed output for a matching schema without a request', () => {
+            expect(client.parse<{ count: number }>(schema, {}, context)).toEqual({ count: 1 });
+            expect(mismatches).toHaveLength(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('returns raw data and forwards the supplied mismatch context without a request', () => {
+            const raw = { count: 'one', extra: true };
+            expect(client.parse<unknown>(schema, raw, context)).toBe(raw);
             expect(mismatches).toHaveLength(1);
-            expect(mismatches[0]?.method).toBe('POST');
-            expect(mismatches[0]?.endpoint).toContain('delete_case/7');
+            expect(mismatches[0]).toMatchObject({ ...context, data: raw });
+            expect(mismatches[0]?.data).toBe(raw);
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 

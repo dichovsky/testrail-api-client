@@ -7,7 +7,6 @@ import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import { serializeIdFilter } from '../utils.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
 import { withMultipartUpload } from '../upload-lifetime.js';
-import type { RequestBody } from '../http-pipeline-types.js';
 
 /** Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`. */
 export interface GetBddsOptions {
@@ -116,7 +115,12 @@ export class BddModule {
     async addBdd(sectionId: number, file: UploadFileInput, filename: string): Promise<Case> {
         return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
             validateId(sectionId, 'sectionId');
-            return this.uploadBdd(`add_bdd/${sectionId}`, body);
+            return this.client.request<Case>({
+                method: 'POST',
+                endpoint: `add_bdd/${sectionId}`,
+                body,
+                schema: CaseSchema,
+            });
         });
     }
 
@@ -127,19 +131,12 @@ export class BddModule {
     async updateBdd(caseId: number, file: UploadFileInput, filename: string): Promise<Case> {
         return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
             validateId(caseId, 'caseId');
-            return this.uploadBdd(`update_bdd/${caseId}`, body);
-        });
-    }
-
-    private async uploadBdd(endpoint: string, body: Extract<RequestBody, { kind: 'multipart' }>): Promise<Case> {
-        return this.client.parse<Case>(
-            CaseSchema,
-            await this.client.request<unknown>({
+            return this.client.request<Case>({
                 method: 'POST',
-                endpoint,
+                endpoint: `update_bdd/${caseId}`,
                 body,
-            }),
-            { method: 'POST', endpoint },
-        );
+                schema: CaseSchema,
+            });
+        });
     }
 }

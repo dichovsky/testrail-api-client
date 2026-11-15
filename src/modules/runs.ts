@@ -123,15 +123,15 @@ export class RunModule {
     async deleteRun(runId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteRun(runId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         validateId(runId, 'runId');
+        const soft = options?.soft === true;
         const endpoint = buildEndpoint(`delete_run/${runId}`, {
-            ...(options?.soft === true && { soft: 1 }),
+            ...(soft && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
-        if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
-                method: 'POST',
-                endpoint,
-            });
-        }
+        const result = await this.client.request<SoftDeletePreview>({
+            method: 'POST',
+            endpoint,
+            ...(soft && { schema: SoftDeletePreviewSchema }),
+        });
+        if (soft) return result;
     }
 }

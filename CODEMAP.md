@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "89982d1f0edd81fd4c894eec3f232fdaf55400b0e9a6aac8c6220d0f9cb67f23",
+  "sourceHash": "5d51a4a3817aafd26360930493872e2804a5344844b6e8725b214e66c58a612f",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -752,7 +752,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetAllBddsOptions",
       "kind": "interface",
       "file": "src/modules/bdd.ts",
-      "line": 32,
+      "line": 31,
       "signature": "export interface GetAllBddsOptions extends Omit<GetBddsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}",
       "typeOnly": true
     },
@@ -921,7 +921,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetBddsOptions",
       "kind": "interface",
       "file": "src/modules/bdd.ts",
-      "line": 13,
+      "line": 12,
       "signature": "export interface GetBddsOptions { suiteId?: number; sectionId?: number; labelId?: number | readonly number[]; refs?: string | readonly string[]; limit?: number; offset?: number; }",
       "jsdoc": "Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`.",
       "typeOnly": true
@@ -7929,7 +7929,6 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "path": "src/modules/bdd.ts",
       "imports": [
         "../client-core.js",
-        "../http-pipeline-types.js",
         "../pagination.js",
         "../schemas.js",
         "../types.js",
@@ -7943,70 +7942,65 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "GetBddsOptions",
           "kind": "interface",
-          "line": 13,
+          "line": 12,
           "exported": true,
           "signature": "export interface GetBddsOptions { suiteId?: number; sectionId?: number; labelId?: number | readonly number[]; refs?: string | readonly string[]; limit?: number; offset?: number; }"
         },
         {
           "name": "GetAllBddsOptions",
           "kind": "interface",
-          "line": 32,
+          "line": 31,
           "exported": true,
           "signature": "export interface GetAllBddsOptions extends Omit<GetBddsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}"
         },
         {
           "name": "BDDS_PAGINATION",
           "kind": "const",
-          "line": 34,
+          "line": 33,
           "exported": true,
           "signature": "export const BDDS_PAGINATION = createPaginatedListExecutor< { readonly projectId: number }, GetBddsOptions, GetAllBddsOptions, Bdd >({ operations: ['get_bdds'], collectionKey: 'bdd', itemSchema: BddSc…"
         },
         {
           "name": "BddModule",
           "kind": "class",
-          "line": 77,
+          "line": 76,
           "exported": true,
           "signature": "export class BddModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 78
+              "line": 77
             },
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 85
+              "line": 84
             },
             {
               "name": "getBdds",
               "kind": "method",
-              "line": 98
+              "line": 97
             },
             {
               "name": "getBddsPage",
               "kind": "method",
-              "line": 103
+              "line": 102
             },
             {
               "name": "getAllBdds",
               "kind": "method",
-              "line": 108
+              "line": 107
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 116
+              "line": 115
             },
             {
               "name": "updateBdd",
               "kind": "method",
-              "line": 127
-            },
-            {
-              "name": "uploadBdd",
-              "kind": "method",
-              "line": 134
+              "line": 131
             }
           ]
         }
@@ -8164,27 +8158,27 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 344
+              "line": 341
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 360
+              "line": 357
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 370
+              "line": 367
             },
             {
               "name": "getHistoryForCasePage",
               "kind": "method",
-              "line": 375
+              "line": 372
             },
             {
               "name": "getAllHistoryForCase",
               "kind": "method",
-              "line": 380
+              "line": 377
             }
           ]
         }
