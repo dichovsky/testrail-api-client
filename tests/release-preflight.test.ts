@@ -480,7 +480,7 @@ describe('CI package smoke wiring', () => {
     // cannot be masked, and branch protection still sees a stable check name.
     it('covers Node 26 on Linux, Windows, and macOS', () => {
         expect(workflow).toContain('package-smoke-matrix:');
-        expect(workflow).toContain('os: [ubuntu-latest, windows-latest, macos-14]');
+        expect(workflow).toContain('os: [ubuntu-latest, windows-latest, macos-latest]');
         expect(workflow).toContain("node-version: ['26']");
         expect(workflow).toContain('runs-on: ${{ matrix.os }}');
         // fail-fast would cancel sibling legs on the first failure, hiding

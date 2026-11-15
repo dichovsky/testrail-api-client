@@ -16,6 +16,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Node.js 26 is now the minimum supported runtime. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
 - CI now tests Node 26 on Linux, Windows, and macOS. Both publish jobs pin Node 26.13.1.
+- CI uses `macos-latest` because GitHub retired the `macos-14` runner image.
 
 ### Changed
 
