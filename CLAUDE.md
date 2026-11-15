@@ -37,7 +37,8 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `src/errors.ts`                                                      | API, validation, license, and pagination error classes, plus `handleZodError`                                                                                                      |
 | `src/body-reader.ts`                                                 | Streaming response-body reader with a byte limit (SEC #12) and a time limit (SEC #21)                                                                                              |
 | `src/operation-tracking.ts`                                          | `AsyncLocalStorage` operation scopes for `trackOperation`: resource tracking, scope binding, and settlement                                                                        |
-| `src/upload-source.ts`                                               | Multipart upload handler: path mapping, `openAsBlob`, FormData construction, stream ownership, and file descriptor cleanup                                                         |
+| `src/upload-lifetime.ts`                                             | Multipart ownership from SDK method entry, deferred body preparation, transport observation, and cleanup                                                                           |
+| `src/upload-source.ts`                                               | Upload source mechanics: path mapping, `openAsBlob`, FormData construction, stream ownership, and file descriptor cleanup                                                          |
 | `src/request-budget.ts`                                              | Wall-clock time budget for one call: deadline tracking, timeout clipping, retry delays, and HTTP 408 timeout errors                                                                |
 | `src/constants.ts`                                                   | Default values, limits, pagination bounds, transport bounds, and email validation patterns                                                                                         |
 | `src/config-validation.ts`                                           | `TestRailConfigSchema` validation adapter: URL and SSRF checks with consistent `TestRailValidationError` messages                                                                  |
@@ -179,9 +180,13 @@ The header timer stops after fetch returns. The body deadline is independent. Re
 
 **Lifecycle:** Active client instances register in `activeClients`. Calling `destroy()` stops the cache timer, clears cached entries, overwrites credentials in memory, and removes the client from `activeClients`. Process signal handlers (`exit`, `SIGINT`, `SIGTERM`) are disabled by default (`registerProcessHandlers: false`, SEC #8). The CLI enables `registerProcessHandlers: true` in `src/cli.ts`.
 
+**Upload ownership:** SDK upload methods accept supplied file descriptors before validation. They release descriptors even when IDs, request options, or client state are invalid. `src/upload-lifetime.ts` owns transport observation and cleanup; the core retains DNS, deadline, admission, and response policy. Nested SDK and request calls share one owner. Released sources cannot build again. Keep input objects unchanged and preserve the distinction between caller-visible completion and transport settlement.
+
 Enabled handlers destroy every active client. `SIGINT` exits with code 130; `SIGTERM` exits with code 143.
 Installed handlers persist for the process lifetime. Keep registration outside `runCli`, so in-process tests do not install permanent handlers.
 Library callers should call `destroy()` from their own shutdown hook.
+
+**Input ownership:** `CliRuntime.stdin` supplies the terminal status, synchronous text reader, and asynchronous binary reader. Upload handlers receive the binary input capability through `HandlerContext`. Only `src/cli.ts` can reference `process.stdin`. Bounded text reads require an explicit file descriptor. Binary reads require an explicit stream and retain their byte and time limits. Dry-run does not read binary stdin.
 
 **Output ownership:** `src/cli/output.ts` controls all CLI output. Only `src/cli.ts` can reference `process.stdout`, `process.stderr`, or `process.argv`. All other files must use the writers on `HandlerContext` (`out`, `outRaw`, `outPayload`, `err`, `errRaw`).
 

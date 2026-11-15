@@ -17,6 +17,9 @@
  *   harness comment; ARCH #13 removes those).
  * - Credentials come from AUTH_ENV so the real TestRailClient config-validation passes.
  */
+import type { BinaryInputStream, CliStdin } from '../src/cli/stdin.js';
+import { Readable } from 'node:stream';
+import { readStdinBinary } from '../src/cli/stdin.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { runCli as invokeCli } from '../src/cli/index.js';
 import { TestRailClient } from '../src/client.js';
@@ -32,6 +35,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MAX_STDIN_UPLOAD_BYTES, STDIN_READ_TIMEOUT_MS } from '../src/constants.js';
 
 // Kept as a guard rail rather than a necessity: the harness now calls `runCli`
 // directly with a `createClient` that does NOT opt into process signal
@@ -90,6 +94,93 @@ async function withStubbedStdin<T>(value: string, fn: () => Promise<T>): Promise
         stubbedStdin.value = orig;
     }
 }
+
+describe('injected stdin ownership', () => {
+    function startUpload(stdin: CliStdin, extraArgs: readonly string[] = []) {
+        const uploaded: unknown[] = [];
+        const stderr: string[] = [];
+        const result = invokeCli({
+            argv: ['attachment', 'add-to-case', '42', '--file', '-', ...extraArgs],
+            env: {
+                TESTRAIL_BASE_URL: 'https://example.testrail.io',
+                TESTRAIL_EMAIL: 'test@example.com',
+                TESTRAIL_API_KEY: 'test-api-key',
+            },
+            stdout: () => undefined,
+            stderr: (chunk) => void stderr.push(chunk),
+            stdoutIsTTY: false,
+            stdin,
+            createClient: (config) => {
+                const client = new TestRailClient({ ...config, allowPrivateHosts: true });
+                vi.spyOn(client.attachments, 'addAttachmentToCase').mockImplementation((_id, file) => {
+                    uploaded.push(file);
+                    return Promise.resolve({ attachment_id: 1 });
+                });
+                return client;
+            },
+            platform: process.platform,
+            lifetime: { onExit: () => undefined, offExit: () => undefined },
+        });
+        return { result, uploaded, stderr };
+    }
+
+    it('uses injected TTY state for an upload preview without reading stdin', async () => {
+        const read = vi.fn<(maxBytes: number) => string>();
+        const readBinary = vi.fn<(maxBytes: number, timeoutMs: number) => Promise<Uint8Array>>();
+        const invocation = startUpload({ isTTY: true, read, readBinary }, ['--dry-run']);
+
+        expect(await invocation.result).toBe(1);
+        expect(invocation.stderr.join('')).toContain('stdin to be piped');
+        expect(read).not.toHaveBeenCalled();
+        expect(readBinary).not.toHaveBeenCalled();
+        expect(invocation.uploaded).toEqual([]);
+    });
+
+    it.each([
+        { args: ['--dry-run'], exitCode: 0 },
+        { args: ['--api-key-stdin'], exitCode: 1 },
+        { args: ['--data', '{}'], exitCode: 1 },
+    ])('does not consume injected stdin for $args', async ({ args, exitCode }) => {
+        const read = vi.fn<CliStdin['read']>();
+        const readBinary = vi.fn<CliStdin['readBinary']>();
+        const invocation = startUpload({ isTTY: false, read, readBinary }, args);
+
+        expect(await invocation.result).toBe(exitCode);
+        expect(read).not.toHaveBeenCalled();
+        expect(readBinary).not.toHaveBeenCalled();
+        expect(invocation.uploaded).toEqual([]);
+    });
+
+    it('keeps overlapping uploads on their own injected binary inputs', async () => {
+        let releaseFirst: (bytes: Uint8Array) => void = () => {
+            throw new Error('Reader not started');
+        };
+        const firstBytes = new Uint8Array([1, 2, 3]);
+        const secondBytes = new Uint8Array([4, 5]);
+        const firstRead = vi.fn<(maxBytes: number, timeoutMs: number) => Promise<Uint8Array>>(
+            () =>
+                new Promise((resolve) => {
+                    releaseFirst = resolve;
+                }),
+        );
+        const secondRead = vi.fn<(maxBytes: number, timeoutMs: number) => Promise<Uint8Array>>(() =>
+            Promise.resolve(secondBytes),
+        );
+        const readText = vi.fn<(maxBytes: number) => string>();
+        const first = startUpload({ isTTY: false, read: readText, readBinary: firstRead });
+        const second = startUpload({ isTTY: false, read: readText, readBinary: secondRead });
+
+        expect(await second.result).toBe(0);
+        expect(second.uploaded).toEqual([secondBytes]);
+        expect(first.uploaded).toEqual([]);
+        releaseFirst(firstBytes);
+        expect(await first.result).toBe(0);
+        expect(first.uploaded).toEqual([firstBytes]);
+        expect(firstRead).toHaveBeenCalledExactlyOnceWith(MAX_STDIN_UPLOAD_BYTES, STDIN_READ_TIMEOUT_MS);
+        expect(secondRead).toHaveBeenCalledExactlyOnceWith(MAX_STDIN_UPLOAD_BYTES, STDIN_READ_TIMEOUT_MS);
+        expect(readText).not.toHaveBeenCalled();
+    });
+});
 
 // ── Shared mock data ──────────────────────────────────────────────────────────
 
@@ -234,6 +325,8 @@ afterEach(() => {
 
 // ── CLI runner ────────────────────────────────────────────────────────────────
 
+let inputStream: BinaryInputStream & { isTTY: boolean | undefined } = Object.assign(Readable.from([]), { isTTY: true });
+
 interface CliResult {
     stdout: string;
     stderr: string;
@@ -285,6 +378,7 @@ async function runCli(
     // binary ack each wrote straight to the terminal. `expect(stderr).toBe('')`
     // could not be trusted then; it can now, and
     // `tests/cli-output-ownership.test.ts` fails if that stops being true.
+    const selectedInput = inputStream;
     const exitCode = await invokeCli({
         argv,
         env: process.env,
@@ -295,13 +389,14 @@ async function runCli(
         // belongs, in the attachment handler's own suite.
         stdoutIsTTY: false,
         stdin: {
-            // The suite's fixture defaults `process.stdin.isTTY` to true (an
+            // The suite's fixture defaults `inputStream.isTTY` to true (an
             // interactive terminal) and individual tests override it to
             // simulate a pipe. `runCli` no longer reads it — the harness
             // translates that fixture into the runtime, so the existing tests
             // keep working and production keeps one canonical `=== true`.
-            isTTY: process.stdin.isTTY === true,
+            isTTY: selectedInput.isTTY === true,
             read: () => readStubbedStdin(),
+            readBinary: (maxBytes, timeoutMs) => readStdinBinary(selectedInput, maxBytes, timeoutMs),
         },
         // No `registerProcessHandlers`: a test run must not install
         // exit/SIGINT/SIGTERM listeners that can never be removed.
@@ -325,23 +420,18 @@ async function runCli(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-// Vitest workers leave process.stdin.isTTY === undefined (the same value a
-// real pipe produces). After fixing the isTTY guard to `!== true`, this
-// would register a readStdin thunk in bodyInput for every test, causing
-// "Multiple body sources" errors for tests that also pass --data. Default
-// every test to isTTY=true (simulate an interactive terminal); individual
-// tests that exercise the pipe path override to undefined explicitly.
+// Each invocation selects a local terminal or piped input fixture.
 let _savedIsTTY: boolean | undefined;
 
 describe('CLI', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        _savedIsTTY = process.stdin.isTTY;
-        process.stdin.isTTY = true;
+        _savedIsTTY = inputStream.isTTY;
+        inputStream.isTTY = true;
     });
 
     afterEach(() => {
-        (process.stdin as { isTTY?: boolean | undefined }).isTTY = _savedIsTTY;
+        inputStream.isTTY = _savedIsTTY;
     });
 
     describe.skipIf(process.platform === 'win32')('--diagnostic-file', () => {
@@ -739,8 +829,8 @@ describe('CLI', () => {
             // reject, and stub readBoundedStdin to return the test key
             // (trailing newline simulates `echo $KEY |` behaviour;
             // index.ts .trim()s it).
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = false;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = false;
             try {
                 const { exitCodes } = await withStubbedStdin('sk-from-stdin-test\n', () =>
                     runCli(
@@ -766,23 +856,23 @@ describe('CLI', () => {
                 const expectedAuth = `Basic ${Buffer.from('test@example.com:sk-from-stdin-test').toString('base64')}`;
                 expect(headers?.['Authorization']).toBe(expectedAuth);
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
-        it('--api-key-stdin accepts a real pipe (process.stdin.isTTY === undefined) and authenticates', async () => {
-            // Regression: Node sets process.stdin.isTTY to `true` for a TTY
+        it('--api-key-stdin accepts a real pipe (inputStream.isTTY === undefined) and authenticates', async () => {
+            // Regression: Node sets inputStream.isTTY to `true` for a TTY
             // and leaves it `undefined` for a pipe — it is NEVER `false`.
             // The happy-path test above manufactures isTTY=false (a value a
             // real `echo $KEY | testrail …` pipe never produces), so it
             // passed against the broken gate without guarding the documented
             // contract. This test pins the real pipe value (undefined): the
             // gate must accept it and authenticate with the piped key.
-            const origIsTTY = process.stdin.isTTY;
+            const origIsTTY = inputStream.isTTY;
             // @types/node declares isTTY as `boolean`, but Node leaves it
             // `undefined` for a pipe — the cast lets us pin that real value
             // under exactOptionalPropertyTypes.
-            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            inputStream.isTTY = undefined;
             try {
                 const { exitCodes } = await withStubbedStdin('sk-piped-key\n', () =>
                     runCli(
@@ -806,13 +896,13 @@ describe('CLI', () => {
                 const expectedAuth = `Basic ${Buffer.from('test@example.com:sk-piped-key').toString('base64')}`;
                 expect(headers?.['Authorization']).toBe(expectedAuth);
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
         it('--api-key-stdin rejects an empty stdin payload with exit 1', async () => {
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = false;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = false;
             try {
                 const { exitCodes, stderr } = await withStubbedStdin('   \n', () =>
                     runCli(
@@ -834,7 +924,7 @@ describe('CLI', () => {
                 expect(stderr).toMatch(/--api-key-stdin received an empty stdin input/);
                 expect(mockFetch).not.toHaveBeenCalled();
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
@@ -843,8 +933,8 @@ describe('CLI', () => {
             // directly to stderr bypassed --quiet. Verify the empty-stdin
             // rejection (the cheapest error path to trigger) honours
             // --quiet now that it routes through err().
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = false;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = false;
             try {
                 const { exitCodes, stderr } = await withStubbedStdin('', () =>
                     runCli(
@@ -866,15 +956,15 @@ describe('CLI', () => {
                 expect(exitCodes).toContain(1);
                 expect(stderr).toBe('');
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
         it('--api-key-stdin coerces a non-Error throw via String(e) (covers cond-expr:1 in catch)', async () => {
             // Exercises the `e instanceof Error ? e.message : String(e)` false
             // branch in the api-key-stdin catch (src/cli/index.ts:418).
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = false;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = false;
             stubbedStdin.throwNonError = true;
             try {
                 const { exitCodes, stderr } = await runCli(
@@ -896,7 +986,7 @@ describe('CLI', () => {
                 expect(stderr).toMatch(/non-error-string-failure/);
             } finally {
                 stubbedStdin.throwNonError = false;
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
@@ -905,8 +995,8 @@ describe('CLI', () => {
             // branch in the api-key-stdin catch (src/cli/index.ts:418). The
             // stub throws an Error when called without withStubbedStdin
             // setup, which gives us the exact "cannot read" path.
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = false;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = false;
             try {
                 const { exitCodes, stderr } = await runCli(
                     [
@@ -926,19 +1016,19 @@ describe('CLI', () => {
                 expect(stderr).toMatch(/cannot read --api-key-stdin/);
                 expect(stderr).toMatch(/not stubbed/);
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
         it('--api-key-stdin requires piped stdin (rejects when stdin is a TTY)', async () => {
-            // A real interactive terminal sets process.stdin.isTTY === true;
+            // A real interactive terminal sets inputStream.isTTY === true;
             // the gate must reject it because there's no way to read a
             // credential from a terminal-attached stdin without prompting
             // (and the CLI is non-interactive). A pipe leaves isTTY ===
             // undefined (what vitest workers also have), which the gate now
             // accepts — so this test pins isTTY = true to exercise rejection.
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = true;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = true;
             try {
                 const { exitCodes, stderr } = await runCli(
                     [
@@ -958,7 +1048,7 @@ describe('CLI', () => {
                 expect(stderr).toMatch(/--api-key-stdin requires the API key to be piped/);
                 expect(mockFetch).not.toHaveBeenCalled();
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
@@ -5459,19 +5549,19 @@ describe('CLI', () => {
         });
 
         it('reads JSON body from piped stdin (isTTY=undefined, the real pipe value)', async () => {
-            // Regression for #226: Node sets process.stdin.isTTY to `true` for a
+            // Regression for #226: Node sets inputStream.isTTY to `true` for a
             // TTY and leaves it `undefined` for a pipe — it is NEVER `false`. The
             // guard at index.ts must accept `undefined` and register the readStdin
             // thunk so resolveBody() picks up the piped JSON payload.
-            const origIsTTY = process.stdin.isTTY;
-            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = undefined;
             try {
                 const { exitCodes } = await withStubbedStdin('{"name":"Piped Run","include_all":true}', () =>
                     runCli(['run', 'add', '1'], [jsonResponse(MOCK_RUN)]),
                 );
                 expect(exitCodes).toContain(0);
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
@@ -5479,8 +5569,8 @@ describe('CLI', () => {
             // Regression for the HIGH-1 finding in PR #230 review: when isTTY=undefined
             // (CI/Docker/cron) and --data is explicitly provided, the CLI must use --data
             // and not attempt to also read stdin (which would cause "Multiple body sources").
-            const origIsTTY = process.stdin.isTTY;
-            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = undefined;
             try {
                 const { exitCodes } = await runCli(
                     ['run', 'add', '1', '--data', '{"name":"CI Run","include_all":true}'],
@@ -5488,7 +5578,7 @@ describe('CLI', () => {
                 );
                 expect(exitCodes).toContain(0);
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
     });
@@ -6968,10 +7058,9 @@ describe('CLI', () => {
         // ── PR3a: --file - (stdin binary upload) ─────────────────────────
 
         it('add-to-case --file - uploads bytes piped from stdin', async () => {
-            const ORIG_STDIN = process.stdin;
+            const ORIG_STDIN = inputStream;
             const stream = (await import('node:stream')).Readable.from(Buffer.from([1, 2, 3, 4]));
-            (stream as { isTTY?: boolean }).isTTY = false;
-            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            inputStream = Object.assign(stream, { isTTY: false });
             try {
                 const { exitCodes, stdout } = await runCli(
                     ['attachment', 'add-to-case', '42', '--file', '-', '--filename', 'piped.bin'],
@@ -6980,12 +7069,12 @@ describe('CLI', () => {
                 expect(exitCodes).toContain(0);
                 expect(stdout).toContain('999');
             } finally {
-                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+                inputStream = ORIG_STDIN;
             }
         });
 
         it('add-to-case --file - --dry-run does not consume stdin', async () => {
-            const ORIG_STDIN = process.stdin;
+            const ORIG_STDIN = inputStream;
             let chunksRead = 0;
             const { Readable } = await import('node:stream');
             const stream = new Readable({
@@ -6995,8 +7084,7 @@ describe('CLI', () => {
                     this.push(null);
                 },
             });
-            (stream as { isTTY?: boolean }).isTTY = false;
-            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            inputStream = Object.assign(stream, { isTTY: false });
             try {
                 const { exitCodes, stdout } = await runCli([
                     'attachment',
@@ -7011,19 +7099,19 @@ describe('CLI', () => {
                 expect(chunksRead).toBe(0);
                 expect(mockFetch).not.toHaveBeenCalled();
             } finally {
-                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+                inputStream = ORIG_STDIN;
             }
         });
 
         it('add-to-case --file - rejected when stdin is a TTY', async () => {
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = true;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = true;
             try {
                 const { exitCodes, stderr } = await runCli(['attachment', 'add-to-case', '42', '--file', '-']);
                 expect(exitCodes).toContain(1);
                 expect(stderr).toMatch(/stdin to be piped/);
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
@@ -7047,8 +7135,8 @@ describe('CLI', () => {
             // file-flag-is-stdin mutex check at src/cli/index.ts:518.
             // Both flags want fd 0; the gate refuses the combination
             // before any handler runs.
-            const origIsTTY = process.stdin.isTTY;
-            process.stdin.isTTY = false;
+            const origIsTTY = inputStream.isTTY;
+            inputStream.isTTY = false;
             try {
                 const result = await withStubbedStdin('fake-key', () =>
                     runCli(['attachment', 'add-to-case', '42', '--file', '-', '--api-key-stdin']),
@@ -7057,7 +7145,7 @@ describe('CLI', () => {
                 expect(result.stderr).toMatch(/cannot be combined with --api-key-stdin/);
                 expect(mockFetch).not.toHaveBeenCalled();
             } finally {
-                process.stdin.isTTY = origIsTTY;
+                inputStream.isTTY = origIsTTY;
             }
         });
 
@@ -7840,8 +7928,8 @@ describe('CLI', () => {
             const savedValue = stubbedStdin.value;
             const savedThrow = stubbedStdin.throwNonError;
             // A pipe, not a terminal, so the read is actually attempted.
-            const savedIsTTY = process.stdin.isTTY;
-            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            const savedIsTTY = inputStream.isTTY;
+            inputStream.isTTY = undefined;
             arrange();
             try {
                 const { stderr, exitCodes } = await runCli(['project', 'get', '1', '--api-key-stdin'], [], {
@@ -7855,7 +7943,7 @@ describe('CLI', () => {
             } finally {
                 stubbedStdin.value = savedValue;
                 stubbedStdin.throwNonError = savedThrow;
-                (process.stdin as { isTTY?: boolean | undefined }).isTTY = savedIsTTY;
+                inputStream.isTTY = savedIsTTY;
             }
         });
     });

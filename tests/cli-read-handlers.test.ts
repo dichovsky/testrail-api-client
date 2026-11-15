@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { handleSectionGet, handleSectionList } from '../src/cli/handlers/section.js';
-import { captureOutput, makeActionSpec } from './helpers.js';
+import { makeStdin, captureOutput, makeActionSpec } from './helpers.js';
 import { handleCaseList } from '../src/cli/handlers/case.js';
 import { handleTestGet, handleTestList } from '../src/cli/handlers/test.js';
 import { handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
@@ -279,6 +279,7 @@ function buildCtx(
             ...(overrides.withData !== undefined && { withData: overrides.withData }),
         },
         pagination: parseCliPagination(overrides),
+        stdin: makeStdin(),
         bodyInput: {},
         dryRun: false,
         force: false,

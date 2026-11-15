@@ -8,16 +8,19 @@
  * --filename override wins over basename).
  *
  * PR3a additions: `--file -` stdin sentinel. The resolver becomes async so
- * the stdin source can drain `process.stdin` under an `AbortController`
- * deadline. Tests stub `process.stdin` with a `Readable.from()` to feed
- * known bytes; the TTY check is exercised by toggling `process.stdin.isTTY`.
+ * the stdin source can drain `inputStream` under an `AbortController`
+ * deadline. Tests stub `inputStream` with a `Readable.from()` to feed
+ * known bytes; the TTY check is exercised by toggling `inputStream.isTTY`.
  */
+import type { BinaryInputStream } from '../src/cli/stdin.js';
+import { makeBinaryStdin } from './helpers.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
-import { resolveFile, readStdinBinary } from '../src/cli/file-input.js';
+import { resolveFile } from '../src/cli/file-input.js';
+import { readStdinBinary } from '../src/cli/stdin.js';
 
 // Mutable control for the post-open failure test: when `throwOnFstat` is true
 // the mocked fstatSync throws (modelling an fstat(2) failure — EIO/EACCES —
@@ -41,6 +44,8 @@ vi.mock('node:fs', async (importOriginal) => {
     };
 });
 
+let inputStream: BinaryInputStream & { isTTY: boolean | undefined } = Object.assign(Readable.from([]), { isTTY: true });
+
 describe('resolveFile', () => {
     let tmp: string;
 
@@ -53,19 +58,27 @@ describe('resolveFile', () => {
     });
 
     it('rejects missing --file flag', async () => {
-        const r = await resolveFile({}, { read: false });
+        const r = await resolveFile({}, { read: false }, makeBinaryStdin(inputStream, inputStream.isTTY === true));
         expect(r.ok).toBe(false);
         if (!r.ok) expect(r.error).toContain('--file <path> required');
     });
 
     it('rejects empty --file flag', async () => {
-        const r = await resolveFile({ fileFlag: '' }, { read: false });
+        const r = await resolveFile(
+            { fileFlag: '' },
+            { read: false },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(false);
         if (!r.ok) expect(r.error).toContain('--file <path> required');
     });
 
     it('rejects nonexistent path', async () => {
-        const r = await resolveFile({ fileFlag: join(tmp, 'missing.bin') }, { read: false });
+        const r = await resolveFile(
+            { fileFlag: join(tmp, 'missing.bin') },
+            { read: false },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(false);
         if (!r.ok) expect(r.error).toContain('Cannot stat --file');
     });
@@ -73,7 +86,11 @@ describe('resolveFile', () => {
     it('rejects a directory', async () => {
         const sub = join(tmp, 'sub');
         mkdirSync(sub);
-        const r = await resolveFile({ fileFlag: sub }, { read: false });
+        const r = await resolveFile(
+            { fileFlag: sub },
+            { read: false },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(false);
         if (!r.ok) expect(r.error).toContain('not a regular file');
     });
@@ -89,7 +106,11 @@ describe('resolveFile', () => {
             return;
         }
 
-        const r = await resolveFile({ fileFlag: sym }, { read: false });
+        const r = await resolveFile(
+            { fileFlag: sym },
+            { read: false },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(false);
         if (!r.ok) {
             expect(r.error).toContain('Cannot stat --file');
@@ -99,7 +120,11 @@ describe('resolveFile', () => {
     it('stat-only mode returns path/filename/size without contents (source=file)', async () => {
         const p = join(tmp, 'foo.png');
         writeFileSync(p, Buffer.from([1, 2, 3, 4, 5]));
-        const r = await resolveFile({ fileFlag: p }, { read: false });
+        const r = await resolveFile(
+            { fileFlag: p },
+            { read: false },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(true);
         if (r.ok) {
             expect(r.path).toBe(p);
@@ -118,7 +143,11 @@ describe('resolveFile', () => {
         const p = join(tmp, 'bar.bin');
         const bytes = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
         writeFileSync(p, bytes);
-        const r = await resolveFile({ fileFlag: p }, { read: true });
+        const r = await resolveFile(
+            { fileFlag: p },
+            { read: true },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(true);
         if (r.ok) {
             expect(r.path).toBe(p);
@@ -140,7 +169,11 @@ describe('resolveFile', () => {
         writeFileSync(p, Buffer.from([1, 2, 3]));
         fsControl.throwOnFstat = true;
         try {
-            const r = await resolveFile({ fileFlag: p }, { read: false });
+            const r = await resolveFile(
+                { fileFlag: p },
+                { read: false },
+                makeBinaryStdin(inputStream, inputStream.isTTY === true),
+            );
             expect(r.ok).toBe(false);
             if (!r.ok) expect(r.error).toContain('Cannot stat --file');
         } finally {
@@ -151,7 +184,11 @@ describe('resolveFile', () => {
     it('--filename overrides basename', async () => {
         const p = join(tmp, 'out.bin');
         writeFileSync(p, Buffer.from('x'));
-        const r = await resolveFile({ fileFlag: p, filenameFlag: 'crash-report.bin' }, { read: false });
+        const r = await resolveFile(
+            { fileFlag: p, filenameFlag: 'crash-report.bin' },
+            { read: false },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(true);
         if (r.ok) expect(r.filename).toBe('crash-report.bin');
     });
@@ -159,7 +196,11 @@ describe('resolveFile', () => {
     it('empty --filename falls back to basename', async () => {
         const p = join(tmp, 'kept.png');
         writeFileSync(p, Buffer.from('x'));
-        const r = await resolveFile({ fileFlag: p, filenameFlag: '' }, { read: false });
+        const r = await resolveFile(
+            { fileFlag: p, filenameFlag: '' },
+            { read: false },
+            makeBinaryStdin(inputStream, inputStream.isTTY === true),
+        );
         expect(r.ok).toBe(true);
         if (r.ok) expect(r.filename).toBe('kept.png');
     });
@@ -167,40 +208,38 @@ describe('resolveFile', () => {
     // ── --file '-' (stdin) ────────────────────────────────────────────────
 
     describe("--file '-' (stdin)", () => {
-        const ORIG_STDIN = process.stdin;
-        const ORIG_IS_TTY = process.stdin.isTTY;
+        const ORIG_STDIN = inputStream;
+        const ORIG_IS_TTY = inputStream.isTTY;
 
         afterEach(() => {
-            // Restore real stdin after each test. Object.defineProperty so we
-            // can replace the read-only `process.stdin` for the test window.
-            Object.defineProperty(process, 'stdin', {
-                value: ORIG_STDIN,
-                configurable: true,
-                writable: false,
-            });
-            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+            // Restore the local input fixture after each test.
+            inputStream = ORIG_STDIN;
+            inputStream.isTTY = ORIG_IS_TTY;
         });
 
         function stubStdin(bytes: Uint8Array | string): void {
             const readable = Readable.from(typeof bytes === 'string' ? Buffer.from(bytes) : Buffer.from(bytes));
-            (readable as { isTTY?: boolean }).isTTY = false;
-            Object.defineProperty(process, 'stdin', {
-                value: readable,
-                configurable: true,
-                writable: false,
-            });
+            inputStream = Object.assign(readable, { isTTY: false });
         }
 
         it('rejects stdin when isTTY=true', async () => {
-            (process.stdin as { isTTY?: boolean }).isTTY = true;
-            const r = await resolveFile({ fileFlag: '-' }, { read: true });
+            inputStream.isTTY = true;
+            const r = await resolveFile(
+                { fileFlag: '-' },
+                { read: true },
+                makeBinaryStdin(inputStream, inputStream.isTTY === true),
+            );
             expect(r.ok).toBe(false);
             if (!r.ok) expect(r.error).toContain('stdin to be piped');
         });
 
         it('stat-only (dry-run) returns size 0 without draining stdin', async () => {
             stubStdin('should-not-be-read');
-            const r = await resolveFile({ fileFlag: '-' }, { read: false });
+            const r = await resolveFile(
+                { fileFlag: '-' },
+                { read: false },
+                makeBinaryStdin(inputStream, inputStream.isTTY === true),
+            );
             expect(r.ok).toBe(true);
             if (r.ok) {
                 expect(r.path).toBe('<stdin>');
@@ -214,7 +253,11 @@ describe('resolveFile', () => {
         it('read mode drains stdin and returns matching Uint8Array', async () => {
             const payload = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
             stubStdin(payload);
-            const r = await resolveFile({ fileFlag: '-' }, { read: true });
+            const r = await resolveFile(
+                { fileFlag: '-' },
+                { read: true },
+                makeBinaryStdin(inputStream, inputStream.isTTY === true),
+            );
             expect(r.ok).toBe(true);
             if (r.ok && r.contents !== undefined) {
                 expect(r.path).toBe('<stdin>');
@@ -229,7 +272,11 @@ describe('resolveFile', () => {
 
         it('--filename overrides default stdin filename', async () => {
             stubStdin('x');
-            const r = await resolveFile({ fileFlag: '-', filenameFlag: 'crash.png' }, { read: true });
+            const r = await resolveFile(
+                { fileFlag: '-', filenameFlag: 'crash.png' },
+                { read: true },
+                makeBinaryStdin(inputStream, inputStream.isTTY === true),
+            );
             expect(r.ok).toBe(true);
             if (r.ok) expect(r.filename).toBe('crash.png');
         });
@@ -240,7 +287,7 @@ describe('resolveFile', () => {
             const tinyCap = 4;
             const tooBig = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
             stubStdin(tooBig);
-            await expect(readStdinBinary(tinyCap, 5000)).rejects.toThrow(/exceeds maximum/);
+            await expect(readStdinBinary(inputStream, tinyCap, 5000)).rejects.toThrow(/exceeds maximum/);
         });
 
         it('rejects when stdin does not close before the wall-clock deadline', async () => {
@@ -252,13 +299,8 @@ describe('resolveFile', () => {
                     /* never push, never end */
                 },
             });
-            (stalled as { isTTY?: boolean }).isTTY = false;
-            Object.defineProperty(process, 'stdin', {
-                value: stalled,
-                configurable: true,
-                writable: false,
-            });
-            await expect(readStdinBinary(1024, 50)).rejects.toThrow(/timed out/);
+            inputStream = Object.assign(stalled, { isTTY: false });
+            await expect(readStdinBinary(inputStream, 1024, 50)).rejects.toThrow(/timed out/);
         });
 
         it('converts non-Buffer chunks (string/ArrayBuffer) into Buffer', async () => {
@@ -266,13 +308,8 @@ describe('resolveFile', () => {
             // chunks. The reader normalizes both into Buffer before summing
             // byte lengths.
             const stream = Readable.from(['ab', 'cd']);
-            (stream as { isTTY?: boolean }).isTTY = false;
-            Object.defineProperty(process, 'stdin', {
-                value: stream,
-                configurable: true,
-                writable: false,
-            });
-            const bytes = await readStdinBinary(1024, 5000);
+            inputStream = Object.assign(stream, { isTTY: false });
+            const bytes = await readStdinBinary(inputStream, 1024, 5000);
             expect(bytes.byteLength).toBe(4);
             expect(Buffer.from(bytes).toString('utf-8')).toBe('abcd');
         });
@@ -291,14 +328,10 @@ describe('resolveFile', () => {
                     yield arr2;
                 },
             };
-            // Stub process.stdin directly with the hand-rolled async iterable
+            // Stub inputStream directly with the hand-rolled async iterable
             // so the for-await loop in readStdinBinary sees the raw values.
-            Object.defineProperty(process, 'stdin', {
-                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
-                configurable: true,
-                writable: false,
-            });
-            const bytes = await readStdinBinary(1024, 5000);
+            inputStream = { ...iterable, isTTY: false, destroy: (): void => undefined };
+            const bytes = await readStdinBinary(inputStream, 1024, 5000);
             expect(bytes.byteLength).toBe(5);
             expect(Array.from(bytes)).toEqual([1, 2, 3, 4, 5]);
         });
@@ -312,29 +345,19 @@ describe('resolveFile', () => {
                     yield 42; // String(42) === '42' → 2 bytes
                 },
             };
-            Object.defineProperty(process, 'stdin', {
-                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
-                configurable: true,
-                writable: false,
-            });
-            const bytes = await readStdinBinary(1024, 5000);
+            inputStream = { ...iterable, isTTY: false, destroy: (): void => undefined };
+            const bytes = await readStdinBinary(inputStream, 1024, 5000);
             expect(Buffer.from(bytes).toString('utf-8')).toBe('42');
         });
     });
 
     describe('resolveFile stdin error coercion', () => {
-        // Restore real stdin after each test — Vitest can execute multiple
-        // test files in the same worker process, so a mutated process.stdin
-        // would leak into later tests and cause hard-to-debug flakiness.
-        const ORIG_STDIN = process.stdin;
-        const ORIG_IS_TTY = process.stdin.isTTY;
+        // Restore the input fixture so each case supplies its own stream.
+        const ORIG_STDIN = inputStream;
+        const ORIG_IS_TTY = inputStream.isTTY;
         afterEach(() => {
-            Object.defineProperty(process, 'stdin', {
-                value: ORIG_STDIN,
-                configurable: true,
-                writable: false,
-            });
-            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+            inputStream = ORIG_STDIN;
+            inputStream.isTTY = ORIG_IS_TTY;
         });
 
         it('surfaces an Error thrown by stdin reading as structured ok:false (Error branch at line 169)', async () => {
@@ -351,29 +374,25 @@ describe('resolveFile', () => {
                     };
                 },
             };
-            Object.defineProperty(process, 'stdin', {
-                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
-                configurable: true,
-                writable: false,
-            });
-            const r = await resolveFile({ fileFlag: '-' }, { read: true });
+            inputStream = { ...iterable, isTTY: false, destroy: (): void => undefined };
+            const r = await resolveFile(
+                { fileFlag: '-' },
+                { read: true },
+                makeBinaryStdin(inputStream, inputStream.isTTY === true),
+            );
             expect(r.ok).toBe(false);
             if (!r.ok) expect(r.error).toContain('mid-iteration Error');
         });
     });
 
     describe('readStdinBinary error coercion', () => {
-        // Restore real stdin after each test (same reasoning as the
+        // Restore the input fixture after each test (as in the
         // `resolveFile stdin error coercion` block above).
-        const ORIG_STDIN = process.stdin;
-        const ORIG_IS_TTY = process.stdin.isTTY;
+        const ORIG_STDIN = inputStream;
+        const ORIG_IS_TTY = inputStream.isTTY;
         afterEach(() => {
-            Object.defineProperty(process, 'stdin', {
-                value: ORIG_STDIN,
-                configurable: true,
-                writable: false,
-            });
-            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+            inputStream = ORIG_STDIN;
+            inputStream.isTTY = ORIG_IS_TTY;
         });
 
         it('wraps a non-Error thrown inside the for-await loop into an Error (covers cond-expr:1)', async () => {
@@ -388,26 +407,18 @@ describe('resolveFile', () => {
                     throw nonError;
                 },
             };
-            Object.defineProperty(process, 'stdin', {
-                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
-                configurable: true,
-                writable: false,
-            });
-            await expect(readStdinBinary(1024, 5000)).rejects.toThrow(/plain-string-inner-failure/);
+            inputStream = { ...iterable, isTTY: false, destroy: (): void => undefined };
+            await expect(readStdinBinary(inputStream, 1024, 5000)).rejects.toThrow(/plain-string-inner-failure/);
         });
     });
 
     describe('readStdinBinary timeout-after-clean-EOF', () => {
-        const ORIG_STDIN = process.stdin;
-        const ORIG_IS_TTY = process.stdin.isTTY;
+        const ORIG_STDIN = inputStream;
+        const ORIG_IS_TTY = inputStream.isTTY;
         afterEach(() => {
             vi.useRealTimers();
-            Object.defineProperty(process, 'stdin', {
-                value: ORIG_STDIN,
-                configurable: true,
-                writable: false,
-            });
-            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+            inputStream = ORIG_STDIN;
+            inputStream.isTTY = ORIG_IS_TTY;
         });
 
         it('throws the post-loop timeout when the timer fires but the stream EOFs cleanly (line 254 true arm)', async () => {
@@ -442,13 +453,9 @@ describe('resolveFile', () => {
                     };
                 },
             };
-            Object.defineProperty(process, 'stdin', {
-                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
-                configurable: true,
-                writable: false,
-            });
+            inputStream = { ...iterable, isTTY: false, destroy: (): void => undefined };
 
-            await expect(readStdinBinary(1024, 50)).rejects.toThrow(/timed out after 50ms/);
+            await expect(readStdinBinary(inputStream, 1024, 50)).rejects.toThrow(/timed out after 50ms/);
         });
     });
 
@@ -459,13 +466,8 @@ describe('resolveFile', () => {
         it('clears its timer on the happy-path EOF', async () => {
             const spy = vi.spyOn(globalThis, 'clearTimeout');
             const stream = Readable.from(Buffer.from('ok'));
-            (stream as { isTTY?: boolean }).isTTY = false;
-            Object.defineProperty(process, 'stdin', {
-                value: stream,
-                configurable: true,
-                writable: false,
-            });
-            await readStdinBinary(1024, 5000);
+            inputStream = Object.assign(stream, { isTTY: false });
+            await readStdinBinary(inputStream, 1024, 5000);
             expect(spy).toHaveBeenCalled();
             spy.mockRestore();
         });

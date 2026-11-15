@@ -30,7 +30,7 @@ import {
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
-import { USER_EMAIL_SHAPE_CASES, captureOutput, makeActionSpec } from './helpers.js';
+import { makeStdin, USER_EMAIL_SHAPE_CASES, captureOutput, makeActionSpec } from './helpers.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import {
     handleResultAdd,
@@ -352,6 +352,7 @@ function buildCtx(
             ...(overrides.soft === true && { soft: true }),
         },
         pagination: { mode: 'items' },
+        stdin: makeStdin(),
         bodyInput: overrides.dataFlag !== undefined ? { dataFlag: overrides.dataFlag } : {},
         dryRun: overrides.dryRun ?? false,
         force: false,

@@ -26,6 +26,7 @@ export async function setupUpload(
             ...(ctx.args.filename !== undefined && { filenameFlag: ctx.args.filename }),
         },
         { read: !ctx.dryRun },
+        ctx.stdin,
     );
     if (!resolved.ok) throw new Error(resolved.error);
 

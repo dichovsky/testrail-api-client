@@ -309,14 +309,15 @@ export interface UploadFilePathInput {
      * between your open and our read cannot redirect it. Elsewhere there is no
      * such mapping and `path` is used directly.
      *
-     * **The descriptor is consumed by the upload.** On POSIX it stays open
-     * until the request body has been read, then the client closes it; on other
-     * platforms it is closed as soon as the upload starts, since the path is
-     * used directly. Either way, do not close or reuse it yourself, and do not
-     * reuse one descriptor for a second upload — pass a freshly opened one.
+     * **The upload takes ownership when its SDK method is called.** This
+     * includes failures from invalid IDs, invalid request options, or a
+     * destroyed client. The client releases the descriptor on these failures.
+     * On POSIX it stays open while the upload needs it. Other platforms close
+     * it when preparing the upload, because they use the path directly.
+     * Do not close or reuse it yourself. Open a separate descriptor for each upload.
      *
-     * `src/upload-source.ts` owns this lifetime end to end; see it for why the
-     * close is deferred and why a rebuild is refused.
+     * A timeout can arrive before transport work settles. Use
+     * `trackOperation().settled` when you must wait for all associated cleanup.
      *
      * Union contains `| undefined` to remain compatible with TS exactOptionalPropertyTypes.
      */

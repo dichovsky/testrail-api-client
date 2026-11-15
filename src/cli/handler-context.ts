@@ -3,6 +3,7 @@ import type { CliHandlerArgs } from './flags.js';
 import type { ActionSpec } from './metadata/types.js';
 import type { Output } from './output.js';
 import type { CliPaginationParsed } from './pagination.js';
+import type { CliStdin } from './stdin.js';
 
 /** Parsed CLI argument bundle passed to every handler. */
 export type HandlerArgs = CliHandlerArgs;
@@ -27,6 +28,7 @@ export interface HandlerContext {
     args: HandlerArgs;
     pagination: CliPaginationParsed;
     bodyInput: BodyInput;
+    stdin: CliStdin;
     dryRun: boolean;
     /** True when `--force` permits overwriting an existing output file. */
     force: boolean;

@@ -2,6 +2,7 @@ import { TestRailClient } from '../src/client.js';
 import type { ActionSpec } from '../src/cli/metadata/types.js';
 import { createOutput, type Output, type OutputFormat } from '../src/cli/output.js';
 import type { TestRailConfig } from '../src/types.js';
+import { readStdinBinary, type BinaryInputStream, type CliStdin } from '../src/cli/stdin.js';
 
 /**
  * A complete `ActionSpec` for a handler test.
@@ -198,3 +199,22 @@ export const USER_EMAIL_SHAPE_CASES = {
         ['two @', 'ada@corp@example.com'],
     ],
 } as const;
+
+/** An explicit input adapter; unexpected consumption fails the test. */
+export function makeStdin(overrides: Partial<CliStdin> = {}): CliStdin {
+    return {
+        isTTY: true,
+        read: () => {
+            throw new Error('Unexpected text stdin read');
+        },
+        readBinary: () => {
+            throw new Error('Unexpected binary stdin read');
+        },
+        ...overrides,
+    };
+}
+
+/** Exercise bounded binary reads against a supplied stream without process mutation. */
+export function makeBinaryStdin(stream: BinaryInputStream, isTTY = false): CliStdin {
+    return makeStdin({ isTTY, readBinary: (maxBytes, timeoutMs) => readStdinBinary(stream, maxBytes, timeoutMs) });
+}

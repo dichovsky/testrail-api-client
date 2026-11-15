@@ -6,6 +6,8 @@ import { validateId } from '../validation.js';
 import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import { serializeIdFilter } from '../utils.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
+import { withMultipartUpload } from '../upload-lifetime.js';
+import type { RequestBody } from '../http-pipeline-types.js';
 
 /** Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`. */
 export interface GetBddsOptions {
@@ -112,8 +114,10 @@ export class BddModule {
      * @testrail POST add_bdd/{section_id}
      */
     async addBdd(sectionId: number, file: UploadFileInput, filename: string): Promise<Case> {
-        validateId(sectionId, 'sectionId');
-        return this.uploadBdd(`add_bdd/${sectionId}`, file, filename);
+        return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
+            validateId(sectionId, 'sectionId');
+            return this.uploadBdd(`add_bdd/${sectionId}`, body);
+        });
     }
 
     /**
@@ -121,17 +125,19 @@ export class BddModule {
      * @testrail POST update_bdd/{case_id}
      */
     async updateBdd(caseId: number, file: UploadFileInput, filename: string): Promise<Case> {
-        validateId(caseId, 'caseId');
-        return this.uploadBdd(`update_bdd/${caseId}`, file, filename);
+        return withMultipartUpload({ kind: 'multipart', file, filename }, (body) => {
+            validateId(caseId, 'caseId');
+            return this.uploadBdd(`update_bdd/${caseId}`, body);
+        });
     }
 
-    private async uploadBdd(endpoint: string, file: UploadFileInput, filename: string): Promise<Case> {
+    private async uploadBdd(endpoint: string, body: Extract<RequestBody, { kind: 'multipart' }>): Promise<Case> {
         return this.client.parse<Case>(
             CaseSchema,
             await this.client.request<unknown>({
                 method: 'POST',
                 endpoint,
-                body: { kind: 'multipart', file, filename },
+                body,
             }),
             { method: 'POST', endpoint },
         );

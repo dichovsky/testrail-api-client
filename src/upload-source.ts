@@ -1,7 +1,6 @@
 import { openAsBlob, closeSync } from 'node:fs';
 import { MULTIPART_FIELD_NAME } from './constants.js';
 import { bindOperation, observeOperation } from './operation-tracking.js';
-import type { BodyShape } from './http-pipeline-types.js';
 import type { UploadFileInput, UploadFilePathInput } from './types.js';
 
 /**
@@ -17,11 +16,10 @@ import type { UploadFileInput, UploadFilePathInput } from './types.js';
  * the kernel and closed now lives here, and the field name is internal because
  * the same module appends and wraps it.
  *
- * A source that is never built still holds the caller's descriptor, so the
- * shape exposes `release()` for the pipeline to call when a request fails
- * before reaching `build()` — a destroyed client, a rejected host, an
- * already-spent budget. It is the same idempotent release `cleanup` uses, so
- * calling both is harmless.
+ * `src/upload-lifetime.ts` accepts the descriptor before input validation and
+ * owns this source through response decoding. It releases an unbuilt source
+ * after any earlier failure. Release is terminal: the source cannot reopen the
+ * original path after giving up its descriptor.
  */
 
 /** Reason surfaced to the encoder when cleanup tears a stream down mid-upload. */
@@ -164,11 +162,19 @@ export function ownUploadStreams(formData: globalThis.FormData): (transportAbort
  * guarantees by construction rather than by convention), so this is the
  * constraint made explicit, not a live bug.
  */
-export function createUploadSource(file: UploadFileInput, filename: string): Extract<BodyShape, { kind: 'formdata' }> {
+export function createUploadSource(
+    file: UploadFileInput,
+    filename: string,
+): {
+    readonly kind: 'formdata';
+    readonly build: () => Promise<{ body: globalThis.FormData; cleanup: (transportAborted?: boolean) => void }>;
+    readonly release: () => void;
+} {
     // Track the caller-supplied fd locally so we never mutate the input
     // descriptor (SEC #30 — immutability).
     let fd: number | undefined = isFilePathInput(file) ? file.fd : undefined;
     let built = false;
+    let released = false;
 
     /**
      * The single close site. Idempotent: clearing `fd` first means a double
@@ -202,11 +208,14 @@ export function createUploadSource(file: UploadFileInput, filename: string): Ext
 
     return {
         kind: 'formdata',
-        release: releaseDescriptor,
+        release: () => {
+            released = true;
+            releaseDescriptor();
+        },
         build: async () => {
-            if (built) {
+            if (built || released) {
                 throw new Error(
-                    'Upload source already consumed: the descriptor was released after the first build. ' +
+                    'Upload source already consumed or released. ' +
                         'Create a new upload source rather than rebuilding this one.',
                 );
             }
@@ -247,9 +256,8 @@ export function createUploadSource(file: UploadFileInput, filename: string): Ext
 
                 return {
                     body: formData,
-                    // Runs from executePipeline's `finally`, i.e. after the body
-                    // has been consumed (or the request failed) — the earliest
-                    // point the descriptor is genuinely redundant.
+                    // The multipart lifetime calls this after response decoding
+                    // or failure, once transport shutdown has been requested.
                     //
                     // Order matters: tear the streams down first so any in-flight
                     // read aborts against a still-valid descriptor, then release

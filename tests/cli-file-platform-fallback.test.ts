@@ -1,3 +1,4 @@
+import { makeStdin } from './helpers.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     closeSync,
@@ -50,7 +51,7 @@ describe('file operations without optional POSIX open flags', () => {
     it.each([false, true])('preserves upload descriptor ownership when read is %s', async (read) => {
         const path = join(directory, 'upload.bin');
         writeFileSync(path, 'file bytes');
-        const result = await resolveFile({ fileFlag: path }, { read });
+        const result = await resolveFile({ fileFlag: path }, { read }, makeStdin());
         expect(result.ok).toBe(true);
         if (!result.ok) throw new Error(result.error);
         expect(result.size).toBe(10);

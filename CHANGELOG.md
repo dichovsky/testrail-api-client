@@ -14,12 +14,15 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed — BREAKING
 
+- SDK upload methods now consume supplied file descriptors even when ID validation, request validation, or a destroyed client rejects the call. Callers must not close or reuse these descriptors after calling an upload method.
 - Node.js 26 is now the minimum supported runtime. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
 - CI now tests Node 26 on Linux, Windows, and macOS. Both publish jobs pin Node 26.13.1.
 - CI uses `macos-latest` because GitHub retired the `macos-14` runner image.
 
 ### Changed
 
+- CLI text and binary stdin now use explicit runtime readers. Binary limits, timeouts, and dry-run behavior remain unchanged.
+- Multipart uploads now have one owner for transport observation and cleanup. Released upload sources cannot reopen their original paths.
 - Updated Zod to `^4.6.7`. Zod remains the only runtime dependency.
 - Updated `@types/node` to `^26.6.6` and both TypeScript ESLint packages to `^8.72.2`.
 - Updated Vitest and its V8 coverage provider to `^5.1.0`, ESLint to `^10.15.0`, and `lockfile-lint` to `^5.1.0`.

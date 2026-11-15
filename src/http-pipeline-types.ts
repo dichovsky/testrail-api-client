@@ -1,5 +1,3 @@
-/* global FormData */
-
 import type { ZodType } from 'zod';
 import type { UploadFileInput } from './types.js';
 import type { RequestBudget } from './request-budget.js';
@@ -23,23 +21,12 @@ export interface RetryPolicy {
  *
  * - `none`     — no body (GET, DELETE with no payload)
  * - `json`     — `JSON.stringify(data)` with `Content-Type: application/json`
- * - `formdata` — async builder returns `{ body, cleanup }`; caller owns cleanup
+ * - `multipart` — input owned by the surrounding multipart lifetime
  */
 export type BodyShape =
     | { readonly kind: 'none' }
     | { readonly kind: 'json'; readonly data: unknown }
-    | {
-          readonly kind: 'formdata';
-          readonly build: () => Promise<{ body: FormData; cleanup: (transportAborted?: boolean) => void }>;
-          /**
-           * Idempotently release any resource the source holds without having
-           * built. The pipeline calls this when a request fails before reaching
-           * `build()` — a destroyed client, a rejected host, an already-spent
-           * budget — because `cleanup` was never handed out on those paths and
-           * the caller's file descriptor would otherwise leak.
-           */
-          readonly release: () => void;
-      };
+    | Extract<RequestBody, { kind: 'multipart' }>;
 
 /**
  * Full spec for one pipeline execution. The public `request<T>(spec)` method

@@ -5,7 +5,7 @@ import {
     handleAttachmentListForRun,
 } from '../src/cli/handlers/attachment.js';
 import { handleCaseHistory, handleCaseList } from '../src/cli/handlers/case.js';
-import { captureOutput } from './helpers.js';
+import { makeStdin, captureOutput } from './helpers.js';
 import { handleResultList, handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { handleTestList } from '../src/cli/handlers/test.js';
 import type { RawCliPaginationArgs } from '../src/cli/flags.js';
@@ -47,6 +47,7 @@ function context(client: object, fixture: InvocationFixture): { ctx: HandlerCont
             client,
             args: { pathParams, ...args },
             pagination: parseCliPagination(paginationArgs),
+            stdin: makeStdin(),
             bodyInput: {},
             dryRun: false,
             force: false,

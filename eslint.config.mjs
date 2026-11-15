@@ -157,6 +157,12 @@ export default [
                 },
                 {
                     object: 'process',
+                    property: 'stdin',
+                    message:
+                        'Take stdin from CliRuntime or HandlerContext. Only src/cli.ts may select the process input.',
+                },
+                {
+                    object: 'process',
                     property: 'argv',
                     message:
                         'Take argv from CliRuntime.argv. Reading process.argv inside a handler ignores the argv runCli was actually handed — see ARCH #13.',

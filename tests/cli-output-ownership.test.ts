@@ -18,6 +18,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runCli } from '../src/cli/index.js';
 import { TestRailClient } from '../src/client.js';
+import { makeStdin } from './helpers.js';
 
 // No real DNS: validatePublicHost() would otherwise make a live lookup.
 vi.mock('node:dns/promises', () => ({
@@ -74,7 +75,7 @@ async function invoke(argv: readonly string[]): Promise<Invocation> {
         stderr: (chunk) => void stderr.push(chunk),
         // A pipe, not a terminal: `--out -` writes bytes without the TTY warning.
         stdoutIsTTY: false,
-        stdin: { isTTY: true, read: () => '' },
+        stdin: makeStdin(),
         createClient: (config) => new TestRailClient(config),
         platform: process.platform,
         lifetime: { onExit: () => undefined, offExit: () => undefined },

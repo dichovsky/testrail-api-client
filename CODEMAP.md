@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "8316f1dfeb6a879683aac3ef15a0d4c87345264b7ff84b751b762216c510dbcb",
+  "sourceHash": "89982d1f0edd81fd4c894eec3f232fdaf55400b0e9a6aac8c6220d0f9cb67f23",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -400,7 +400,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Attachment",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 648,
+      "line": 649,
       "signature": "export type Attachment = KnownResponse<typeof AttachmentSchema>",
       "jsdoc": "An attachment metadata record returned by attachment list and upload endpoints.",
       "typeOnly": true
@@ -432,7 +432,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Case",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 328,
+      "line": 329,
       "signature": "export type Case = ResponseWithCustomFields<typeof CaseSchema>",
       "typeOnly": true
     },
@@ -440,7 +440,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseField",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 477,
+      "line": 478,
       "signature": "export type CaseField = KnownResponse<typeof CaseFieldSchema>",
       "jsdoc": "Custom case field definition returned by get_case_fields.",
       "typeOnly": true
@@ -449,7 +449,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseFieldConfig",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 474,
+      "line": 475,
       "signature": "export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>",
       "jsdoc": "Context/options configuration block shared by CaseField entries.",
       "typeOnly": true
@@ -479,7 +479,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseStatus",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 357,
+      "line": 358,
       "signature": "export type CaseStatus = KnownResponse<typeof CaseStatusSchema>",
       "typeOnly": true
     },
@@ -509,7 +509,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseType",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 480,
+      "line": 481,
       "signature": "export type CaseType = KnownResponse<typeof CaseTypeSchema>",
       "jsdoc": "Case type definition returned by get_case_types.",
       "typeOnly": true
@@ -525,7 +525,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Configuration",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 490,
+      "line": 491,
       "signature": "export type Configuration = KnownResponse<typeof ConfigurationSchema>",
       "jsdoc": "An individual configuration (e.g. \"Windows 10\", \"Chrome\") within a group.",
       "typeOnly": true
@@ -534,7 +534,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ConfigurationGroup",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 493,
+      "line": 494,
       "signature": "export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>",
       "jsdoc": "A configuration group (e.g. \"Operating Systems\", \"Browsers\").",
       "typeOnly": true
@@ -572,7 +572,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CrossProjectReport",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 688,
+      "line": 689,
       "signature": "export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>",
       "jsdoc": "Enterprise report template spanning multiple projects.",
       "typeOnly": true
@@ -744,7 +744,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetAllAttachmentsOptions",
       "kind": "type",
       "file": "src/modules/attachments.ts",
-      "line": 21,
+      "line": 22,
       "signature": "export type GetAllAttachmentsOptions = PaginatedRequestOptions",
       "typeOnly": true
     },
@@ -752,7 +752,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetAllBddsOptions",
       "kind": "interface",
       "file": "src/modules/bdd.ts",
-      "line": 30,
+      "line": 32,
       "signature": "export interface GetAllBddsOptions extends Omit<GetBddsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}",
       "typeOnly": true
     },
@@ -912,7 +912,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetAttachmentsOptions",
       "kind": "interface",
       "file": "src/modules/attachments.ts",
-      "line": 14,
+      "line": 15,
       "signature": "export interface GetAttachmentsOptions { limit?: number; offset?: number; }",
       "jsdoc": "Optional pagination params. TestRail documents them for case-, run-, and plan-scoped attachment lists. The test-scoped method retains its historical support for these options even though current upstream docs omit them.",
       "typeOnly": true
@@ -921,7 +921,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetBddsOptions",
       "kind": "interface",
       "file": "src/modules/bdd.ts",
-      "line": 11,
+      "line": 13,
       "signature": "export interface GetBddsOptions { suiteId?: number; sectionId?: number; labelId?: number | readonly number[]; refs?: string | readonly string[]; limit?: number; offset?: number; }",
       "jsdoc": "Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`.",
       "typeOnly": true
@@ -930,7 +930,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetCasesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 387,
+      "line": 388,
       "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number | readonly number[]; priorityId?: number | readonly number[]; templateId?: number | readonly number[]; mileston…",
       "jsdoc": "Filter options for `getCases()`. All date filters accept Unix timestamps (seconds since epoch).",
       "typeOnly": true
@@ -955,7 +955,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetMilestonesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 602,
+      "line": 603,
       "signature": "export interface GetMilestonesOptions { isCompleted?: boolean; isStarted?: boolean; limit?: number; offset?: number; is_completed?: 0 | 1; is_started?: 0 | 1; }",
       "jsdoc": "Filter options for `getMilestones()`.",
       "typeOnly": true
@@ -964,7 +964,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetPlansOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 517,
+      "line": 518,
       "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; refs?: string; limit?: number; offset?: number; c…",
       "jsdoc": "Filter options for `getPlans()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -990,7 +990,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetResultsForRunOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 584,
+      "line": 585,
       "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; created_after?: number; created_before?: number; created_by?: …",
       "jsdoc": "Filter options for `getResultsForRun()`. Date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -999,7 +999,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetResultsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 565,
+      "line": 566,
       "signature": "export interface GetResultsOptions { statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number[]; defects_filter?: string; }",
       "jsdoc": "Filter options shared by `getResults()` and `getResultsForCase()`.",
       "typeOnly": true
@@ -1008,7 +1008,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetRunsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 438,
+      "line": 439,
       "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?…",
       "typeOnly": true
     },
@@ -1056,7 +1056,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetTestsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 549,
+      "line": 550,
       "signature": "export interface GetTestsOptions { statusId?: number[]; labelId?: number[]; limit?: number; offset?: number; status_id?: number[]; label_id?: number[]; }",
       "jsdoc": "Filter options for `getTests()`.",
       "typeOnly": true
@@ -1088,7 +1088,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "HistoryChange",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 359,
+      "line": 360,
       "signature": "export type HistoryChange = KnownResponse<typeof HistoryChangeSchema>",
       "typeOnly": true
     },
@@ -1103,7 +1103,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "HistoryEntry",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 361,
+      "line": 362,
       "signature": "export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>",
       "typeOnly": true
     },
@@ -1173,7 +1173,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Milestone",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 349,
+      "line": 350,
       "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>",
       "typeOnly": true
     },
@@ -1286,7 +1286,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Plan",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 339,
+      "line": 340,
       "signature": "export type Plan = KnownResponse<typeof PlanSchema>",
       "typeOnly": true
     },
@@ -1294,7 +1294,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PlanEntry",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 341,
+      "line": 342,
       "signature": "export type PlanEntry = KnownResponse<typeof PlanEntrySchema>",
       "typeOnly": true
     },
@@ -1331,7 +1331,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Priority",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 355,
+      "line": 356,
       "signature": "export type Priority = KnownResponse<typeof PrioritySchema>",
       "typeOnly": true
     },
@@ -1346,7 +1346,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Project",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 337,
+      "line": 338,
       "signature": "export type Project = KnownResponse<typeof ProjectSchema>",
       "typeOnly": true
     },
@@ -1361,7 +1361,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "RateLimiterConfig",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 505,
+      "line": 506,
       "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }",
       "typeOnly": true
     },
@@ -1369,7 +1369,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Report",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 685,
+      "line": 686,
       "signature": "export type Report = KnownResponse<typeof ReportSchema>",
       "jsdoc": "A report template returned by GET /get_reports/{project_id}.",
       "typeOnly": true
@@ -1378,7 +1378,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ReportResult",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 698,
+      "line": 699,
       "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>",
       "jsdoc": "Result returned by GET /run_report/{report_template_id}.",
       "typeOnly": true
@@ -1403,7 +1403,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Result",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 347,
+      "line": 348,
       "signature": "export type Result = ResponseWithCustomFields<typeof ResultSchema>",
       "typeOnly": true
     },
@@ -1411,7 +1411,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ResultField",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 469,
+      "line": 470,
       "signature": "export type ResultField = KnownResponse<typeof ResultFieldSchema>",
       "typeOnly": true
     },
@@ -1419,7 +1419,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ResultFieldConfig",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 467,
+      "line": 468,
       "signature": "export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>",
       "typeOnly": true
     },
@@ -1449,7 +1449,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Role",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 620,
+      "line": 621,
       "signature": "export type Role = KnownResponse<typeof RoleSchema>",
       "jsdoc": "A user role returned by GET /get_roles (TestRail 7.3+)",
       "typeOnly": true
@@ -1465,7 +1465,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Run",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 343,
+      "line": 344,
       "signature": "export type Run = KnownResponse<typeof RunSchema>",
       "typeOnly": true
     },
@@ -1489,7 +1489,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Section",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 335,
+      "line": 336,
       "signature": "export type Section = KnownResponse<typeof SectionSchema>",
       "typeOnly": true
     },
@@ -1520,7 +1520,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "SoftDeleteOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 378,
+      "line": 379,
       "signature": "export interface SoftDeleteOptions { soft?: boolean; }",
       "jsdoc": "Options for delete endpoints that support TestRail's `soft=1` server-side preview (`delete_case`, `delete_cases`, `delete_run`, `delete_section`, `delete_suite`). `delete_milestone` and `delete_project` do not accept `soft`; passing this option to those endpoints would be a no-op server-side, so the CLI rejects it instead to keep destructive intent unambiguous.",
       "typeOnly": true
@@ -1544,7 +1544,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Status",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 353,
+      "line": 354,
       "signature": "export type Status = KnownResponse<typeof StatusSchema>",
       "typeOnly": true
     },
@@ -1575,7 +1575,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Suite",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 330,
+      "line": 331,
       "signature": "export type Suite = KnownResponse<typeof SuiteSchema>",
       "typeOnly": true
     },
@@ -1590,7 +1590,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Template",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 485,
+      "line": 486,
       "signature": "export type Template = KnownResponse<typeof TemplateSchema>",
       "jsdoc": "Case template returned by get_templates (requires TestRail 5.2+).",
       "typeOnly": true
@@ -1606,7 +1606,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Test",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 345,
+      "line": 346,
       "signature": "export type Test = ResponseWithCustomFields<typeof TestSchema>",
       "typeOnly": true
     },
@@ -1693,7 +1693,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestWithData",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 651,
+      "line": 652,
       "signature": "export type TestWithData = Test & { results: Result[]; attachments: Attachment[]; }",
       "jsdoc": "Test enriched by `get_test` with `with_data=1`.",
       "typeOnly": true
@@ -2037,7 +2037,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UploadFileInput",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 326,
+      "line": 327,
       "signature": "export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput",
       "typeOnly": true
     },
@@ -2053,7 +2053,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "User",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 351,
+      "line": 352,
       "signature": "export type User = KnownResponse<typeof UserSchema>",
       "typeOnly": true
     },
@@ -2631,6 +2631,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "path": "src/cli/file-input.ts",
       "imports": [
         "../constants.js",
+        "./stdin.js",
         "node:fs",
         "node:path"
       ],
@@ -2639,51 +2640,44 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "STDIN_SENTINEL",
           "kind": "const",
-          "line": 14,
+          "line": 15,
           "exported": true,
           "signature": "export const STDIN_SENTINEL = '-'"
         },
         {
           "name": "FileInput",
           "kind": "interface",
-          "line": 27,
+          "line": 28,
           "exported": true,
           "signature": "export interface FileInput { fileFlag?: string; filenameFlag?: string; }"
         },
         {
           "name": "FileResolution",
           "kind": "type",
-          "line": 40,
+          "line": 41,
           "exported": true,
           "signature": "export type FileResolution = | { ok: true; path: string; filename: string; size: number; contents?: Uint8Array; fd?: number | undefined; source: 'file' | 'stdin'; } | { ok: false; error: string }"
         },
         {
           "name": "ResolveFileOptions",
           "kind": "interface",
-          "line": 54,
+          "line": 55,
           "exported": true,
           "signature": "export interface ResolveFileOptions { read: boolean; }"
         },
         {
           "name": "resolveFile",
           "kind": "function",
-          "line": 83,
+          "line": 81,
           "exported": true,
-          "signature": "export async function resolveFile(input: FileInput, opts: ResolveFileOptions): Promise<FileResolution>"
+          "signature": "export async function resolveFile( input: FileInput, opts: ResolveFileOptions, stdin: Pick<CliStdin, 'isTTY' | 'readBinary'>, ): Promise<FileResolution>"
         },
         {
           "name": "resolveFromStdin",
           "kind": "function",
-          "line": 148,
+          "line": 150,
           "exported": false,
-          "signature": "async function resolveFromStdin(input: FileInput, opts: ResolveFileOptions): Promise<FileResolution>"
-        },
-        {
-          "name": "readStdinBinary",
-          "kind": "function",
-          "line": 199,
-          "exported": true,
-          "signature": "export async function readStdinBinary(maxBytes: number, timeoutMs: number): Promise<Uint8Array>"
+          "signature": "async function resolveFromStdin( input: FileInput, opts: ResolveFileOptions, stdin: Pick<CliStdin, 'isTTY' | 'readBinary'>, ): Promise<FileResolution>"
         }
       ]
     },
@@ -3001,35 +2995,36 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "./flags.js",
         "./metadata/types.js",
         "./output.js",
-        "./pagination.js"
+        "./pagination.js",
+        "./stdin.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "HandlerArgs",
           "kind": "type",
-          "line": 8,
+          "line": 9,
           "exported": true,
           "signature": "export type HandlerArgs = CliHandlerArgs"
         },
         {
           "name": "BodyInput",
           "kind": "interface",
-          "line": 11,
+          "line": 12,
           "exported": true,
           "signature": "export interface BodyInput { dataFlag?: string; dataFileFlag?: string; readStdin?: () => string; }"
         },
         {
           "name": "HandlerContext",
           "kind": "interface",
-          "line": 17,
+          "line": 18,
           "exported": true,
-          "signature": "export interface HandlerContext { client: TestRailClient; actionSpec: ActionSpec; args: HandlerArgs; pagination: CliPaginationParsed; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDest…"
+          "signature": "export interface HandlerContext { client: TestRailClient; actionSpec: ActionSpec; args: HandlerArgs; pagination: CliPaginationParsed; bodyInput: BodyInput; stdin: CliStdin; dryRun: boolean; force: boo…"
         },
         {
           "name": "Handler",
           "kind": "type",
-          "line": 49,
+          "line": 51,
           "exported": true,
           "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
         }
@@ -4944,6 +4939,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "./output.js",
         "./response-validation.js",
         "./sanitize.js",
+        "./stdin.js",
         "./uninstall-skill.js",
         "node:module"
       ],
@@ -4952,56 +4948,56 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "require",
           "kind": "const",
-          "line": 25,
+          "line": 26,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 26,
+          "line": 27,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 34,
+          "line": 35,
           "exported": false,
           "signature": "const HELP = buildHelpText()"
         },
         {
           "name": "EXIT_SUCCESS",
           "kind": "const",
-          "line": 37,
+          "line": 38,
           "exported": false,
           "signature": "const EXIT_SUCCESS = 0"
         },
         {
           "name": "EXIT_FAILURE",
           "kind": "const",
-          "line": 38,
+          "line": 39,
           "exported": false,
           "signature": "const EXIT_FAILURE = 1"
         },
         {
           "name": "EXIT_ARGV_INVALID",
           "kind": "const",
-          "line": 39,
+          "line": 40,
           "exported": false,
           "signature": "const EXIT_ARGV_INVALID = 2"
         },
         {
           "name": "CliRuntime",
           "kind": "interface",
-          "line": 57,
+          "line": 58,
           "exported": true,
           "signature": "export interface CliRuntime { readonly argv: readonly string[]; readonly env: Readonly<Record<string, string | undefined>>; readonly stdout: (chunk: string | Uint8Array) => void; readonly stderr: (chu…"
         },
         {
           "name": "runCli",
           "kind": "function",
-          "line": 95,
+          "line": 92,
           "exported": true,
           "signature": "export async function runCli(runtime: CliRuntime): Promise<number>"
         }
@@ -6557,11 +6553,32 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "reExports": [],
       "symbols": [
         {
+          "name": "CliStdin",
+          "kind": "interface",
+          "line": 4,
+          "exported": true,
+          "signature": "export interface CliStdin { readonly isTTY: boolean; readonly read: (maxBytes: number) => string; readonly readBinary: (maxBytes: number, timeoutMs: number) => Promise<Uint8Array>; }"
+        },
+        {
+          "name": "BinaryInputStream",
+          "kind": "interface",
+          "line": 12,
+          "exported": true,
+          "signature": "export interface BinaryInputStream extends AsyncIterable<unknown> { destroy(error?: Error): void; }"
+        },
+        {
           "name": "readBoundedStdin",
           "kind": "function",
-          "line": 39,
+          "line": 52,
           "exported": true,
-          "signature": "export function readBoundedStdin(maxBytes: number, fd = 0): string"
+          "signature": "export function readBoundedStdin(maxBytes: number, fd: number): string"
+        },
+        {
+          "name": "readStdinBinary",
+          "kind": "function",
+          "line": 104,
+          "exported": true,
+          "signature": "export async function readStdinBinary( stream: BinaryInputStream, maxBytes: number, timeoutMs: number, ): Promise<Uint8Array>"
         }
       ]
     },
@@ -6631,7 +6648,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "uploadPayload",
           "kind": "function",
-          "line": 55,
+          "line": 56,
           "exported": true,
           "signature": "export function uploadPayload(upload: ResolvedUpload): { path: string; fd?: number | undefined } | Uint8Array"
         }
@@ -6728,8 +6745,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "./request-cache.js",
         "./retry-policy.js",
         "./types.js",
-        "./upload-source.js",
-        "./upload-transport.js",
+        "./upload-lifetime.js",
         "./utils.js",
         "./validation.js",
         "node:net",
@@ -6740,267 +6756,267 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 32,
+          "line": 31,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.name.replace(/^@[^/]+\\"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 61,
+          "line": 60,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 63,
+          "line": 62,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<readonly PinnedAddress[]>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 122,
+          "line": 121,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 123,
+          "line": 122,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 126,
+          "line": 125,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 136,
+          "line": 135,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "ResolvedTimeouts",
           "kind": "interface",
-          "line": 164,
+          "line": 163,
           "exported": false,
           "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestBudget; }"
         },
         {
           "name": "defineOverride",
           "kind": "function",
-          "line": 178,
+          "line": 177,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 186,
+          "line": 185,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 187
+              "line": 186
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 190
+              "line": 189
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 191
+              "line": 190
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 192
+              "line": 191
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 193
+              "line": 192
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 194
+              "line": 193
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 195
+              "line": 194
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 196
+              "line": 195
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 197
+              "line": 196
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 198
+              "line": 197
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 199
+              "line": 198
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 204
+              "line": 203
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 210
+              "line": 209
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 217
+              "line": 216
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 218
+              "line": 217
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 219
+              "line": 218
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 220
+              "line": 219
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 222
+              "line": 221
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 291
+              "line": 290
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 316
+              "line": 315
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 358
+              "line": 357
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 401
+              "line": 400
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 458
+              "line": 457
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 477
+              "line": 476
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 496
+              "line": 495
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 514
+              "line": 513
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 561
+              "line": 560
+            },
+            {
+              "name": "requestAccepted",
+              "kind": "method",
+              "line": 567
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 659
+              "line": 665
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 699
+              "line": 705
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 719
+              "line": 725
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 750
+              "line": 756
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 779
+              "line": 785
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 794
-            },
-            {
-              "name": "attemptPipeline",
-              "kind": "method",
-              "line": 810
+              "line": 800
             },
             {
               "name": "raceAttemptDeadline",
               "kind": "method",
-              "line": 1044
+              "line": 1034
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1063
+              "line": 1053
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1088
+              "line": 1078
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1124
+              "line": 1114
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1136
+              "line": 1126
             }
           ]
         }
@@ -7689,42 +7705,42 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "RetryPolicy",
           "kind": "interface",
-          "line": 14,
+          "line": 12,
           "exported": true,
           "signature": "export interface RetryPolicy { isStatusRetryable(status: number, method: string): boolean; isNetworkErrorRetryable(method: string): boolean; }"
         },
         {
           "name": "BodyShape",
           "kind": "type",
-          "line": 28,
+          "line": 26,
           "exported": true,
-          "signature": "export type BodyShape = | { readonly kind: 'none' } | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: (transpo…"
+          "signature": "export type BodyShape = | { readonly kind: 'none' } | { readonly kind: 'json'; readonly data: unknown } | Extract<RequestBody, { kind: 'multipart' }>"
         },
         {
           "name": "PipelineSpec",
           "kind": "interface",
-          "line": 48,
+          "line": 35,
           "exported": true,
           "signature": "export interface PipelineSpec<TParsed> { readonly method: string; readonly endpoint: string; readonly body: BodyShape; readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestB…"
         },
         {
           "name": "RequestBody",
           "kind": "type",
-          "line": 89,
+          "line": 76,
           "exported": true,
           "signature": "export type RequestBody = | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'multipart'; readonly file: UploadFileInput; readonly filename: string }"
         },
         {
           "name": "RequestIntent",
           "kind": "type",
-          "line": 114,
+          "line": 101,
           "exported": true,
           "signature": "export type RequestIntent = 'side-effecting-read' | 'fresh-read'"
         },
         {
           "name": "RequestSpec",
           "kind": "interface",
-          "line": 139,
+          "line": 126,
           "exported": true,
           "signature": "export interface RequestSpec<T> { readonly __t?: T; readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'; readonly endpoint: string; readonly body?: RequestBody; readonly schema?: ZodType; readonly resp…"
         }
@@ -7768,6 +7784,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "../pagination.js",
         "../schemas.js",
         "../types.js",
+        "../upload-lifetime.js",
         "../validation.js",
         "./list.js",
         "./paginated-list.js"
@@ -7777,132 +7794,132 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "GetAttachmentsOptions",
           "kind": "interface",
-          "line": 14,
+          "line": 15,
           "exported": true,
           "signature": "export interface GetAttachmentsOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "GetAllAttachmentsOptions",
           "kind": "type",
-          "line": 21,
+          "line": 22,
           "exported": true,
           "signature": "export type GetAllAttachmentsOptions = PaginatedRequestOptions"
         },
         {
           "name": "AttachmentPaginationArgs",
           "kind": "type",
-          "line": 23,
+          "line": 24,
           "exported": false,
           "signature": "type AttachmentPaginationArgs = | { readonly operation: 'get_attachments_for_case'; readonly caseId: number } | { readonly operation: 'get_attachments_for_run'; readonly runId: number } | { readonly o…"
         },
         {
           "name": "ATTACHMENTS_PAGINATION",
           "kind": "const",
-          "line": 29,
+          "line": 30,
           "exported": true,
           "signature": "export const ATTACHMENTS_PAGINATION = createPaginatedListExecutor< AttachmentPaginationArgs, GetAttachmentsOptions, GetAllAttachmentsOptions, Attachment >({ operations: [ 'get_attachments_for_case', '…"
         },
         {
           "name": "AttachmentModule",
           "kind": "class",
-          "line": 63,
+          "line": 64,
           "exported": true,
           "signature": "export class AttachmentModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 64
+              "line": 65
             },
             {
               "name": "getAttachmentsForCase",
               "kind": "method",
-              "line": 67
+              "line": 68
             },
             {
               "name": "getAttachmentsForCasePage",
               "kind": "method",
-              "line": 72
+              "line": 73
             },
             {
               "name": "getAllAttachmentsForCase",
               "kind": "method",
-              "line": 77
+              "line": 78
             },
             {
               "name": "getAttachmentsForRun",
               "kind": "method",
-              "line": 82
+              "line": 83
             },
             {
               "name": "getAttachmentsForRunPage",
               "kind": "method",
-              "line": 87
+              "line": 88
             },
             {
               "name": "getAllAttachmentsForRun",
               "kind": "method",
-              "line": 92
+              "line": 93
             },
             {
               "name": "getAttachmentsForTest",
               "kind": "method",
-              "line": 97
+              "line": 98
             },
             {
               "name": "getAttachmentsForPlan",
               "kind": "method",
-              "line": 102
+              "line": 103
             },
             {
               "name": "getAttachmentsForPlanPage",
               "kind": "method",
-              "line": 107
+              "line": 108
             },
             {
               "name": "getAllAttachmentsForPlan",
               "kind": "method",
-              "line": 112
+              "line": 113
             },
             {
               "name": "getAttachmentsForPlanEntry",
               "kind": "method",
-              "line": 126
+              "line": 127
             },
             {
               "name": "getAttachment",
               "kind": "method",
-              "line": 140
+              "line": 141
             },
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 150
+              "line": 151
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 160
+              "line": 163
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 170
+              "line": 175
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 180
+              "line": 187
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 195
+              "line": 204
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 211
+              "line": 222
             }
           ]
         }
@@ -7912,9 +7929,11 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "path": "src/modules/bdd.ts",
       "imports": [
         "../client-core.js",
+        "../http-pipeline-types.js",
         "../pagination.js",
         "../schemas.js",
         "../types.js",
+        "../upload-lifetime.js",
         "../utils.js",
         "../validation.js",
         "./paginated-list.js"
@@ -7924,70 +7943,70 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "GetBddsOptions",
           "kind": "interface",
-          "line": 11,
+          "line": 13,
           "exported": true,
           "signature": "export interface GetBddsOptions { suiteId?: number; sectionId?: number; labelId?: number | readonly number[]; refs?: string | readonly string[]; limit?: number; offset?: number; }"
         },
         {
           "name": "GetAllBddsOptions",
           "kind": "interface",
-          "line": 30,
+          "line": 32,
           "exported": true,
           "signature": "export interface GetAllBddsOptions extends Omit<GetBddsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}"
         },
         {
           "name": "BDDS_PAGINATION",
           "kind": "const",
-          "line": 32,
+          "line": 34,
           "exported": true,
           "signature": "export const BDDS_PAGINATION = createPaginatedListExecutor< { readonly projectId: number }, GetBddsOptions, GetAllBddsOptions, Bdd >({ operations: ['get_bdds'], collectionKey: 'bdd', itemSchema: BddSc…"
         },
         {
           "name": "BddModule",
           "kind": "class",
-          "line": 75,
+          "line": 77,
           "exported": true,
           "signature": "export class BddModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 76
+              "line": 78
             },
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 83
+              "line": 85
             },
             {
               "name": "getBdds",
               "kind": "method",
-              "line": 96
+              "line": 98
             },
             {
               "name": "getBddsPage",
               "kind": "method",
-              "line": 101
+              "line": 103
             },
             {
               "name": "getAllBdds",
               "kind": "method",
-              "line": 106
+              "line": 108
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 114
+              "line": 116
             },
             {
               "name": "updateBdd",
               "kind": "method",
-              "line": 123
+              "line": 127
             },
             {
               "name": "uploadBdd",
               "kind": "method",
-              "line": 128
+              "line": 134
             }
           ]
         }
@@ -12579,289 +12598,416 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "UploadFileInput",
           "kind": "type",
-          "line": 326,
+          "line": 327,
           "exported": true,
           "signature": "export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput"
         },
         {
           "name": "Case",
           "kind": "type",
-          "line": 328,
+          "line": 329,
           "exported": true,
           "signature": "export type Case = ResponseWithCustomFields<typeof CaseSchema>"
         },
         {
           "name": "Suite",
           "kind": "type",
-          "line": 330,
+          "line": 331,
           "exported": true,
           "signature": "export type Suite = KnownResponse<typeof SuiteSchema>"
         },
         {
           "name": "Section",
           "kind": "type",
-          "line": 335,
+          "line": 336,
           "exported": true,
           "signature": "export type Section = KnownResponse<typeof SectionSchema>"
         },
         {
           "name": "Project",
           "kind": "type",
-          "line": 337,
+          "line": 338,
           "exported": true,
           "signature": "export type Project = KnownResponse<typeof ProjectSchema>"
         },
         {
           "name": "Plan",
           "kind": "type",
-          "line": 339,
+          "line": 340,
           "exported": true,
           "signature": "export type Plan = KnownResponse<typeof PlanSchema>"
         },
         {
           "name": "PlanEntry",
           "kind": "type",
-          "line": 341,
+          "line": 342,
           "exported": true,
           "signature": "export type PlanEntry = KnownResponse<typeof PlanEntrySchema>"
         },
         {
           "name": "Run",
           "kind": "type",
-          "line": 343,
+          "line": 344,
           "exported": true,
           "signature": "export type Run = KnownResponse<typeof RunSchema>"
         },
         {
           "name": "Test",
           "kind": "type",
-          "line": 345,
+          "line": 346,
           "exported": true,
           "signature": "export type Test = ResponseWithCustomFields<typeof TestSchema>"
         },
         {
           "name": "Result",
           "kind": "type",
-          "line": 347,
+          "line": 348,
           "exported": true,
           "signature": "export type Result = ResponseWithCustomFields<typeof ResultSchema>"
         },
         {
           "name": "Milestone",
           "kind": "type",
-          "line": 349,
+          "line": 350,
           "exported": true,
           "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>"
         },
         {
           "name": "User",
           "kind": "type",
-          "line": 351,
+          "line": 352,
           "exported": true,
           "signature": "export type User = KnownResponse<typeof UserSchema>"
         },
         {
           "name": "Status",
           "kind": "type",
-          "line": 353,
+          "line": 354,
           "exported": true,
           "signature": "export type Status = KnownResponse<typeof StatusSchema>"
         },
         {
           "name": "Priority",
           "kind": "type",
-          "line": 355,
+          "line": 356,
           "exported": true,
           "signature": "export type Priority = KnownResponse<typeof PrioritySchema>"
         },
         {
           "name": "CaseStatus",
           "kind": "type",
-          "line": 357,
+          "line": 358,
           "exported": true,
           "signature": "export type CaseStatus = KnownResponse<typeof CaseStatusSchema>"
         },
         {
           "name": "HistoryChange",
           "kind": "type",
-          "line": 359,
+          "line": 360,
           "exported": true,
           "signature": "export type HistoryChange = KnownResponse<typeof HistoryChangeSchema>"
         },
         {
           "name": "HistoryEntry",
           "kind": "type",
-          "line": 361,
+          "line": 362,
           "exported": true,
           "signature": "export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>"
         },
         {
           "name": "SoftDeleteOptions",
           "kind": "interface",
-          "line": 378,
+          "line": 379,
           "exported": true,
           "signature": "export interface SoftDeleteOptions { soft?: boolean; }"
         },
         {
           "name": "GetCasesOptions",
           "kind": "interface",
-          "line": 387,
+          "line": 388,
           "exported": true,
           "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number | readonly number[]; priorityId?: number | readonly number[]; templateId?: number | readonly number[]; mileston…"
         },
         {
           "name": "GetRunsOptions",
           "kind": "interface",
-          "line": 438,
+          "line": 439,
           "exported": true,
           "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?…"
         },
         {
           "name": "ResultFieldConfig",
           "kind": "type",
-          "line": 467,
+          "line": 468,
           "exported": true,
           "signature": "export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>"
         },
         {
           "name": "ResultField",
           "kind": "type",
-          "line": 469,
+          "line": 470,
           "exported": true,
           "signature": "export type ResultField = KnownResponse<typeof ResultFieldSchema>"
         },
         {
           "name": "CaseFieldConfig",
           "kind": "type",
-          "line": 474,
+          "line": 475,
           "exported": true,
           "signature": "export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>"
         },
         {
           "name": "CaseField",
           "kind": "type",
-          "line": 477,
+          "line": 478,
           "exported": true,
           "signature": "export type CaseField = KnownResponse<typeof CaseFieldSchema>"
         },
         {
           "name": "CaseType",
           "kind": "type",
-          "line": 480,
+          "line": 481,
           "exported": true,
           "signature": "export type CaseType = KnownResponse<typeof CaseTypeSchema>"
         },
         {
           "name": "Template",
           "kind": "type",
-          "line": 485,
+          "line": 486,
           "exported": true,
           "signature": "export type Template = KnownResponse<typeof TemplateSchema>"
         },
         {
           "name": "Configuration",
           "kind": "type",
-          "line": 490,
+          "line": 491,
           "exported": true,
           "signature": "export type Configuration = KnownResponse<typeof ConfigurationSchema>"
         },
         {
           "name": "ConfigurationGroup",
           "kind": "type",
-          "line": 493,
+          "line": 494,
           "exported": true,
           "signature": "export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>"
         },
         {
           "name": "CacheEntry",
           "kind": "interface",
-          "line": 500,
+          "line": 501,
           "exported": true,
           "signature": "export interface CacheEntry<T> { data: T; expiry: number; }"
         },
         {
           "name": "RateLimiterConfig",
           "kind": "interface",
-          "line": 505,
+          "line": 506,
           "exported": true,
           "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }"
         },
         {
           "name": "GetPlansOptions",
           "kind": "interface",
-          "line": 517,
+          "line": 518,
           "exported": true,
           "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; refs?: string; limit?: number; offset?: number; c…"
         },
         {
           "name": "GetTestsOptions",
           "kind": "interface",
-          "line": 549,
+          "line": 550,
           "exported": true,
           "signature": "export interface GetTestsOptions { statusId?: number[]; labelId?: number[]; limit?: number; offset?: number; status_id?: number[]; label_id?: number[]; }"
         },
         {
           "name": "GetResultsOptions",
           "kind": "interface",
-          "line": 565,
+          "line": 566,
           "exported": true,
           "signature": "export interface GetResultsOptions { statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number[]; defects_filter?: string; }"
         },
         {
           "name": "GetResultsForRunOptions",
           "kind": "interface",
-          "line": 584,
+          "line": 585,
           "exported": true,
           "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; created_after?: number; created_before?: number; created_by?: …"
         },
         {
           "name": "GetMilestonesOptions",
           "kind": "interface",
-          "line": 602,
+          "line": 603,
           "exported": true,
           "signature": "export interface GetMilestonesOptions { isCompleted?: boolean; isStarted?: boolean; limit?: number; offset?: number; is_completed?: 0 | 1; is_started?: 0 | 1; }"
         },
         {
           "name": "Role",
           "kind": "type",
-          "line": 620,
+          "line": 621,
           "exported": true,
           "signature": "export type Role = KnownResponse<typeof RoleSchema>"
         },
         {
           "name": "Attachment",
           "kind": "type",
-          "line": 648,
+          "line": 649,
           "exported": true,
           "signature": "export type Attachment = KnownResponse<typeof AttachmentSchema>"
         },
         {
           "name": "TestWithData",
           "kind": "type",
-          "line": 651,
+          "line": 652,
           "exported": true,
           "signature": "export type TestWithData = Test & { results: Result[]; attachments: Attachment[]; }"
         },
         {
           "name": "Report",
           "kind": "type",
-          "line": 685,
+          "line": 686,
           "exported": true,
           "signature": "export type Report = KnownResponse<typeof ReportSchema>"
         },
         {
           "name": "CrossProjectReport",
           "kind": "type",
-          "line": 688,
+          "line": 689,
           "exported": true,
           "signature": "export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>"
         },
         {
           "name": "ReportResult",
           "kind": "type",
-          "line": 698,
+          "line": 699,
           "exported": true,
           "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/upload-lifetime.ts",
+      "imports": [
+        "./http-pipeline-types.js",
+        "./pinned-dispatcher.js",
+        "./upload-source.js",
+        "./upload-transport.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "MultipartBody",
+          "kind": "type",
+          "line": 6,
+          "exported": false,
+          "signature": "type MultipartBody = Extract<RequestBody, { kind: 'multipart' }>"
+        },
+        {
+          "name": "PinnedDispatcher",
+          "kind": "type",
+          "line": 7,
+          "exported": false,
+          "signature": "type PinnedDispatcher = ReturnType<typeof createPinnedDispatcher>"
+        },
+        {
+          "name": "MultipartRequest",
+          "kind": "interface",
+          "line": 10,
+          "exported": true,
+          "signature": "export interface MultipartRequest { readonly url: string; readonly options: RequestInit & { readonly method: string }; readonly controller: AbortController; readonly pinnedDispatcher: PinnedDispatcher…"
+        },
+        {
+          "name": "OWNER",
+          "kind": "const",
+          "line": 18,
+          "exported": false,
+          "signature": "const OWNER = Symbol('multipart.owner')"
+        },
+        {
+          "name": "OwnedMultipartBody",
+          "kind": "type",
+          "line": 19,
+          "exported": false,
+          "signature": "type OwnedMultipartBody = MultipartBody & { readonly [OWNER]: UploadLifetime }"
+        },
+        {
+          "name": "UploadLifetime",
+          "kind": "class",
+          "line": 22,
+          "exported": false,
+          "signature": "class UploadLifetime",
+          "members": [
+            {
+              "name": "source",
+              "kind": "property",
+              "line": 23
+            },
+            {
+              "name": "closed",
+              "kind": "property",
+              "line": 24
+            },
+            {
+              "name": "prepared",
+              "kind": "property",
+              "line": 25
+            },
+            {
+              "name": "sent",
+              "kind": "property",
+              "line": 26
+            },
+            {
+              "name": "transmission",
+              "kind": "property",
+              "line": 27
+            },
+            {
+              "name": "transport",
+              "kind": "property",
+              "line": 29
+            },
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 31
+            },
+            {
+              "name": "assertOpen",
+              "kind": "method",
+              "line": 35
+            },
+            {
+              "name": "prepare",
+              "kind": "method",
+              "line": 39
+            },
+            {
+              "name": "finish",
+              "kind": "method",
+              "line": 59
+            }
+          ]
+        },
+        {
+          "name": "ownerOf",
+          "kind": "function",
+          "line": 83,
+          "exported": false,
+          "signature": "function ownerOf(body: MultipartBody): UploadLifetime | undefined"
+        },
+        {
+          "name": "withMultipartUpload",
+          "kind": "function",
+          "line": 92,
+          "exported": true,
+          "signature": "export async function withMultipartUpload<T>( body: MultipartBody, callback: (ownedBody: MultipartBody) => Promise<T>, ): Promise<T>"
+        },
+        {
+          "name": "prepareMultipartUpload",
+          "kind": "function",
+          "line": 116,
+          "exported": true,
+          "signature": "export function prepareMultipartUpload( body: MultipartBody, request: MultipartRequest, ): Promise<() => Promise<Response>>"
         }
       ]
     },
@@ -12869,7 +13015,6 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "path": "src/upload-source.ts",
       "imports": [
         "./constants.js",
-        "./http-pipeline-types.js",
         "./operation-tracking.js",
         "./types.js",
         "node:fs"
@@ -12879,30 +13024,30 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "UPLOAD_ABORTED_MESSAGE",
           "kind": "const",
-          "line": 28,
+          "line": 26,
           "exported": false,
           "signature": "const UPLOAD_ABORTED_MESSAGE = 'Upload aborted before the request completed'"
         },
         {
           "name": "isFilePathInput",
           "kind": "function",
-          "line": 30,
+          "line": 28,
           "exported": false,
           "signature": "function isFilePathInput(value: unknown): value is UploadFilePathInput"
         },
         {
           "name": "ownUploadStreams",
           "kind": "function",
-          "line": 45,
+          "line": 43,
           "exported": true,
           "signature": "export function ownUploadStreams(formData: globalThis.FormData): (transportAborted?: boolean) => void"
         },
         {
           "name": "createUploadSource",
           "kind": "function",
-          "line": 167,
+          "line": 165,
           "exported": true,
-          "signature": "export function createUploadSource(file: UploadFileInput, filename: string): Extract<BodyShape, { kind: 'formdata' }>"
+          "signature": "export function createUploadSource( file: UploadFileInput, filename: string, ): { readonly kind: 'formdata'; readonly build: () => Promise<{ body: globalThis.FormData; cleanup: (transportAborted?: boo…"
         }
       ]
     },
