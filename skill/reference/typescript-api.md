@@ -1,14 +1,13 @@
 # Programmatic TypeScript API
 
-For TypeScript/JavaScript applications and explicit client lifecycle control.
-The skill body explains when to prefer this interface over the CLI.
+Use this reference for TypeScript or JavaScript applications and client lifecycle control.
+Read `SKILL.md` to decide when to use the SDK instead of the CLI.
 
 ## Programmatic TypeScript API
 
-The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
-writing TypeScript or JavaScript that needs typed responses, retry /
-rate-limit / cache reuse across many calls, or precise error handling,
-import the client directly instead of shelling out.
+The `testrail` CLI calls `TestRailClient` methods.
+Import `TestRailClient` directly in TypeScript or JavaScript code.
+Use the client when you need typed responses, shared retry and rate-limit state, response caching, or structured error handling.
 
 ```bash
 npm install @dichovsky/testrail-api-client
@@ -51,18 +50,19 @@ try {
 }
 ```
 
-The examples below share the configured `client` above and may refer to
-entities created in preceding examples; adjust the IDs for your instance.
-Endpoint methods return `Promise<T>`; all errors
-inherit from `Error` (`TestRailApiError` for HTTP/network/protocol failures,
-`TestRailPaginationError` for safe pagination failure, and
-`TestRailValidationError` for other validation failures).
+The following examples use the `client` instance above. Some examples use entities from preceding examples.
+Replace the example IDs with valid IDs from your TestRail instance.
+All endpoint methods return `Promise<T>`, and all error classes extend `Error`:
+
+- `TestRailApiError`: HTTP, network, or protocol failures.
+- `TestRailPaginationError`: Pagination bound or continuation failures.
+- `TestRailValidationError`: Configuration or argument validation failures.
 
 ### Validate dynamic write input
 
-SDK payload types are compile-time contracts. SDK methods send payloads without
-runtime schema parsing; CLI writes validate them automatically. Parse untrusted
-or dynamically loaded input explicitly:
+SDK payload types check input only at compile time.
+SDK methods do not parse payloads at runtime. CLI write commands validate payloads automatically.
+Call `.parse()` on the Zod schema to validate untrusted or dynamic input before calling the SDK:
 
 ```typescript
 import { AddResultPayloadSchema } from '@dichovsky/testrail-api-client';
@@ -72,8 +72,8 @@ const payload = AddResultPayloadSchema.parse(input);
 await client.results.addResult(1001, payload);
 ```
 
-Schema refinements also apply: an empty result object is rejected even though
-its individual TypeScript fields are optional.
+Schema refinements also run during `.parse()`.
+For example, `AddResultPayloadSchema` rejects an empty `{}` object even though each individual TypeScript field is optional.
 
 ### Projects
 
@@ -348,6 +348,5 @@ async function safelyDeleteCase(id: number) {
 }
 ```
 
-See the [source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md)
-for public methods and the [API coverage matrix](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md)
-for endpoint, SDK, and CLI relationships.
+See the [source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) for all public methods.
+See the [API coverage matrix](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) for endpoint, SDK, and CLI mappings.

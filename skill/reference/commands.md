@@ -1,16 +1,15 @@
 # `testrail` command reference
 
-Every resource:action the CLI exposes, and every option the parser accepts.
-Read this when you need the full surface; `SKILL.md` carries the policy you
-need before acting.
+This document lists every `resource:action` command and CLI option.
+Read `SKILL.md` first for authentication, safety gates, and output rules.
 
 ## Command surface
 
-Compact table legend:
+Table legend:
 
-- `Mode`: `R` read, `W` write, `D` destructive write (`--yes` + env gate).
-- `Input`: `-` none, `none` write with no body, `none+yes` destructive no-body,
-  `file`, `out:text`, `out:binary`, or a payload schema name.
+- `Mode`: `R` = read, `W` = write, `D` = destructive write (requires `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`).
+- `Input`: `-` = no input; `none` = write with no body; `none+yes` = destructive write with no body.
+  Other values are `file`, `out:text`, `out:binary`, or a payload schema name.
 
 <!-- GENERATED:command-table -->
 | Cmd | Mode | Args | Input |
@@ -153,18 +152,17 @@ Compact table legend:
 
 ## CLI option reference
 
-Use the `Applies to` column to avoid passing a recognized option to an
-action that does not consume it. This table is generated from the same typed
-registry as `testrail --help`, so every parser-recognized option is present.
+Check the `Applies to` column before you pass an option to an action.
+Do not pass an option to an action that does not use it.
+This table comes from the same typed registry as `testrail --help` and lists every supported option.
 
-Flags are checked before authentication, stdin reads, or API calls. Every
-string flag needs a value; a following argument beginning with `--` and at
-least one more character is rejected, including misspelled flags and earlier
-occurrences of repeated options. For example, `--filename --dry-run` fails
-instead of uploading a file with the preview flag consumed as its name.
-Pass a literal value beginning with `--` inline, such as `--filter=--all`.
-Shell quoting alone (`--filter '--all'`) does not change this rule. Boolean
-flags take no value: use `--strict-responses`, not `--strict-responses=true`.
+The CLI validates flags before authentication, stdin reads, and API calls.
+Every string flag requires a value.
+The CLI rejects any value that starts with `--` followed by one or more characters.
+For example, `--filename --dry-run` fails instead of using `--dry-run` as the filename.
+To pass a literal value that starts with `--`, use the inline `=` form (such as `--filter=--all`).
+Shell quotes alone (`--filter '--all'`) do not bypass this check.
+Do not pass values to boolean flags. Use `--strict-responses`, not `--strict-responses=true`.
 
 <!-- GENERATED:option-reference -->
 | Option | Applies to | Agent guidance |

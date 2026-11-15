@@ -68,14 +68,15 @@ describe('skill/reference/recipes.md — Results pipeline recipe', () => {
         expect(section).toContain('testrail result list --run-id 100 --all --page-size 100');
     });
 
-    it('enumerates the 4-option decision tree', () => {
+    it('enumerates the five read, write, and edit choices', () => {
         const section = extractSection(md, 'Results pipeline');
-        // Decision tree headings (numbered) — all four bullets must be present
+        // Decision tree headings (numbered) — all five bullets must be present
         // so a future copy-paste that drops one surfaces as a failure.
         expect(section).toMatch(/1\.\s+\*\*You have a `test_id`\*\*/);
         expect(section).toMatch(/2\.\s+\*\*You have a `run_id` and `case_id` but no `test_id`\*\*/);
         expect(section).toMatch(/3\.\s+\*\*You want every result in the run\*\*/);
-        expect(section).toMatch(/4\.\s+\*\*You're writing, not reading\*\*/);
+        expect(section).toMatch(/4\.\s+\*\*Write new results\*\*/);
+        expect(section).toMatch(/5\.\s+\*\*You need to correct an existing result\*\*/);
     });
 });
 
@@ -115,7 +116,7 @@ describe('skill/reference/recipes.md — Plan entries lifecycle recipe', () => {
         const section = extractSection(md, 'Plan entries lifecycle');
         expect(section).toContain('irreversible');
         expect(section).toContain('open_plan');
-        expect(section).toContain('does NOT support');
+        expect(section).toContain('`plan delete` does not support `--soft` preview');
     });
 });
 
@@ -219,7 +220,7 @@ describe('skill/reference/recipes.md — Configuration groups & configs hierarch
     it('warns that both deletes are destructive with no --soft preview', () => {
         const section = extractSection(md, 'Configuration groups & configs hierarchy');
         expect(section).toContain('destructive');
-        expect(section).toContain('does NOT support `soft=1`');
+        expect(section).toContain('TestRail does not support `soft=1` on either endpoint');
     });
 });
 
@@ -291,15 +292,14 @@ describe('skill/reference/recipes.md — Shared step propagation + history audit
         // --dry-run wins over --yes.
         expect(section).toContain('gated by `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes`');
         expect(section).toContain('no `--soft` server-side preview');
-        expect(section).toContain('`--dry-run` wins');
-        expect(section).toContain('over `--yes`');
+        expect(section).toContain('`--dry-run` overrides `--yes` and makes no API call');
     });
 
     it('recommends history audit before any update or delete', () => {
         const section = extractSection(md, 'Shared step propagation + history audit');
         expect(section).toContain('Audit BEFORE you mutate');
         expect(section).toContain('Audit before every mutation');
-        expect(section).toContain('blast radius');
+        expect(section).toContain('Changes to a widely used step can affect many cases');
     });
 
     it('documents that there is no bulk reference lookup upstream', () => {

@@ -1,177 +1,170 @@
 # BACKLOG archive
 
-Long-form archive moved out of `BACKLOG.md` so the main backlog stays compact
-and agent-friendly. This file preserves shipped items, detailed security
-writeups, API-gap history, and prior decision/rationale text.
+This file stores archived items from `BACKLOG.md` to keep the main backlog compact. It preserves shipped items, security writeups, API-gap history, and decision rationales.
 
 # BACKLOG
 
-Deferred work items captured during the v2.1.0 skill-publishing design
-(`SKILL-PLAN.md`). Each item is intentionally **not** in v2.1.0; this file is
-the registry that prevents silent scope creep and gives future PRs a starting
-point.
+This registry tracks deferred work items from the v2.1.0 skill-publishing design (`SKILL-PLAN.md`). These items are excluded from v2.1.0 to prevent scope creep and guide future pull requests.
 
 Conventions:
 
-- `[ ]` open · `[x]` shipped · `[~]` partially shipped · `[!]` decided **won't
-  do** (kept for the explicit "no")
+- `[ ]` open · `[x]` shipped · `[~]` partially shipped · `[!]` **won't do** (explicitly rejected)
 - **Effort**: S (≤½ day) · M (1–2 days) · L (1+ week)
-- **Trigger**: what would justify pulling this into a release
+- **Trigger**: condition that justifies adding this item to a release
 
 ---
 
 ## CLI read surface — API coverage gaps (P0)
 
-These programmatic methods (`getTest` / `getTests`) already existed on
-`TestRailClient`; the items below shipped the CLI-exposure half of the
-read-surface coverage tracked in `docs/API-MAPPING.md`.
+`TestRailClient` already included the `getTest` and `getTests` programmatic methods. The items below added the CLI read commands tracked in `docs/API-MAPPING.md`.
 
-- [x] **`test get` (GET `get_test/{test_id}`)** — Shipped with the "CLI test get + test list (P0)" PR (#86). Exposed as `testrail test get <test_id>` via `src/cli/handlers/test.ts`. New `ActionSpec` entry in `src/cli/metadata.ts` with `apiEndpoint: 'GET get_test/{test_id}'` matching the `@testrail` JSDoc tag in `src/modules/tests.ts`. Drift gates (codemap/mapping/skill `--check`) all wired automatically.
-- [x] **`test list` (GET `get_tests/{run_id}`)** — Shipped with the "CLI test get + test list (P0)" PR (#86). Exposed as `testrail test list <run_id> [--status-id 1,5] [--limit N] [--offset N]`. The `--status-id` flag is parsed into a `number[]` via a comma-split + `parseId` helper inside the handler so malformed tokens fail-fast with the same `IdParseError` shape as path-param validation — no silent drops, no string-passthrough to the API. New `status-id` flag added to `src/cli/flags.ts` (and the `KNOWN_FLAGS` inventory test). Empty `{}` response body returns `[]` (matches `getTests` programmatic behavior). Unit tests live in `tests/cli-read-handlers.test.ts` (new file — the read-side counterpart to `cli-write-handlers.test.ts`).
-- [x] **`case-field list` (GET `get_case_fields`)** — Shipped with the "CLI metadata reads — case-field/result-field/status/template (P1)" PR. Exposed as `testrail case-field list` (no positional args; extra positionals rejected fail-fast). New `src/cli/handlers/case-field.ts` (read-side counterpart to the existing `case-field-write.ts`). `ActionSpec` placed in a new "Metadata read actions" cluster in `src/cli/metadata.ts`.
-- [x] **`result-field list` (GET `get_result_fields`)** — Shipped with the same PR. Exposed as `testrail result-field list` (no positional args). New `src/cli/handlers/result-field.ts`.
-- [x] **`status list` (GET `get_statuses`)** — Shipped with the same PR. Exposed as `testrail status list` (no positional args). New `src/cli/handlers/status.ts`. Disjoint from the existing `case-status list` which lives in a separate resource because TestRail keys case statuses on `case_status_id` (not `id`) — see the case-status archive note for the rationale.
-- [x] **`template list` (GET `get_templates/{project_id}`)** — Shipped with the same PR. Exposed as `testrail template list <project_id>` (one positive-integer path param; `parseId` rejects 0/-1/floats/hex/scientific notation/empty before any network call). New `src/cli/handlers/template.ts`. The four no-arg handlers (`case-field list`, `case-status list`, `result-field list`, `status list`) inline an explicit `pathParams.length > 0` check that throws `IdParseError` so a typo like `testrail status list 5` surfaces a clear error instead of silently ignoring the `5` — locked in by unit + subprocess tests. Initially shipped throwing plain `Error`; tightened in the follow-up "fix: tighten extra-arg handling" commit to use `IdParseError` for parity with all other arg-parse failures and to retroactively close the two-tier behaviour on `case-status list` (previously silently ignored extras).
-- [x] **`role list` (GET `get_roles`)** — Shipped with the "CLI role/priority/case-type list (P2)" PR. Exposed as `testrail role list` (no positional args; extra positionals reject fail-fast with `IdParseError`). New `src/cli/handlers/role.ts`. `ActionSpec` placed in a new "Reference-data read actions" cluster in `src/cli/metadata.ts` (kept disjoint from the existing "Metadata read actions" cluster so the comment naming stays accurate — these are static reference data, not field-definition metadata). HELP grouped under the existing "Metadata actions" section since both clusters serve the same agent-facing purpose (look up admin-defined identifiers before authoring cases/runs/results).
-- [x] **`priority list` (GET `get_priorities`)** — Shipped with the same PR. Exposed as `testrail priority list` (no positional args). New `src/cli/handlers/priority.ts`. Returns `priority` (sort order) and `is_default` so agents can resolve a priority by name without hard-coding the numeric `id` — useful for `case add --data '{"priority_id":...}'` and the `case update-bulk` priority bump pattern.
-- [x] **`case-type list` (GET `get_case_types`)** — Shipped with the same PR. Exposed as `testrail case-type list` (no positional args). New `src/cli/handlers/case-type.ts`. Mirrors the role/priority handler shape: zero-arg read, `IdParseError` on extras, same `--format table` / `--format json` rendering path as every other list action. Closes the remaining instance-level reference-data getters that `TestRailClient` already exposed but the CLI didn't surface.
-- [x] **`user get-by-email` (GET `get_user_by_email`)** — Exposed as `testrail user get-by-email --user-email <addr>` (no positional args; extras rejected fail-fast with `IdParseError`). The lookup flag is distinct from authentication `--email`, so administrators can query another user without changing their Basic Auth identity. The handler enforces non-empty input; `EMAIL_REGEX` in `src/modules/users.ts` rejects malformed addresses before any network call. Surfaces 404 / 401 / 403 / network errors through the standard exit-1 path.
-- [x] **`user get-current` (GET `get_current_user`)** — Shipped with the same "CLI user lookups (P2)" PR. Exposed as `testrail user get-current` (zero positional args; extras rejected fail-fast with `IdParseError`, mirroring the `status list` pattern). Returns the user identified by the auth credential — useful for credential-verification workflows and for resolving "who am I" without a numeric user_id (TestRail 6.6+).
+- [x] **`test get` (GET `get_test/{test_id}`)** — Shipped in PR #86 ("CLI test get + test list (P0)"). The CLI exposes `testrail test get <test_id>` via `src/cli/handlers/test.ts`. `src/cli/metadata.ts` adds an `ActionSpec` entry with `apiEndpoint: 'GET get_test/{test_id}'` to match the `@testrail` JSDoc tag in `src/modules/tests.ts`. All drift gates (`codemap`, `mapping`, and `skill` `--check`) are wired automatically.
+- [x] **`test list` (GET `get_tests/{run_id}`)** — Shipped in PR #86 ("CLI test get + test list (P0)"). The CLI exposes `testrail test list <run_id> [--status-id 1,5] [--limit N] [--offset N]`. The handler splits `--status-id` on commas and validates each token with `parseId` to produce a `number[]`. Malformed tokens fail immediately with `IdParseError`. The CLI does not drop invalid tokens or pass raw strings to the API. `src/cli/flags.ts` and the `KNOWN_FLAGS` inventory test now include `status-id`. An empty `{}` response body returns `[]` to match `getTests`. Unit tests are in `tests/cli-read-handlers.test.ts` (the read-side counterpart to `cli-write-handlers.test.ts`).
+- [x] **`case-field list` (GET `get_case_fields`)** — Shipped in the "CLI metadata reads — case-field/result-field/status/template (P1)" PR. The CLI exposes `testrail case-field list` with no positional arguments and rejects extra positional arguments immediately. `src/cli/handlers/case-field.ts` provides the read handler alongside `case-field-write.ts`. `src/cli/metadata.ts` places the `ActionSpec` in the "Metadata read actions" cluster.
+- [x] **`result-field list` (GET `get_result_fields`)** — Shipped in the same PR. The CLI exposes `testrail result-field list` with no positional arguments in `src/cli/handlers/result-field.ts`.
+- [x] **`status list` (GET `get_statuses`)** — Shipped in the same PR. The CLI exposes `testrail status list` with no positional arguments in `src/cli/handlers/status.ts`. This resource is separate from `case-status list` because TestRail keys case statuses on `case_status_id` instead of `id`.
+- [x] **`template list` (GET `get_templates/{project_id}`)** — Shipped in the same PR. The CLI exposes `testrail template list <project_id>` in `src/cli/handlers/template.ts`. `parseId` validates the positive-integer path parameter and rejects `0`, `-1`, floats, hex, scientific notation, and empty strings before any network call. Four zero-argument handlers (`case-field list`, `case-status list`, `result-field list`, `status list`) check `pathParams.length > 0` and throw `IdParseError`. A typo such as `testrail status list 5` fails with a clear error instead of ignoring `5`. Unit and subprocess tests verify this check. A follow-up commit ("fix: tighten extra-arg handling") changed the error class from `Error` to `IdParseError` and added the check to `case-status list`.
+- [x] **`role list` (GET `get_roles`)** — Shipped in the "CLI role/priority/case-type list (P2)" PR. The CLI exposes `testrail role list` in `src/cli/handlers/role.ts` with no positional arguments and rejects extra positional arguments with `IdParseError`. `src/cli/metadata.ts` places the `ActionSpec` in the "Reference-data read actions" cluster to separate static reference data from field-definition metadata. The `HELP` text groups both clusters under "Metadata actions" because agents use both to look up identifiers before creating cases, runs, or results.
+- [x] **`priority list` (GET `get_priorities`)** — Shipped in the same PR. The CLI exposes `testrail priority list` with no positional arguments in `src/cli/handlers/priority.ts`. The command returns `priority` (sort order) and `is_default` so agents can look up a priority by name for `case add --data '{"priority_id":...}'` and `case update-bulk`.
+- [x] **`case-type list` (GET `get_case_types`)** — Shipped in the same PR. The CLI exposes `testrail case-type list` with no positional arguments in `src/cli/handlers/case-type.ts`. It uses the same zero-argument read pattern, `IdParseError` check on extra arguments, and `--format table` / `--format json` output path as `role list` and `priority list`. This command completes CLI coverage for the instance-level reference-data getters on `TestRailClient`.
+- [x] **`user get-by-email` (GET `get_user_by_email`)** — The CLI exposes `testrail user get-by-email --user-email <addr>` with no positional arguments and rejects extra arguments with `IdParseError`. The `--user-email` lookup flag is separate from the `--email` authentication flag so administrators can query another user without changing their Basic Auth identity. The handler requires non-empty input, and `EMAIL_REGEX` in `src/modules/users.ts` rejects malformed email addresses before any network call. The CLI returns exit code 1 on 404, 401, 403, and network errors.
+- [x] **`user get-current` (GET `get_current_user`)** — Shipped in the "CLI user lookups (P2)" PR. The CLI exposes `testrail user get-current` with zero positional arguments and rejects extra arguments with `IdParseError`. The command returns the authenticated user for credential verification and user lookup without a numeric `user_id` (TestRail 6.6+).
 
 ## CLI write surface — structural setup
 
-These map to existing `TestRailClient` methods but aren't exposed in the v2.1
-CLI. v2.1 ships only the 6 actions that cover _author cases_ and _publish
-results_; structural setup is rare per-project work that humans typically do
-once via the TestRail UI.
+These commands map to existing `TestRailClient` methods that were omitted from the v2.1 CLI. Version 2.1 shipped only the 6 actions for authoring cases and publishing results because humans usually perform project setup once in the TestRail UI.
 
-- [x] **`project add` / `project update`** — Shipped with the "Structural-setup CLI" PR. `addProject` / `updateProject` exposed as `project add --data ...` (no path param) and `project update <project_id> --data ...`. Migrated `AddProjectPayload` / `UpdateProjectPayload` from handwritten interfaces in `types.ts` to Zod schemas in `schemas.ts` (matches the case/run/result/plan precedent). `suite_mode` left as `z.number().optional()` rather than a `1|2|3` literal union — TestRail rejects invalid values server-side; a client-side literal can't anticipate future modes.
-- [x] **`suite add` / `suite update`** — Shipped with the "Structural-setup CLI" PR. `addSuite` / `updateSuite` exposed as `suite add <project_id> --data ...` and `suite update <suite_id> --data ...`. Schemas migrated from `types.ts` to Zod in `schemas.ts`.
-- [x] **`section add` / `section update`** — Shipped with the "Structural-setup CLI" PR. `addSection` / `updateSection` exposed as `section add <project_id> --data ...` and `section update <section_id> --data ...`, joining the existing `section move` handler in `section-write.ts`. `suite_id` modelled as optional in `AddSectionPayloadSchema` so both single- and multi-suite-mode projects work — TestRail returns 400 on invalid mode/`suite_id` combinations rather than us double-validating.
-- [x] **`milestone add` / `milestone update`** — Shipped with the "Structural-setup CLI" PR. `addMilestone` / `updateMilestone` exposed as `milestone add <project_id> --data ...` and `milestone update <milestone_id> --data ...`. State-toggle fields (`is_completed`, `is_started`) live on the update schema only, mirroring the existing interface.
-- [x] **`user add` / `user update`** — `addUser` / `updateUser`, shipped for TestRail 7.3+. The 10.7 audit corrected the create contract to require only `name` and `email`; documented optional fields include activation/admin/SSO/MFA flags, notifications, role, groups, and assigned projects. Password and language are not advertised as 10.7 request fields.
-- [x] **`plan add` / `plan update` / `plan add-entry`** — `addPlan` / `updatePlan` / `addPlanEntry`. Shipped together with `plan get` / `plan list` (the 5 actions closed plan's read/write asymmetry). Plan payload schemas migrated from handwritten interfaces in `types.ts` to Zod in `schemas.ts` (matches the precedent for run/case/result payloads). Nested `entries[]` are fully Zod-validated; nested `runs[]` inside an entry use a separate `PlanEntryRunPayloadSchema` (all fields optional, including `name`) since TestRail derives the run name from the config. `plan close`, `plan delete`, `plan-entry update`, `plan-entry delete` remain deferred — the last two also need a UUID-style string-ID parser (`entry_id` is a string, not a number).
-- [x] **`run update`** — Shipped as `run update <run_id> --data ...`. `updateRun(runId, payload)` was already exposed on `TestRailClient` (and bound to `POST update_run/{run_id}` via the `@testrail` JSDoc tag); this PR added the CLI handler (`handleRunUpdate`), the `ActionSpec` entry, HELP text, schema-name binding in `scripts/skill-renderer.mjs`, and exercising tests. All `UpdateRunPayloadSchema` fields are optional, so an empty body (`'{}'`) is accepted; mirrors `handleMilestoneUpdate` / `handlePlanUpdate`. Closes the daily-use P0 gap where `run add` and `run close`/`run delete` were exposed but renaming a run / re-pointing its milestone required dropping back to the programmatic API.
-- [x] **`shared-step add` / `shared-step update` / `shared-step delete`** — Shipped with the "CLI shared-step add/update/delete (P1)" PR (PR8). The three programmatic methods (`addSharedStep` / `updateSharedStep` / `deleteSharedStep`) already existed on `TestRailClient` (TestRail 7.0+); this PR added the CLI handlers (`src/cli/handlers/shared-step-write.ts`), the three `ActionSpec` entries, HELP text under the "Shared-step actions" subsection of write actions, and schema-name bindings in `scripts/skill-renderer.mjs`. Payload schemas (`AddSharedStepPayloadSchema` / `UpdateSharedStepPayloadSchema`) migrated from handwritten interfaces in `types.ts` to Zod in `schemas.ts` (matches the project/suite/section/milestone/plan precedent); `custom_steps_separated` typed as `z.array(z.record(z.string(), z.unknown())).optional()` so any TestRail template configuration (separated, additional info, expected result, etc.) survives a round-trip — `.passthrough()` from `zObject` also forwards arbitrary `custom_*` keys. `shared-step delete` follows the no-`--soft` destructive precedent and now exposes TestRail's `keep_in_cases` body control as `--keep-in-cases`; the default `true` preserves the deleted step's content in referencing cases while removing the shared association.
-- [x] **`configuration list` + `configuration-group add/update/delete` + `configuration add/update/delete`** — Shipped together as the "Configurations CLI" PR (PR9). Surfaces TestRail's two-level config hierarchy (project → config_groups → configs) via two CLI resources — `configuration-group` for the parent (path-param: `<config_group_id>`) and `configuration` for both the leaf-config CRUD (`<config_id>`) and the whole-tree list (`configuration list <project_id>`). Programmatic methods on `ConfigurationModule` already existed; this PR added 7 CLI handlers (1 read + 6 write/destructive), 4 new Zod payload schemas (`AddConfigurationGroupPayloadSchema`, `UpdateConfigurationGroupPayloadSchema`, `AddConfigurationPayloadSchema`, `UpdateConfigurationPayloadSchema` — all `.passthrough()` so future `custom_*` fields survive), schema-name bindings in `scripts/skill-renderer.mjs`, HELP text under a new "Configuration actions" section, and the migration of the four payload type aliases from handwritten `types.ts` interfaces to `z.infer` derivations in `schemas.ts` (matches the precedent for project/suite/milestone). Both deletes are destructive (`--yes` gated; `--dry-run` wins for preview-without-API; reject `--soft` explicitly because TestRail's `delete_config_group` / `delete_config` endpoints don't accept `?soft=1` — silently dropping would mask destructive intent, mirrors `milestone delete` / `project delete`). The destructive-action set + no-body-writes set in `tests/cli-helpers.test.ts` were extended to pin the two new entries; failing to add `destructive: true` to either `ActionSpec` would now fail those tests. Recipe #26 in `skill/SKILL.md` ("Configuration groups & configs hierarchy management") walks the full lifecycle with five `<!-- recipe-for: -->` tags so gate C2 binds it to all five touched ACTIONS entries.
-- [x] **`group get` / `group list` / `group add` / `group update` / `group delete`** — Shipped together as the "CLI group CRUD (P2)" PR (PR13). Surfaces TestRail's instance-level user-group resource (TestRail 7.5+) via a single `group` CLI resource: two reads (`get <group_id>`, `list` — takes no positional args) and three writes (`add` payload-only no path param; `update <group_id>` partial body; `delete <group_id>` destructive). Programmatic methods (`getGroup` / `getGroups` / `addGroup` / `updateGroup` / `deleteGroup`) already existed on `UsersModule`; this PR added 2 new CLI handler files (`src/cli/handlers/group.ts` for reads, `src/cli/handlers/group-write.ts` for writes), five `ActionSpec` entries in `src/cli/metadata.ts`, HELP text under the existing read/write sections, schema-name binding in `scripts/skill-renderer.mjs`, and migrated `Group` / `AddGroupPayload` / `UpdateGroupPayload` from handwritten interfaces in `types.ts` to Zod schemas in `schemas.ts` (matches the variable/shared-step/configuration payload-migration precedent — both new payload schemas use `.passthrough()` via `zObject` so future `custom_*` fields survive). `UpdateGroupPayloadSchema` allows an empty body (`{}`) — TestRail accepts it and returns the unchanged group; mirrors `UpdateVariablePayloadSchema` / `UpdateSectionPayloadSchema`. `group delete` follows the canonical no-`--soft` destructive precedent (TestRail does NOT support `?soft=1` on `delete_group` — only safety net is client-side `--dry-run`; mirrors `milestone delete` / `project delete` / `configuration-group delete`); cascade caveat: deleting a group removes membership claims but does NOT delete the users themselves (instance-level user records survive). Check order is the canonical pattern (`parseId → --soft reject → --dry-run → --yes`); per ARCH #9 this is deliberately the canonical ordering vs the newer "dry-run first" pattern used by `plan delete*` / `variable delete` / `shared-step delete` (harmonization tracked as a separate follow-up). The destructive-action set + no-body-writes set in `tests/cli-helpers.test.ts` were extended to pin `group:delete`; failing to add `destructive: true` to that `ActionSpec` would now fail those tests. Disjoint from `configuration-group` (project-scoped, owns nested leaf configs) — `group` is instance-level and owns user-membership only.
+- [x] **`project add` / `project update`** — Shipped in the "Structural-setup CLI" PR. The CLI exposes `addProject` and `updateProject` as `project add --data ...` (no path parameter) and `project update <project_id> --data ...`. The PR migrated `AddProjectPayload` and `UpdateProjectPayload` from interfaces in `types.ts` to Zod schemas in `schemas.ts`. `suite_mode` uses `z.number().optional()` instead of a `1|2|3` literal union so the server validates mode values directly.
+- [x] **`suite add` / `suite update`** — Shipped in the "Structural-setup CLI" PR. The CLI exposes `addSuite` and `updateSuite` as `suite add <project_id> --data ...` and `suite update <suite_id> --data ...`. The PR migrated the payload schemas from `types.ts` to Zod in `schemas.ts`.
+- [x] **`section add` / `section update`** — Shipped in the "Structural-setup CLI" PR. The CLI exposes `addSection` and `updateSection` as `section add <project_id> --data ...` and `section update <section_id> --data ...` in `section-write.ts` alongside `section move`. `AddSectionPayloadSchema` marks `suite_id` as optional to support single-suite and multi-suite projects. TestRail returns HTTP 400 on invalid `suite_id` combinations.
+- [x] **`milestone add` / `milestone update`** — Shipped in the "Structural-setup CLI" PR. The CLI exposes `addMilestone` and `updateMilestone` as `milestone add <project_id> --data ...` and `milestone update <milestone_id> --data ...`. Only the update schema includes the state-toggle fields (`is_completed`, `is_started`).
+- [x] **`user add` / `user update`** — Shipped `addUser` and `updateUser` for TestRail 7.3+. The TestRail 10.7 audit updated the create contract to require only `name` and `email`. Documented optional fields include activation, admin, SSO, and MFA flags, notifications, role, groups, and assigned projects. The 10.7 contract does not include password or language request fields.
+- [x] **`plan add` / `plan update` / `plan add-entry`** — Shipped `addPlan`, `updatePlan`, and `addPlanEntry` together with `plan get` and `plan list`. The PR migrated plan payload schemas from interfaces in `types.ts` to Zod schemas in `schemas.ts`. Zod validates nested `entries[]`, and `PlanEntryRunPayloadSchema` makes all fields optional (including `name`) because TestRail derives the run name from the configuration. `plan close`, `plan delete`, `plan-entry update`, and `plan-entry delete` remained deferred and required a UUID string parser for `entry_id`.
+- [x] **`run update`** — Shipped as `run update <run_id> --data ...`. `TestRailClient` already exposed `updateRun(runId, payload)` with `@testrail POST update_run/{run_id}`. This PR added `handleRunUpdate`, the `ActionSpec` entry, `HELP` text, schema-name binding in `scripts/skill-renderer.mjs`, and tests. All fields in `UpdateRunPayloadSchema` are optional, so the handler accepts an empty body (`'{}'`). This command lets users rename a run or change its milestone from the CLI.
+- [x] **`shared-step add` / `shared-step update` / `shared-step delete`** — Shipped in PR8 ("CLI shared-step add/update/delete (P1)"). `TestRailClient` already included `addSharedStep`, `updateSharedStep`, and `deleteSharedStep` (TestRail 7.0+). This PR added the CLI handlers in `src/cli/handlers/shared-step-write.ts`, three `ActionSpec` entries, `HELP` text under "Shared-step actions", and schema-name bindings in `scripts/skill-renderer.mjs`. It migrated `AddSharedStepPayloadSchema` and `UpdateSharedStepPayloadSchema` from `types.ts` to Zod in `schemas.ts`. `custom_steps_separated` uses `z.array(z.record(z.string(), z.unknown())).optional()`, and `.passthrough()` on `zObject` forwards arbitrary `custom_*` keys. `shared-step delete` rejects `--soft` and exposes TestRail's `keep_in_cases` body option as `--keep-in-cases` (default `true` to keep step content in referencing cases).
+- [x] **`configuration list` + `configuration-group add/update/delete` + `configuration add/update/delete`** — Shipped in PR9 ("Configurations CLI"). The CLI exposes TestRail's two-level configuration hierarchy (`project` → `config_groups` → `configs`) under `configuration-group` (`<config_group_id>`) and `configuration` (`<config_id>` and `configuration list <project_id>`). `ConfigurationModule` already existed. This PR added 7 CLI handlers: 1 read handler and 6 write or destructive handlers. It added 4 Zod payload schemas with `.passthrough()`: `AddConfigurationGroupPayloadSchema`, `UpdateConfigurationGroupPayloadSchema`, `AddConfigurationPayloadSchema`, and `UpdateConfigurationPayloadSchema`. It also added schema-name bindings in `scripts/skill-renderer.mjs` and `HELP` text under "Configuration actions". It also migrated the 4 payload types from `types.ts` to `z.infer` types in `schemas.ts`. Both delete commands require `--yes`, honor `--dry-run` first, and reject `--soft` because `delete_config_group` and `delete_config` do not support `?soft=1`. `tests/cli-helpers.test.ts` pins both delete actions in the destructive and no-body-write sets. Recipe #26 in `skill/SKILL.md` ("Configuration groups & configs hierarchy management") includes five `<!-- recipe-for: -->` tags for gate C2.
+- [x] **`group get` / `group list` / `group add` / `group update` / `group delete`** — Shipped in PR13 ("CLI group CRUD (P2)"). The CLI exposes TestRail's instance-level user-group resource (TestRail 7.5+) under `group` with two reads (`get <group_id>`, `list`) and three writes (`add`, `update <group_id>`, `delete <group_id>`). `UsersModule` already included `getGroup`, `getGroups`, `addGroup`, `updateGroup`, and `deleteGroup`. This PR added `src/cli/handlers/group.ts`, `src/cli/handlers/group-write.ts`, five `ActionSpec` entries in `src/cli/metadata.ts`, `HELP` text, and schema-name bindings in `scripts/skill-renderer.mjs`. It migrated `Group`, `AddGroupPayload`, and `UpdateGroupPayload` from `types.ts` to Zod schemas with `.passthrough()` in `schemas.ts`. `UpdateGroupPayloadSchema` accepts an empty body (`{}`). `group delete` rejects `--soft` because `delete_group` does not support `?soft=1`. Deleting a group removes user memberships but does not delete the user accounts. The handler checks `parseId → --soft reject → --dry-run → --yes` (tracked for harmonization under ARCH #9). `tests/cli-helpers.test.ts` pins `group:delete` in the destructive and no-body-write sets. `group` manages instance-level user memberships, whereas `configuration-group` manages project-scoped test configurations.
 
 ## CLI write surface — destructive operations
 
-Deliberately omitted from v2.1 to keep agents away from irrecoverable actions
-without explicit human review. Programmatic API still exposes them.
+Version 2.1 omitted destructive operations so agents could not run irreversible actions without human review. The programmatic API already exposed these methods.
 
-- [x] **`case delete`** — Shipped with the "Destructive single-entity delete CLI surface" PR. `case delete <case_id> [--soft] --yes`. Reuses the locked-in destructive precedent (`--yes` gates; `--dry-run` wins for preview). `--soft` adds TestRail's `?soft=1` server-side preview (returns `affected_*` counts without deleting); programmatic API gained `deleteCase(id, { soft: true })` overload returning the new shared `SoftDeletePreview` (mirrors the existing `deleteCases` precedent).
-- [x] **`run delete`** — Shipped with the same PR. `run delete <run_id> [--soft] --yes`. Programmatic API gained `deleteRun(id, { soft: true })` overload.
-- [x] **`suite delete` / `section delete` / `milestone delete` / `project delete`** — Shipped with the same PR. `[--soft]` accepted on `suite delete` and `section delete` (TestRail supports `?soft=1` there); `milestone delete` and `project delete` reject `--soft` explicitly because TestRail's endpoints don't accept it and silently dropping would mask destructive intent. `project delete` carries the highest blast radius of the cluster; protected by the same `--yes` gate as the others (TestRail offers no further server-side confirmation hook).
-- [x] **`plan close` / `plan delete` / `plan delete-entry` / `plan delete-run-from-entry`** — Shipped with the "CLI destructive plan ops + lifecycle recipe" PR (PR6). Reuses the locked-in destructive precedent (`--yes` gates; `--dry-run` wins over `--yes` for preview-without-API; non-positive path-param IDs reject before the `--yes` check). `plan close` mirrors `run close` (irreversible — TestRail has no `open_plan`). None of the four endpoints support TestRail's `?soft=1` server-side preview, so `--soft` is not accepted on any of them — the only safe rehearsal is `--dry-run`. `delete-entry` takes a UUID-style string `entry_id`; validation reuses the non-empty-string rule from `TestRailClientCore.validateEntryId`, surfaced at the handler layer so a bad CLI arg returns `entry_id must be a non-empty string` rather than a generic `TestRailValidationError`. The destructive-action set test in `tests/cli-helpers.test.ts` was extended to pin the new four actions; failing to add `destructive: true` to any of the new `ActionSpec` entries would now fail that test.
-- [x] **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env-var gate (BREAKING)** — Shipped with the "CLI destructive env-var gate" PR (PR4 of the 6-PR batch; v4.0.0). Adds a second, dispatch-level gate for destructive CLI actions: in addition to the existing `--yes` flag, callers must set `TESTRAIL_ALLOW_DESTRUCTIVE=1` (strict equality to the literal string `'1'` — `'true'`/`'yes'`/`'on'`/`'1 '` are rejected). The check lives in `src/cli/dispatch.ts:checkDestructiveEnvGate` and runs **before** auth resolution and handler invocation, so a future destructive handler added without an `if (!confirmDestructive)` check still cannot escape the env gate (defense-in-depth — the canonical reason this lives in dispatch, not per-handler). Failure exits with code **2** (distinct from the generic exit code `1` for argv/auth/handler failures) so CI can branch on "needs `TESTRAIL_ALLOW_DESTRUCTIVE`" vs everything else. `--dry-run` bypasses the env gate **and** the `--yes` gate (preview is non-destructive by definition; CI agents can safely preview destructive commands without unlocking either gate). The programmatic API surface (`TestRailClient.deleteRun(…)`, etc.) is unaffected — the gate only applies to the CLI dispatcher. Existing tests in `tests/cli.test.ts` continue to pass via a default `AUTH_ENV` that includes `TESTRAIL_ALLOW_DESTRUCTIVE: '1'`; new gate-combo tests explicitly override the env to exercise each branch of the truth table (`(destructive?, dryRun, env value) → ok | error`). Unit tests in `tests/cli-helpers.test.ts` cover `checkDestructiveEnvGate` directly + a crash-canary that asserts every `destructive: true` action in `ACTIONS` is gated. The breaking-change rationale is documented in `CHANGELOG.md` (under v4.0.0) and the two-gate model is documented in `README.md` (Destructive operations section) and `docs/ARCHITECTURE.md` §6.6.
-- [ ] **`result delete`** — N/A (TestRail API doesn't support deleting individual results). Will not implement.
+- [x] **`case delete`** — Shipped in the "Destructive single-entity delete CLI surface" PR as `case delete <case_id> [--soft] --yes`. `--yes` confirms the deletion, and `--dry-run` overrides `--yes` to return a client-side preview. `--soft` sends `?soft=1` to return `affected_*` counts without deleting the case. The programmatic API added a `deleteCase(id, { soft: true })` overload that returns `SoftDeletePreview`.
+- [x] **`run delete`** — Shipped in the same PR as `run delete <run_id> [--soft] --yes`. The programmatic API added a `deleteRun(id, { soft: true })` overload.
+- [x] **`suite delete` / `section delete` / `milestone delete` / `project delete`** — Shipped in the same PR. `suite delete` and `section delete` accept `[--soft]`. `milestone delete` and `project delete` reject `--soft` because TestRail does not support `?soft=1` on those endpoints. `project delete` uses the same `--yes` gate because TestRail provides no extra server-side confirmation parameter.
+- [x] **`plan close` / `plan delete` / `plan delete-entry` / `plan delete-run-from-entry`** — Shipped in PR6 ("CLI destructive plan ops + lifecycle recipe"). Each command requires `--yes`, lets `--dry-run` override `--yes`, and rejects non-positive path-parameter IDs before checking `--yes`. `plan close` is irreversible because TestRail has no `open_plan` endpoint. All four commands reject `--soft` because none of the endpoints support `?soft=1`. `delete-entry` validates the UUID-style `entry_id` string in the handler and returns `entry_id must be a non-empty string` on invalid input. `tests/cli-helpers.test.ts` pins all four actions in the destructive-action set.
+- [x] **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env-var gate (BREAKING)** — Shipped in PR4 of the v4.0.0 batch ("CLI destructive env-var gate"). Destructive CLI actions now require both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1` (exact string `'1'`; values such as `'true'`, `'yes'`, `'on'`, and `'1 '` fail). `checkDestructiveEnvGate` in `src/cli/dispatch.ts` runs before authentication and handler execution so no destructive handler can bypass the check. A missing or invalid environment variable exits with code **2** instead of `1` so CI pipelines can detect the missing unlock. `--dry-run` bypasses both `TESTRAIL_ALLOW_DESTRUCTIVE` and `--yes`. The programmatic API (`TestRailClient`) is unchanged. `tests/cli.test.ts` sets `TESTRAIL_ALLOW_DESTRUCTIVE: '1'` in `AUTH_ENV` by default and tests all combinations of `(destructive?, dryRun, env value)`. `tests/cli-helpers.test.ts` tests `checkDestructiveEnvGate` and verifies that every `destructive: true` action in `ACTIONS` is gated. See `CHANGELOG.md` (v4.0.0), `README.md`, and `docs/ARCHITECTURE.md` §6.6.
+- [ ] **`result delete`** — Not applicable. The TestRail API does not support deleting individual results. Won't implement.
 
 ## CLI write surface — bulk operations
 
-v2.1 ships `result add-bulk` because results are inherently many-per-run.
-Other bulk endpoints are deferred.
+Version 2.1 shipped `result add-bulk` because test runs produce many results. Other bulk endpoints were deferred.
 
-- [x] **`case add-bulk`** — Shipped with the "CLI bulk-case + run watch + attachment pagination (P2)" PR. Exposed as `testrail case add-bulk <section_id> --data '[{...},{...}]'`. `AddCasesBulkPayloadSchema` rejects empty arrays and invalid case items before any network call. The 10.7 audit removed the later-added 7.5 version-error rewrite: TestRail's 7.0 release notes already describe `add_cases` as an updated endpoint. The CLI accepts a bare array for agent ergonomics; the module sends the live-proven `{ cases: [...] }` request envelope and decodes the matching response envelope. `--dry-run` includes a `count` for confirming a large import before sending it.
-- [ ] **`run add-bulk`** — N/A (TestRail API doesn't expose bulk run creation). Won't implement.
+- [x] **`case add-bulk`** — Shipped in the "CLI bulk-case + run watch + attachment pagination (P2)" PR as `testrail case add-bulk <section_id> --data '[{...},{...}]'`. `AddCasesBulkPayloadSchema` rejects empty arrays and invalid case items before any network call. The TestRail 10.7 audit removed the 7.5 version-error rewrite because TestRail 7.0 already supports `add_cases`. The CLI accepts a JSON array, and the module wraps it in `{ cases: [...] }` and decodes the response envelope. `--dry-run` outputs `count` to preview large imports.
+- [ ] **`run add-bulk`** — Not applicable. The TestRail API does not support bulk run creation. Won't implement.
 
 ## CLI feature extensions
 
-- [x] **Output format: `yaml`** — Shipped in the "CLI `--format yaml`/`--format csv` (P1)" PR. Hand-rolled, zero-runtime-dep YAML 1.2 emitter in `src/cli/output.ts` (`renderYaml`). 2-space indent (centralized as `YAML_INDENT_SPACES` in `src/constants.ts`), double-quoted strings for any value that could parse as a number / boolean / null token / reserved-leader scalar, full C-style escape table (`\n`, `\r`, `\t`, `\b`, `\f`, `\0`, `\xNN` for other C0 / DEL), NaN / ±Infinity emitted as YAML 1.2 sentinels (`.nan`, `.inf`, `-.inf`). Empty objects / arrays use the inline flow form (`{}` / `[]`). Mapping keys obey the same quoting rules as scalars so a `"42"` key stays a string on round-trip. Recursive emitter wrapped in a try/catch that emits a structured `error: unserializable / message: …` YAML doc on circular refs, mirroring `safeJsonStringify`'s contract. The hand-rolled choice was deliberate over adding `yaml` / `js-yaml` to keep the zero-runtime-dep invariant from `CLAUDE.md` intact; scope is intentionally narrow (no anchors / aliases / tags) since the renderer only ever emits fresh trees of JSON-shaped values from `request<T>()`.
-- [x] **Output format: `csv`** — Shipped in the same PR. RFC 4180 emitter (`renderCsv`) with CRLF line terminators and standard double-quote escaping (any cell containing `,`, `"`, `\n`, or `\r` is quoted; embedded `"` is doubled). Header row is the **sorted** union of top-level keys across all rows so two CSV exports of the same endpoint always diff identically — deterministic output was the design lever here. Nested objects / arrays are JSON-stringified into a single cell (no dot-path flattening), so the column count is stable regardless of payload shape and downstream tools never see a row with a different field count than the header. Single-object responses become a 1-row CSV preserving insertion order (matches `JSON.stringify`'s key order). Mixed-shape arrays (object + primitive rows) are handled by emitting the primitive in column[0] under the header set derived from the object rows — documented as best-effort and not relied on by any CLI handler. Unknown `--format` values now exit 1 with `unknown --format 'xml'. Valid values: json, table, yaml, csv.` instead of falling through to JSON, closing the silent-typo gap (parity with the `--dryrun` typo gate added in CTF #10).
-- [x] **Attachment upload** — `addAttachmentToCase`, `addAttachmentToResult`, etc. Shipped as `attachment add-to-case|result|run|plan|plan-entry --file <path> [--filename <name>]`. Actual effort was S+ (the programmatic multipart code path already existed in `client-core.ts`).
-- [x] **Attachment download** — `getAttachment`. Shipped as `attachment get <id> --out <path> [--force]`. Refuses to overwrite without `--force`.
-- [x] **Watch mode** — Shipped with the "CLI bulk-case + run watch + attachment pagination (P2)" PR. Exposed as `testrail run watch <run_id> [--interval N] [--once]`. Polls `GET get_run/{run_id}` on a recursive `setTimeout` chain (not `setInterval` — avoids drift and pending-timer stacking when a poll runs slow); default 30s interval bounded to [5, 600] seconds at the CLI boundary so a typo can't flood TestRail's 100 req/60s rate budget. Diff detection runs over a closed set (`is_completed`, `untested_count`, `passed_count`, `failed_count`, `retest_count`, `blocked_count`) so mutable timestamps like `completed_on` don't trigger noisy `change` events. Exits 0 when `is_completed` flips to `true`; exits 130 on SIGINT — the handler `prependListener`s its own SIGINT handler so a one-line `interrupted at runId=N; lastSnapshot=...` summary reaches stderr **before** the client's signal handler runs `process.exit(130)`. Transient `getRun()` rejections surface but do not abort the watcher; only an unrecoverable rejection propagates so `main()` exits 1.
-- [!] **Interactive prompts** — `--interactive` mode for human input. **Won't do.** Conflicts with agent/scripting target audience; humans should use the TestRail web UI.
-- [!] **Telemetry / usage analytics** — **Won't do.** Conflicts with zero-dependency ethos; user-hostile.
+- [x] **Output format: `yaml`** — Shipped in the "CLI `--format yaml`/`--format csv` (P1)" PR. `renderYaml` in `src/cli/output.ts` implements a zero-dependency YAML 1.2 emitter. It uses a 2-space indent (`YAML_INDENT_SPACES` in `src/constants.ts`) and double-quotes strings that match numbers, booleans, null tokens, or reserved leading characters. It escapes C0 and DEL characters (`\n`, `\r`, `\t`, `\b`, `\f`, `\0`, `\xNN`) and formats `NaN` and `±Infinity` as `.nan`, `.inf`, and `-.inf`. Empty objects and arrays render as `{}` and `[]`. Mapping keys use the same quoting rules as scalars so `"42"` remains a string. A `try/catch` block catches circular references and outputs `error: unserializable / message: …`. This custom emitter avoids adding `yaml` or `js-yaml` as runtime dependencies.
+- [x] **Output format: `csv`** — Shipped in the same PR. `renderCsv` implements an RFC 4180 emitter with CRLF line endings and double-quote escaping. It sorts the union of top-level keys across all rows to produce deterministic headers. Nested objects and arrays serialize as JSON strings within a single cell to keep the column count constant. Single-object responses render as a 1-row CSV in key insertion order. For mixed arrays of objects and primitives, `renderCsv` places primitives in column 0. Unknown `--format` values exit with code 1 and print `unknown --format 'xml'. Valid values: json, table, yaml, csv.`
+- [x] **Attachment upload** — Shipped `addAttachmentToCase`, `addAttachmentToResult`, and related methods as `attachment add-to-case|result|run|plan|plan-entry --file <path> [--filename <name>]`. Reused the multipart upload path in `client-core.ts`.
+- [x] **Attachment download** — Shipped `getAttachment` as `attachment get <id> --out <path> [--force]`. Refuses to overwrite an existing file without `--force`.
+- [x] **Watch mode** — Shipped in the "CLI bulk-case + run watch + attachment pagination (P2)" PR as `testrail run watch <run_id> [--interval N] [--once]`. The handler polls `GET get_run/{run_id}` with a recursive `setTimeout` chain to prevent timer drift and stacking. The CLI bounds `--interval` to `[5, 600]` seconds (default 30 seconds) to protect TestRail's rate limit of 100 requests per 60 seconds. Change detection compares `is_completed`, `untested_count`, `passed_count`, `failed_count`, `retest_count`, and `blocked_count`. The command exits with code 0 when `is_completed` becomes `true`. On `SIGINT`, a prepended listener writes `interrupted at runId=N; lastSnapshot=...` to `stderr` before the process exits with code 130. Transient `getRun()` errors are reported without stopping the watcher, while unrecoverable errors exit with code 1.
+- [!] **Interactive prompts** — `--interactive` mode for human input. **Won't do.** This tool targets agents and scripts; humans can use the TestRail web UI.
+- [!] **Telemetry / usage analytics** — **Won't do.** Conflicts with the single-dependency policy and user privacy.
 
 ## Attachment surface — deferred follow-ups
 
-Shipped in the v2.2 attachment-surface PR: 11 read/write/download actions + `attachment delete` (gated by `--yes`). The destructive-ops gating pattern (`--yes` flag; `--dry-run` wins) was locked in here and is now the precedent for all future delete actions.
+The v2.2 attachment-surface PR shipped 11 read, write, and download actions plus `attachment delete` (gated by `--yes`, where `--dry-run` overrides `--yes`).
 
-- [ ] **Binary stdin upload** — `cat foo.png | attachment add-to-case 42 --filename foo.png`. **Effort:** S (handle binary stdin platform issues; require `--filename`). **Trigger:** agents that pipe artifacts from another tool without a temp file. Currently the CLI suppresses stdin when `--file` is set; we'd reverse that gate.
-- [ ] **Binary stdout download** — `attachment get 42 --out -` to stream to stdout for piping (e.g. `| sha256sum`). **Effort:** S. **Trigger:** Unix-y shell composition use cases. Requires `isTTY` refusal to prevent terminal corruption.
-- [x] **Pagination on `attachment list-for-*`** — Shipped with the "CLI bulk-case + run watch + attachment pagination (P2)" PR. New `GetAttachmentsOptions { limit?, offset? }` (exported from package root) accepted by `getAttachmentsForCase` / `getAttachmentsForRun` / `getAttachmentsForTest`. CLI surfaces existing `--limit` / `--offset` flags on the three per-resource list actions; values pass through to TestRail's `&limit=` / `&offset=` query params (server default page size 250). Plan-scoped variants (`list-for-plan`, `list-for-plan-entry`) intentionally don't paginate — TestRail returns the full attachment tree under the plan and accepting `limit`/`offset` there would silently drop attachments outside the slice. Client-side `validatePaginationParams` rejects `limit <= 0` / `offset < 0` before any network call; the `optInt` regex (`NON_NEG_INT_RE`) silently drops malformed argv tokens to `undefined` so a typo can't smuggle a coerced value through to TestRail.
-- [ ] **Streaming upload for very large files** — `--file` currently buffers fully into a `Uint8Array`. TestRail accepts up to 256 MB. **Effort:** M (route around the existing `requestMultipart` which expects `Blob | Uint8Array`). **Trigger:** real-world memory pressure on CI runners.
-- [ ] **Destructive-ops env-var alternative** — accept `TESTRAIL_ALLOW_DESTRUCTIVE=1` as an alternative to `--yes`. **Effort:** S. **Trigger:** documented user request from CI environments that prefer env-var-based gating. (Currently `--yes` is the only path; chose flag-only in v2.2 design for per-command audit clarity.)
+- [ ] **Binary stdin upload** — `cat foo.png | attachment add-to-case 42 --filename foo.png`. **Effort:** S (handle binary `stdin` across platforms and require `--filename`). **Trigger:** agents that pipe artifacts without temporary files.
+- [ ] **Binary stdout download** — `attachment get 42 --out -` to stream binary output to `stdout` (for example, `| sha256sum`). **Effort:** S. **Trigger:** shell pipeline use cases. Must refuse when `stdout.isTTY` is true.
+- [x] **Pagination on `attachment list-for-*`** — Shipped in the "CLI bulk-case + run watch + attachment pagination (P2)" PR. `getAttachmentsForCase`, `getAttachmentsForRun`, and `getAttachmentsForTest` now accept `GetAttachmentsOptions { limit?, offset? }` (exported from the package root). The CLI passes `--limit` and `--offset` to TestRail's `&limit=` and `&offset=` query parameters (server default page size: 250). `list-for-plan` and `list-for-plan-entry` do not paginate because TestRail returns the full plan attachment tree. `validatePaginationParams` rejects `limit <= 0` and `offset < 0` before any network call, and `optInt` (`NON_NEG_INT_RE`) converts malformed tokens to `undefined`.
+- [ ] **Streaming upload for very large files** — `--file` buffers the entire file into a `Uint8Array`. TestRail accepts files up to 256 MB. **Effort:** M (update `requestMultipart` to stream instead of requiring `Blob | Uint8Array`). **Trigger:** memory pressure on CI runners.
+- [ ] **Destructive-ops env-var alternative** — Accept `TESTRAIL_ALLOW_DESTRUCTIVE=1` as an alternative to `--yes`. **Effort:** S. **Trigger:** user request from CI environments.
 
 ## Skill scope expansion
 
-- [x] **SKILL recipe: Plan entries lifecycle (add → add-run → update → delete cascade)** — Shipped with PR6 (recipe #24 in `skill/SKILL.md`). End-to-end walkthrough covering plan creation, entry add, per-config run add, entry/run update, then the safe top-down delete cascade (`delete-run-from-entry → delete-entry → delete/close plan`). Tagged with four `<!-- recipe-for: -->` HTML comments (one per destructive plan action) so gate C2 binds it to all four ACTIONS entries; the API-mapping generator surfaces the recipe link in `docs/API-MAPPING.md` automatically. The lifecycle notes deliberately reference forward-dependency CLI commands (`plan add-run-to-entry`, `plan update-entry`, `plan update-run-in-entry`) that ship in PR5; users on a pre-PR5 release can substitute equivalent programmatic-API calls or recreate the entry with the updated config_ids.
-- [x] **SKILL recipe: Bulk case delete with `--soft` server-side preview** — Shipped as recipe #26 in `skill/SKILL.md`. Recipe-only PR (no source changes). Tagged with `<!-- recipe-for: case:delete-bulk -->` so gate C2 binds it to the existing `case:delete-bulk` ActionSpec. Documents the three independent safety layers and how they interact: `--dry-run` (client-side, no API), `--soft` (server-side, TestRail returns affected counts but does NOT delete), `--yes` (destructive gate). Verified against `handleCaseDeleteBulk` in `src/cli/handlers/case-write.ts` — the recipe matrix mirrors the four observable code branches (dry-run short-circuit emitting `destructive: true` + `soft` flag, missing-`--yes` rejection, `--soft --yes` server preview returning `{ deleted: false, preview }`, plain `--yes` returning `{ deleted: true }`). Recovery section explicitly notes the absence of client-side rollback and points to TestRail's audit log + versioned case definitions as the only recourse. Snapshot tests in `tests/skill-recipes.test.ts` pin the recipe-for tag, the safety-layer table cells, the workflow commands, and the no-`--yes` exit-code narration so a future copy-paste error surfaces as a diff rather than silent drift past gate C2.
-- [x] **SKILL recipe: Configuration groups & configs hierarchy management** — Shipped with PR9 (recipe #26 in `skill/SKILL.md`) alongside the seven configuration CLI commands. End-to-end walkthrough of the project → config_group → config tree: create group, add leaf configs, list the whole tree, update individual configs/groups, then delete in parent-after-child cascade order. Tagged with five `<!-- recipe-for: -->` HTML comments (one per relevant ACTIONS entry: `configuration:list`, `configuration-group:add`, `configuration-group:delete`, `configuration:add`, `configuration:delete`) so gate C2 binds it across both resources. Calls out the destructive-cascade caveat: deleting a group invalidates plan-entry config selections referencing its configs; existing historical results survive but new runs on those plan entries lose the deleted configs from their shortlist. Snapshot tests in `tests/skill-recipes.test.ts` pin the grouping (all five tags under the same heading), the lifecycle command order (preventing reorder of the parent-after-child narrative), and the destructive-warning wording.
-- [x] **Programmatic TypeScript API recipes in the skill** — Shipped with the "Skill expansion (PR5)" PR. Added a new `## Programmatic TypeScript API` section to `skill/SKILL.md` (between the `## Datasets / variables` recipes and `## Destructive actions`) with copy-paste-runnable snippets for every major resource: projects, suites/sections, cases, runs, results, milestones, attachments, plans, users, datasets/variables, groups, shared steps, and the configuration matrix. Snippets compile against the published types (no pseudo-code) and use the canonical `new TestRailClient({...})` setup with `try`/`catch`/`finally` + `client.destroy()`. Includes a `TestRailApiError` / `TestRailValidationError` narrowing pattern and a configuration-tuning snippet covering retries, rate-limiter, body caps, and `registerProcessHandlers`. Section pointed at by README's "Using with AI Coding Agents" intro so users picking the programmatic surface land on the right docs.
-- [x] **Cursor rules file (`.cursor/rules/testrail.mdc`)** — Shipped with the same PR. `scripts/generate-cursor-rules.js` regenerates the `.mdc` from `src/cli/metadata.ts` + the shared `scripts/rules-content.mjs` content module. YAML frontmatter follows the [Cursor rules spec](https://docs.cursor.com/context/rules-for-ai) (`description` / `globs` / `alwaysApply`). New npm scripts `cursor-rules` and `cursor-rules:check`; the `:check` variant is wired into `pretest` so drift fails CI.
-- [x] **Continue rules** — Shipped with the same PR. `.continue/rules/testrail.md` regenerated by `scripts/generate-continue-rules.js` from the same source. Plain markdown (no frontmatter) per the [continue.dev rules spec](https://docs.continue.dev/customization/rules). New npm scripts `continue-rules` / `continue-rules:check`; drift gated in `pretest`.
-- [x] **Generic `AGENTS.md`** — Shipped with the same PR. Vendor-neutral file at the repo root following the [agents.md](https://agents.md/) convention. Includes the shared rules body plus a per-project `Build / verify commands` section listing every npm script. Generator: `scripts/generate-agents-md.js`. npm scripts `agents-md` / `agents-md:check`; drift gated in `pretest`. All three rule artifacts share `scripts/rules-content.mjs` (single source of truth for body content) so adding a fourth format would require only a thin renderer + script.
-- [ ] **Localization (non-English)** — translate skill body. **Effort:** L (translation + per-language generator). **Trigger:** documented non-English user base.
+- [x] **SKILL recipe: Plan entries lifecycle (add → add-run → update → delete cascade)** — Shipped in PR6 as recipe #24 in `skill/SKILL.md`. It documents plan creation, entry creation, per-config run creation, entry and run updates, and top-down deletion (`delete-run-from-entry` → `delete-entry` → `delete/close plan`). Four `<!-- recipe-for: -->` HTML comments bind the recipe to the four destructive plan actions in gate C2 and `docs/API-MAPPING.md`. The recipe also references `plan add-run-to-entry`, `plan update-entry`, and `plan update-run-in-entry` from PR5.
+- [x] **SKILL recipe: Bulk case delete with `--soft` server-side preview** — Shipped as recipe #26 in `skill/SKILL.md` with `<!-- recipe-for: case:delete-bulk -->`. It documents the safety flags in `handleCaseDeleteBulk` (`src/cli/handlers/case-write.ts`). `--dry-run` previews locally with `destructive: true` and `soft`; missing `--yes` causes an error. `--soft --yes` previews on the server and returns `{ deleted: false, preview }`. `--yes` deletes and returns `{ deleted: true }`. The recovery section notes that TestRail has no client-side rollback and points to the TestRail audit log. `tests/skill-recipes.test.ts` pins the `recipe-for` tag, safety table, workflow commands, and exit-code text.
+- [x] **SKILL recipe: Configuration groups & configs hierarchy management** — Shipped in PR9 as recipe #26 in `skill/SKILL.md` alongside the seven configuration CLI commands. It documents the `project` → `config_group` → `config` lifecycle and uses five `<!-- recipe-for: -->` tags (`configuration:list`, `configuration-group:add`, `configuration-group:delete`, `configuration:add`, `configuration:delete`) for gate C2. It notes that deleting a configuration group removes its deleted configurations from future plan-entry runs while preserving historical results. `tests/skill-recipes.test.ts` pins the tag grouping, command order, and warning text.
+- [x] **Programmatic TypeScript API recipes in the skill** — Shipped in PR5 ("Skill expansion"). Added `## Programmatic TypeScript API` to `skill/SKILL.md` with runnable TypeScript examples. They cover projects, suites, sections, cases, runs, results, milestones, attachments, plans, users, datasets, variables, groups, shared steps, and configurations. Every snippet uses `new TestRailClient({...})` with `try`/`catch`/`finally` and `client.destroy()`. The section also demonstrates `TestRailApiError` and `TestRailValidationError` narrowing, retry and rate-limit options, body size caps, and `registerProcessHandlers`. `README.md` links to this section under "Using with AI Coding Agents".
+- [x] **Cursor rules file (`.cursor/rules/testrail.mdc`)** — Shipped in PR5. `scripts/generate-cursor-rules.js` generates `.cursor/rules/testrail.mdc` from `src/cli/metadata.ts` and `scripts/rules-content.mjs` with YAML frontmatter (`description`, `globs`, `alwaysApply`). This format follows the [Cursor rules specification](https://docs.cursor.com/context/rules-for-ai). Added `cursor-rules` and `cursor-rules:check` npm scripts and wired `cursor-rules:check` into `pretest`.
+- [x] **Continue rules** — Shipped in PR5. `scripts/generate-continue-rules.js` generates `.continue/rules/testrail.md` from `src/cli/metadata.ts` and `scripts/rules-content.mjs` as plain Markdown. This format follows the [Continue rules specification](https://docs.continue.dev/customization/rules). Added `continue-rules` and `continue-rules:check` npm scripts and wired `continue-rules:check` into `pretest`.
+- [x] **Generic `AGENTS.md`** — Shipped in PR5. `scripts/generate-agents-md.js` generates `AGENTS.md` at the repository root with the shared rules content and a `Build / verify commands` section. Added `agents-md` and `agents-md:check` npm scripts and wired `agents-md:check` into `pretest`. The file follows the [agents.md specification](https://agents.md/). All three rule generators share `scripts/rules-content.mjs`.
+- [ ] **Localization (non-English)** — Translate the skill file. **Effort:** L (translation and per-language generator). **Trigger:** documented non-English user base.
 
 ## `install-skill` enhancements
 
-- [!] **Symlink install option** — **Won't do** (Q11). Windows permission issues; broken-symlink edge cases; install is fast enough to rerun on update.
-- [!] **`postinstall` auto-install hook** — **Won't do** (Q11). Anti-pattern: runs without consent, breaks CI, hits users who don't use Claude Code.
-- [x] **`testrail uninstall-skill`** — Shipped with the "Skill expansion (PR5)" PR. New `src/cli/uninstall-skill.ts` exporting `runUninstallSkill()` and `getInstallTarget()`. Symmetric reverse of `install-skill`: removes the skill file from `./.claude/skills/testrail-cli/` (default) or `~/.claude/skills/testrail-cli/` (`--global`), then best-effort removes the empty `testrail-cli/` parent dir (never touches `.claude/skills/` or higher). TOCTOU-aware: uses `lstat` (not `stat`) to detect symlinks without following, refuses to unlink symlinks (install-skill only ever produces regular files via `copyFileSync`, so anything else indicates tampering or unrelated content), refuses to unlink non-files. Wired into `src/cli/index.ts` alongside `install-skill` (positionals[0]-based meta-command dispatch — both sit outside the normal `resource:action` flow because they manage filesystem state, not TestRail). HELP text and README document the scope boundary: `uninstall-skill` does NOT touch `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`, or `AGENTS.md` (separate lifecycle). Related backlog: SEC #5 (TOCTOU symlink-clobber on install target) remains open as a separate concern; the new uninstall path is built not to introduce a parallel hazard but does not fix the existing one. Unit tests in `tests/uninstall-skill.test.ts` (12 cases): happy paths, missing-file, --quiet semantics, install/uninstall round-trip, symlink-refusal + non-file-refusal TOCTOU defenses, empty-parent cleanup, sibling-file preservation, lifecycle-messaging guarantees. Subprocess smoke test in `tests/cli.test.ts` confirms the dispatch path is wired.
-- [ ] **Multi-version skill management** — e.g., side-by-side skill installs for multiple installed package versions. **Effort:** M. **Trigger:** monorepos pinning different versions.
-- [ ] **Claude Code plugin marketplace publish** — separate distribution channel. **Effort:** M (process + metadata). **Trigger:** if a Claude Code marketplace launches that makes this the canonical distribution mechanism.
+- [!] **Symlink install option** — **Won't do** (Q11). Causes permission issues on Windows and broken-symlink edge cases. Copying the file is fast enough to rerun on update.
+- [!] **`postinstall` auto-install hook** — **Won't do** (Q11). Runs without user consent, breaks CI pipelines, and affects users who do not use Claude Code.
+- [x] **`testrail uninstall-skill`** — Shipped in PR5 ("Skill expansion"). `src/cli/uninstall-skill.ts` exports `runUninstallSkill()` and `getInstallTarget()`. It removes the skill file from `./.claude/skills/testrail-cli/` (default) or `~/.claude/skills/testrail-cli/` (`--global`), and removes the `testrail-cli/` directory if it is empty without modifying `.claude/skills/`. To prevent TOCTOU attacks, it checks the target with `lstat` and refuses to remove symlinks or non-regular files. `src/cli/index.ts` dispatches `uninstall-skill` alongside `install-skill`. `uninstall-skill` does not modify `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`, or `AGENTS.md`. SEC #5 tracks the remaining TOCTOU symlink issue on `install-skill`. `tests/uninstall-skill.test.ts` (12 tests) and `tests/cli.test.ts` verify this command.
+- [ ] **Multi-version skill management** — Support side-by-side skill installations for multiple package versions. **Effort:** M. **Trigger:** monorepos that pin multiple versions.
+- [ ] **Claude Code plugin marketplace publish** — Publish to a separate distribution channel. **Effort:** M (process and metadata). **Trigger:** launch of an official Claude Code marketplace.
 
 ## Drift detection — beyond generator diff
 
-The v2.1 plan locks in hybrid generation with `<!-- GENERATED -->` sentinels +
-`prepublishOnly` diff check. Stronger guarantees are deferred.
+The v2.1 plan uses hybrid generation with `<!-- GENERATED -->` sentinels and a `prepublishOnly` diff check.
 
-- [ ] **Snapshot test for recipe code blocks** — parse SKILL.md, extract fenced `bash` blocks, run each against the binary with `fetch` mocked, assert exit codes. **Effort:** M. **Trigger:** a regression where a recipe drifts despite the schema-level generator catching most things.
-- [ ] **Generator runs in CI separately from `pretest`** — explicit GitHub Action that fails the PR with a clear "run `npm run skill`" message. **Effort:** S. **Trigger:** contributor confusion about the existing `pretest` failure message.
+- [ ] **Snapshot test for recipe code blocks** — Parse `SKILL.md` and extract fenced `bash` blocks. Run each block against the CLI with mocked `fetch`. Verify the exit codes. **Effort:** M. **Trigger:** recipe drift that bypasses the schema-level generator.
+- [ ] **Generator runs in CI separately from `pretest`** — Add a GitHub Action that fails pull requests with a clear "run `npm run skill`" message. **Effort:** S. **Trigger:** contributor confusion from `pretest` failure messages.
 
 ## Quality / verification
 
-- [ ] **Coverage delta enforcement** — fail CI if coverage drops below 98% (currently a soft target). **Effort:** S (Vitest config). **Trigger:** a PR that lands with regressed coverage.
-- [ ] **CLI fuzz tests** — random JSON bodies into write actions, assert Zod rejection. **Effort:** M. **Trigger:** real-world payload-shape bugs.
-- [ ] **Stricter numeric parsing in `parseId` / `optInt`** — current `Number(raw)` + `Number.isInteger` check accepts non-decimal numeric literals like `'1e3'` (→ 1000) and `'0x10'` (→ 16). Reject these with a `/^[1-9]\d*$/` (or `/^\d+$/` for `optInt`) pre-check so the CLI rejects what its error message claims to require (decimal positive integers). **Effort:** S. **Trigger:** Copilot review on PR #53; deferred from PR 1 because tightening accept/reject semantics is a (minor) breaking behavior change and PR 1 was scoped as "no behavior change". Bundle with any future v2.x release that documents breaking input-validation tightening.
+- [ ] **Coverage delta enforcement** — Fail CI if test coverage drops below 98%. **Effort:** S (Vitest configuration). **Trigger:** a pull request that reduces coverage.
+- [ ] **CLI fuzz tests** — Pass random JSON payloads to write actions and verify that Zod rejects invalid shapes. **Effort:** M. **Trigger:** payload-validation bugs.
+- [ ] **Stricter numeric parsing in `parseId` / `optInt`** — `Number(raw)` + `Number.isInteger` currently accepts non-decimal literals such as `'1e3'` (1000) and `'0x10'` (16). Validate inputs with `/^[1-9]\d*$/` (or `/^\d+$/` for `optInt`) so the CLI accepts only decimal positive integers. **Effort:** S. **Trigger:** Copilot review on PR #53, deferred to a release that documents stricter input validation.
 
 ## TestRail API methods — not yet implemented
 
-Gap analysis against the [TestRail API reference](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference). These are programmatic-client gaps (independent of CLI exposure); each would land as a new method on `TestRailClient` + Zod schema + tests.
+This section tracks programmatic client gaps against the [TestRail API reference](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference). Each item adds a method on `TestRailClient`, a Zod schema, and tests.
 
-Implementation conventions for every item below: add the method to the relevant module in `src/modules/`, validate IDs via `this.client.validateId(...)`, parse responses with `this.client.parse(Schema, raw)`, define request payload + response schemas in `src/schemas.ts` with `.passthrough()` so `custom_*` fields survive, re-export public types from `src/index.ts`, and add tests to the matching `tests/client-*.test.ts`. See `CLAUDE.md` → "Add API endpoint" for the full checklist.
+To implement an endpoint:
+1. Add the method to the module in `src/modules/`.
+2. Validate IDs with `this.client.validateId(...)`.
+3. Parse responses with `this.client.parse(Schema, raw)`.
+4. Define request and response schemas in `src/schemas.ts` with `.passthrough()` to preserve `custom_*` fields.
+5. Re-export public types from `src/index.ts`.
+6. Add tests in `tests/client-*.test.ts`.
+See `CLAUDE.md` → "Add API endpoint" for the complete checklist.
 
 ### BDDs ([API docs](https://support.testrail.com/hc/en-us/articles/7832161593620-BDDs)) — entire category, TestRail 7.5+
 
-- [x] **`getBdd(caseId)`** — Shipped with the "BDD endpoints" PR. `GET get_bdd/{case_id}` returns raw Gherkin `.feature` text (TestRail 7.5+). Required extending `TestRailClientCore` with a new `requestText()` method that mirrors `request<T>()`'s retry/rate-limit/timeout/DNS pipeline but swaps the JSON parse for `response.text()`. Lives in a new `src/modules/bdd.ts` module (not `cases.ts`) since BDDs are a distinct TestRail concept. CLI: `bdd get <case_id> --out <path> [--force]` writes UTF-8 text and emits an ack with byte count.
-- [x] **`addBdd(caseId, file, filename)`** — Shipped with the "BDD endpoints" PR. `POST add_bdd/{case_id}` with a multipart `.feature` upload via the existing `requestMultipart` pipeline. Returns the updated `Case` (verified against `CaseSchema`). CLI: `bdd add <case_id> --file <path> [--filename <name>]` (mirrors `attachment add-to-case` semantics, including dry-run preview).
+- [x] **`getBdd(caseId)`** — Shipped in the "BDD endpoints" PR. `GET get_bdd/{case_id}` returns raw Gherkin `.feature` text (TestRail 7.5+). Added `requestText()` to `TestRailClientCore` to apply the same retry, rate-limit, timeout, and DNS rules as `request<T>()` while returning `response.text()`. Implemented in `src/modules/bdd.ts`. The CLI command `bdd get <case_id> --out <path> [--force]` writes UTF-8 text and outputs a JSON acknowledgement with the byte count.
+- [x] **`addBdd(caseId, file, filename)`** — Shipped in the "BDD endpoints" PR. `POST add_bdd/{case_id}` uploads a `.feature` file via `requestMultipart` and returns the updated `Case` validated by `CaseSchema`. The CLI command `bdd add <case_id> --file <path> [--filename <name>]` matches `attachment add-to-case`, including `--dry-run` preview.
 
 ### Cases ([API docs](https://support.testrail.com/hc/en-us/articles/7077292642580-Cases)) — bulk and history
 
-- [x] **`updateCases(suiteId, payload)`** — Shipped with the "Bulk case operations" PR. `POST update_cases/{suite_id}` with body `{ case_ids: number[], ...sharedFields }`. Returns the array of updated cases. Inlined `UpdateCasesPayloadSchema` (not `.extend(UpdateCasePayloadSchema)`) to keep the `.passthrough()` behavior unambiguous, mirroring `AddResultForTestPayloadSchema`. Exposed on CLI as `case update-bulk <suite_id> --data ...`. Note: TestRail's online docs list `suite_id` as single-suite-mode optional; the reference Python client (`tolstislon/testrail-api`) and live API both treat it as required, so we keep it required as the path param.
-- [x] **`deleteCases(suiteId, projectId, payload, options?)`** — Shipped with the "Bulk case operations" PR. `POST delete_cases/{suite_id}&project_id=X[&soft=1]`. `project_id` is a required positional argument (not buried in options); `options.soft=true` adds `soft=1` (server-side preview — returns counts without deleting). Distinct from CLI `--dry-run` which short-circuits before any API call. CLI: `case delete-bulk <suite_id> --project-id <id> [--soft] --data ... --yes` (destructive, gated by `--yes`; `--dry-run` still wins over `--yes`).
-- [x] **`copyCasesToSection(sectionId, payload)`** — Shipped with the "Bulk case operations" PR. `POST copy_cases_to_section/{section_id}` with body `{ case_ids: number[] }`. Returns the new case copies as `Case[]`. CLI: `case copy-to-section <section_id> --data ...`. Schema is intentionally separate from `DeleteCasesPayloadSchema` despite the identical shape — a future field on either endpoint must not silently spread.
-- [x] **`moveCasesToSection(sectionId, payload)`** — Shipped with the "Bulk case operations" PR. `POST move_cases_to_section/{section_id}` with body `{ case_ids: number[], suite_id: number }`. **Original BACKLOG draft was wrong on the body shape**: TestRail does NOT take `section_id` in the body (it's path-only), and `suite_id` is required (not optional) — verified against the live API and the reference Python client. CLI: `case move-to-section <section_id> --data ...`.
-- [x] **`getHistoryForCase(caseId, options?)`** — Shipped with the "History/statuses" PR alongside `getSharedStepHistory` and `getCaseStatuses` (TestRail 6.5.4+). Exposed on CLI as `case history <case_id> [--limit N] [--offset N]`. Shares the new `HistoryEntrySchema` with `getSharedStepHistory` (one schema, `.passthrough()` covers `timestamp` vs `created_on` divergence).
+- [x] **`updateCases(suiteId, payload)`** — Shipped in the "Bulk case operations" PR. `POST update_cases/{suite_id}` sends `{ case_ids: number[], ...sharedFields }` and returns the updated cases. `UpdateCasesPayloadSchema` is defined inline with `.passthrough()`. The CLI exposes `case update-bulk <suite_id> --data ...` and requires `suite_id` as a path parameter to match the live API and reference Python client (`tolstislon/testrail-api`).
+- [x] **`deleteCases(suiteId, projectId, payload, options?)`** — Shipped in the "Bulk case operations" PR. `POST delete_cases/{suite_id}&project_id=X[&soft=1]` requires `project_id` as a positional parameter. Setting `options.soft=true` appends `soft=1` to return affected counts from the server without deleting cases, whereas CLI `--dry-run` previews locally without calling the API. The CLI exposes `case delete-bulk <suite_id> --project-id <id> [--soft] --data ... --yes`.
+- [x] **`copyCasesToSection(sectionId, payload)`** — Shipped in the "Bulk case operations" PR. `POST copy_cases_to_section/{section_id}` sends `{ case_ids: number[] }` and returns `Case[]`. The CLI exposes `case copy-to-section <section_id> --data ...`. `CopyCasesToSectionPayloadSchema` is kept separate from `DeleteCasesPayloadSchema` so future changes to one endpoint do not affect the other.
+- [x] **`moveCasesToSection(sectionId, payload)`** — Shipped in the "Bulk case operations" PR. `POST move_cases_to_section/{section_id}` sends `{ case_ids: number[], suite_id: number }`. The live API takes `section_id` only in the URL path and requires `suite_id` in the body. The CLI exposes `case move-to-section <section_id> --data ...`.
+- [x] **`getHistoryForCase(caseId, options?)`** — Shipped in the "History/statuses" PR alongside `getSharedStepHistory` and `getCaseStatuses` (TestRail 6.5.4+). The CLI exposes `case history <case_id> [--limit N] [--offset N]`. It shares `HistoryEntrySchema` (with `.passthrough()`) with `getSharedStepHistory`.
 
 ### Case Fields ([API docs](https://support.testrail.com/hc/en-us/articles/7077281158164-Case-Fields))
 
-- [x] **`addCaseField(payload)`** — Shipped with the "addCaseField" PR. `POST add_case_field` (admin-only; admin permissions required on the TestRail server). Inlined `AddCaseFieldPayloadSchema` with a dedicated nested `AddCaseFieldConfigPayloadSchema` for `configs[]` — mirrors the response-side `context`/`options` shape but lives as a separate write payload so future response-only fields can't drift in. `.passthrough()` lets TestRail be the source of truth on field-type-specific quirks (Steps rejects `items`, `name` must be a system slug). Returns the newly created `CaseField`. Exposed on CLI as `case-field add --data ...` (no path params; first hyphenated-resource write action, following the `case-status` precedent).
+- [x] **`addCaseField(payload)`** — Shipped in the "addCaseField" PR. `POST add_case_field` requires administrator permissions on the TestRail server. `AddCaseFieldPayloadSchema` uses a dedicated `AddCaseFieldConfigPayloadSchema` for `configs[]` and `.passthrough()` for field-type-specific options. It returns the created `CaseField`. The CLI exposes `case-field add --data ...` with no path parameters.
 
 ### Plans ([API docs](https://support.testrail.com/hc/en-us/articles/7077711537684-Plans)) — per-entry run management
 
-- [x] **`addRunToPlanEntry(planId, entryId, payload)` / `updateRunInPlanEntry(runId, payload)` / `deleteRunFromPlanEntry(runId)`** — Shipped together as the "Plan entry runs" PR. Three programmatic methods on `TestRailClient` (no CLI surface — deferred to a future PR once the `plan-entry` resource naming is settled). Two new dedicated payload schemas (`AddRunToPlanEntryPayloadSchema` with `config_ids` required; `UpdateRunInPlanEntryPayloadSchema` with the four mutable fields, all optional) — distinct from the loose `PlanEntryRunPayloadSchema` used for nested entries, matching Decision Log Q8 (honest fail-fast > silent fix). `update_run_in_plan_entry` rejects `name` / `config_ids` / `refs` client-side because the endpoint silently drops them.
-- [x] **CLI: `plan add-run-to-entry` / `plan update-entry` / `plan update-run-in-entry`** — Shipped together as the "Plan-entry write CLI" PR. Surfaced the three previously deferred programmatic methods (`addRunToPlanEntry`, `updatePlanEntry`, `updateRunInPlanEntry`) under the existing `plan` resource namespace. `entry_id` is a UUID string per TestRail's API, so a new local `parseEntryId` helper enforces non-empty-string semantics that mirror `client-core.validateEntryId` — `parseId` (numeric-only) is kept out of the entry-id path so a stray `0` doesn't silently coerce. All three commands follow the established write-action recipe: `parseId` for numeric path params, `resolveBody` for `--data | --data-file | stdin`, dry-run preview, Zod-typed payload. `plan delete-entry` + `plan delete-run-from-entry` remain deferred (destructive, separate review).
+- [x] **`addRunToPlanEntry(planId, entryId, payload)` / `updateRunInPlanEntry(runId, payload)` / `deleteRunFromPlanEntry(runId)`** — Shipped in the "Plan entry runs" PR on `TestRailClient`. Added `AddRunToPlanEntryPayloadSchema` (`config_ids` required) and `UpdateRunInPlanEntryPayloadSchema` (four optional mutable fields). `UpdateRunInPlanEntryPayloadSchema` rejects `name`, `config_ids`, and `refs` on the client because the endpoint ignores them.
+- [x] **CLI: `plan add-run-to-entry` / `plan update-entry` / `plan update-run-in-entry`** — Shipped in the "Plan-entry write CLI" PR under the `plan` resource. A local `parseEntryId` helper validates that the UUID `entry_id` is a non-empty string to match `client-core.validateEntryId`. Each handler uses `parseId` for numeric path parameters, `resolveBody` for `--data | --data-file | stdin`, `--dry-run` preview, and Zod payload validation. `plan delete-entry` and `plan delete-run-from-entry` shipped separately in PR6.
 
 ### Results ([API docs](https://support.testrail.com/hc/en-us/articles/7077819312404-Results))
 
-- [x] **`addResults(runId, payload)`** — Shipped together with CLI `result add-bulk-by-test <run_id> --data ...`. New dedicated payload schemas (`AddResultForTestPayloadSchema` with `test_id`+`status_id` required; `AddResultsPayloadSchema` wraps the array). Inlined rather than extending `AddResultPayloadSchema` (same precedent as `AddResultForCasePayloadSchema`) — keeps `.passthrough()` behavior unambiguous and the inferred type a plain object literal. Returns `Result[]` matching the server response order.
+- [x] **`addResults(runId, payload)`** — Shipped with CLI `result add-bulk-by-test <run_id> --data ...`. `AddResultForTestPayloadSchema` requires `test_id` and `status_id`, and `AddResultsPayloadSchema` wraps the array. Defining the schema inline keeps `.passthrough()` unambiguous and returns `Result[]` in server response order.
 
 ### Sections ([API docs](https://support.testrail.com/hc/en-us/articles/7077918603412-Sections))
 
-- [x] **`moveSection(sectionId, payload)`** — Shipped with the "moveSection" PR. `POST move_section/{section_id}` (TestRail 6.5.2+). Body: `{ parent_id?: number | null, after_id?: number | null }`. Both fields modelled as `z.number().nullable().optional()` so `null` (explicit "move to root" / "move to top") and field-omitted ("don't change that axis") stay semantically distinct end-to-end — `null` survives JSON serialization to the API rather than being elided. Returns no body (`Promise<void>`); callers wanting the post-move state should `getSection(sectionId)`. Exposed on CLI as `section move <section_id> --data '{"parent_id":null,"after_id":42}'`. First section-namespaced CLI write action — new `src/cli/handlers/section-write.ts` mirrors the case-write pattern.
+- [x] **`moveSection(sectionId, payload)`** — Shipped in the "moveSection" PR (`POST move_section/{section_id}`, TestRail 6.5.2+). The request body accepts `{ parent_id?: number | null, after_id?: number | null }` using `z.number().nullable().optional()`. Passing `null` moves the section to the root or top, whereas omitting a field leaves that position unchanged. The method returns `Promise<void>`. The CLI exposes `section move <section_id> --data '{"parent_id":null,"after_id":42}'` in `src/cli/handlers/section-write.ts`.
 
 ### Shared Steps ([API docs](https://support.testrail.com/hc/en-us/articles/7077919815572-Shared-Steps))
 
-- [x] **`getSharedStepHistory(sharedUpdateId, options?)`** — Shipped with the "History/statuses" PR. Exposed on CLI as `shared-step history <shared_update_id> --page|--all`; pagination is response-driven, so caller-controlled limit/offset are not advertised. The PR also introduced `shared-step get/list` CLI actions so the new namespace is not half-built (the programmatic methods already existed).
+- [x] **`getSharedStepHistory(sharedUpdateId, options?)`** — Shipped in the "History/statuses" PR. The CLI exposes `shared-step history <shared_update_id> --page|--all` using response-driven pagination without `--limit` or `--offset`. This PR also added `shared-step get` and `shared-step list` to the CLI.
 
 ### Statuses ([API docs](https://support.testrail.com/hc/en-us/articles/7077935129364-Statuses))
 
-- [x] **`getCaseStatuses()`** — Shipped with the "History/statuses" PR for TestRail Enterprise 7.3+. Dedicated `CaseStatusSchema` keyed on `case_status_id` (not `id`), keeping it disjoint from the result-status `StatusSchema`. Exposed on CLI as `case-status list` — the first metadata-style endpoint to land in the CLI; justified by its distinct purpose vs. `getStatuses`, not as a precedent for the other metadata getters.
+- [x] **`getCaseStatuses()`** — Shipped in the "History/statuses" PR for TestRail Enterprise 7.3+. `CaseStatusSchema` keys records on `case_status_id` instead of `id` to keep it separate from `StatusSchema`. The CLI exposes `case-status list`.
 
 ### Suggested grouping for future PRs
 
@@ -185,8 +178,7 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ## Decision Log
 
-Items below have explicit **won't do** status from v2.1 design. Listed here so
-future contributors don't re-propose them without new information.
+The items below were rejected (**won't do**) during the v2.1 design. Do not re-propose them without new evidence.
 
 | Item                                            | Decided in      | Reason                                                                        |
 | ----------------------------------------------- | --------------- | ----------------------------------------------------------------------------- |
@@ -198,172 +190,68 @@ future contributors don't re-propose them without new information.
 | Programmatic API recipes in the CLI skill       | Q2              | Skill stays focused; `README` + `CODEMAP` cover programmatic use              |
 | Cursor / Continue / generic agent formats in v1 | Q1              | One well-supported format > three half-baked ones                             |
 
-When pulling an item out of "won't do", document the new information that
-changed the calculus.
+If you reopen a rejected item, document the new information that changed the decision.
 
 ---
 
 ## Security Findings (CTF audit, 2026-05-16)
 
-Three vulnerabilities surfaced during a CTF-style read-through of the request
-pipeline and CLI file I/O. Severity is the audit's own rating; effort lines
-sketch a minimal fix.
+A security audit of the request pipeline and CLI file I/O identified the findings below. Each entry lists the audit severity and a fix summary.
 
-**Status (v2.2):** Findings #1–#3 shipped together. DNS validation now runs
-fresh before every request (no construction-time caching) and is fail-closed
-on lookup errors; `allowPrivateHosts: true` is the documented escape hatch
-for both private-host and DNS-validation-unavailable scenarios. `--out` paths
-are lstat-checked (catches broken symlinks) and writes use `wx`/post-lstat to
-keep the TOCTOU window microseconds-wide. New tests in
-`tests/cli-file-output.test.ts`, `tests/cli-safe-write.test.ts`, and the
-`DNS validation` block of `tests/client-features.test.ts`.
+**Status (v2.2):** Shipped findings #1–#3. DNS validation now runs before every request without construction-time caching and fails closed on lookup errors. Set `allowPrivateHosts: true` to allow private hosts or bypass unavailable DNS validation. `--out` paths use `lstat` to detect broken symlinks, and file writes use `wx` and post-write `lstat` checks to minimize the TOCTOU window. Added tests in `tests/cli-file-output.test.ts`, `tests/cli-safe-write.test.ts`, and `tests/client-features.test.ts` (`DNS validation`).
 
-**Status (v3.0, CLI safety cluster):** Findings #6, #10, #11, #16, #18, #24
-shipped together. `run close` now requires `--yes`. parseArgs unknown flags
-are rejected via a post-parse strict gate so typos like `--dryrun` no longer
-silently bypass `--dry-run`. `--api-key <key>` argv was removed; the API
-key must come from `TESTRAIL_API_KEY` (recommended) or `--api-key-stdin`.
-Stderr error messages and `--format table` cell values are sanitized to
-strip ANSI/OSC terminal escape sequences. Stdin reads are bounded at 1 MiB
-(memory-DoS only — see #24 for the open wall-clock-deadline follow-up).
-Breaking-change migration notes in [CHANGELOG.md](CHANGELOG.md).
+**Status (v3.0, CLI safety cluster):** Shipped findings #6, #10, #11, #16, #18, and #24. `run close` now requires `--yes`. Post-parse flag validation rejects unknown flags such as `--dryrun`. Removed `--api-key <key>` from `argv`; pass the API key via `TESTRAIL_API_KEY` or `--api-key-stdin`. The CLI strips ANSI and OSC escape sequences from `stderr` error messages and `--format table` cells. `stdin` reads are capped at 1 MiB (see #24 for the open wall-clock timeout follow-up). See [CHANGELOG.md](../../CHANGELOG.md) for migration notes.
 
 ### 1. DNS-rebinding bypass of SSRF guard — `src/client-core.ts` (Severity: HIGH) — [SHIPPED]
 
-`validatePublicHost()` (~L97–127) resolves the configured `baseUrl` hostname
-**once at client construction** and stores the outcome in a single promise
-(`dnsValidationPromise`). Every subsequent `request*()` awaits the same
-already-settled promise and then calls `fetch(url, …)`, which performs its
-**own** DNS lookup against the OS resolver at request time. The two lookups
-are independent — the pinned IP from validation never flows into `fetch()`.
+`validatePublicHost()` (~L97–127) resolves the configured `baseUrl` hostname once during client construction and stores the result in a single promise (`dnsValidationPromise`). Every subsequent `request*()` awaits that settled promise and calls `fetch(url, …)`. `fetch()` then runs its own DNS lookup through the OS resolver at request time. Because the two lookups are independent, `fetch()` never uses the IP address validated at construction time.
 
-Attack: an attacker-controlled authoritative DNS server for `evil.example.com`
-returns a public IP (`1.2.3.4`) with a very low TTL during the construction
-lookup, then immediately returns `169.254.169.254` (cloud metadata) or
-`127.0.0.1` for the next query. The validation passes; `fetch()` hits the
-private/loopback target carrying the full `Authorization: Basic <creds>`
-header — converting the client into a credentialed SSRF probe.
+Attack: An attacker-controlled DNS server for `evil.example.com` returns a public IP (`1.2.3.4`) with a low TTL during client construction. On the next query, the DNS server returns `169.254.169.254` (cloud metadata) or `127.0.0.1`. Validation succeeds, and `fetch()` sends the request with the `Authorization: Basic <creds>` header to the private or loopback target.
 
-The synchronous `PRIVATE_HOST_PATTERNS` regex on `url.hostname` doesn't help:
-the hostname string is still the attacker's public domain.
+The synchronous `PRIVATE_HOST_PATTERNS` regular expression on `url.hostname` does not block this attack because the hostname string remains the public domain.
 
-**Fix sketch (S):** resolve once with `dns.lookup`, then pass the pinned IP
-as the URL host while putting the original hostname in the `Host` header (or
-use a custom `undici` Dispatcher / `lookup` agent option). Re-validate IPs on
-every request rather than caching the construction-time result.
+**Fix sketch (S):** Resolve the hostname with `dns.lookup`. Use the resolved IP address as the URL host and the original hostname in the `Host` header. A custom `undici` Dispatcher or `lookup` option is another possible approach. Re-validate IP addresses on every request instead of caching the construction-time result.
 
 ### 2. Fail-open DNS validation — `src/client-core.ts:118–126` (Severity: HIGH) — [SHIPPED]
 
-Inside `validatePublicHost()` the `dns.lookup` call is wrapped in
-`try/catch`. On any non-`TestRailValidationError` throw — including
-`SERVFAIL`, `NXDOMAIN`, `REFUSED`, or an `import('node:dns/promises')` failure
-under a constrained runtime — the catch emits `console.warn(...)` and
-**returns normally**, letting the client proceed to `fetch()`.
+`validatePublicHost()` wraps the `dns.lookup` call in a `try/catch` block. `dns.lookup` or `import('node:dns/promises')` can throw errors such as `SERVFAIL`, `NXDOMAIN`, or `REFUSED`. For errors other than `TestRailValidationError`, the `catch` block logs `console.warn(...)` and returns normally. The client then proceeds to call `fetch()`.
 
-Attack: an attacker who controls the authoritative DNS for their domain
-serves `SERVFAIL` to the validation lookup (or uses an IDN/punycode form the
-local resolver rejects), suppressing the only IP-level check. The
-construction-time regex sees a benign-looking hostname; `fetch()` later
-resolves the same name to a private IP via the OS resolver, which may be
-configured with different timeouts/servers and succeed.
+Attack: An attacker-controlled DNS server returns `SERVFAIL` during validation. An IDN/punycode name rejected by the local resolver has the same effect: the IP check is skipped. The construction-time regular expression accepts the hostname string. `fetch()` later resolves the hostname to a private IP address through the OS resolver.
 
-Combined with finding #1, this is a one-step SSRF: rebinding isn't even
-required because validation never produces a verdict.
+When combined with finding #1, this flaw allows a single-step SSRF attack without DNS rebinding.
 
-**Fix sketch (S):** treat lookup errors as failures (`allowPrivateHosts:
-true` is the documented escape hatch). At minimum, distinguish "lookup
-timed out" from "lookup returned a private IP" and only fail-open on the
-former when a new `allowDnsFailures` flag is set.
+**Fix sketch (S):** Treat DNS lookup errors as validation failures (`allowPrivateHosts: true` provides the documented bypass). If needed, separate lookup timeouts from private-IP rejections and fail open on timeouts only when `allowDnsFailures` is enabled.
 
 ### 3. TOCTOU symlink-clobber in `attachment get --out` — `src/cli/file-output.ts` + `src/cli/handlers/attachment.ts` (Severity: MEDIUM) — [SHIPPED]
 
-`resolveOut()` rejects the call when `existsSync(path)` is true and `--force`
-is not set. `existsSync` **follows symlinks** — a broken symlink (target does
-not exist) returns `false`. After the check passes, `handleAttachmentGet`
-calls `getAttachment()` (a network round-trip, hundreds of ms to seconds),
-**then** `writeFileSync(resolved.path, bytes)`. `writeFileSync` opens with
-the default `'w'` flag, which **follows symlinks** and truncates/creates
-their target.
+`resolveOut()` rejects the command when `existsSync(path)` returns `true` and `--force` is not set. Because `existsSync` follows symlinks, it returns `false` for a broken symlink whose target does not exist. After this check passes, `handleAttachmentGet` calls `getAttachment()` over the network and then calls `writeFileSync(resolved.path, bytes)`. `writeFileSync` uses the default `'w'` flag, which follows symlinks and overwrites or creates the target file.
 
-Attack: in a shared-filesystem context (CI runner, multi-user host, container
-with mounted volumes) a co-tenant places a broken symlink at the agent's
-expected `--out` path pointing to, e.g., `~/.ssh/authorized_keys` or a CI
-secret file. The network round-trip is the attack window. When the
-attachment lands, its bytes overwrite the symlink target — silent
-arbitrary-file write under the CLI user's UID.
+Attack: A local attacker places a broken symlink at the `--out` path on a shared filesystem. The link points to `~/.ssh/authorized_keys` or a CI secret file. Shared CI runners, multi-user hosts, and containers with mounted volumes can be affected. During the network download, the check has already passed. When the download finishes, `writeFileSync` writes the attachment bytes to the symlink target under the CLI user's UID.
 
-**Fix sketch (S):** open with `flag: 'wx'` on the non-`--force` path so the
-kernel atomically refuses an existing path (including broken symlinks);
-when `--force` is set, `lstat()` the path first and reject symlinks unless
-the user passes an additional opt-in (or use `O_NOFOLLOW` via `open()` +
-`fs.write`). Tests: drop a broken symlink, then run `attachment get --out
-<symlink>` and assert the target file is unchanged.
+**Fix sketch (S):** Open the output file with `flag: 'wx'` when `--force` is not set so the OS kernel rejects existing paths and broken symlinks atomically. When `--force` is set, call `lstat()` first and reject symlinks (or open the file with `O_NOFOLLOW` via `open()` and `fs.write`). Add a test that creates a broken symlink, runs `attachment get --out <symlink>`, and verifies that the target file does not change.
 
 ### 4. SSRF guard bypassed by HTTP redirect — `src/client-core.ts` (Severity: HIGH) — [OPEN]
 
-All four `fetch()` call sites — `request()` (L624), `requestText()` (L745),
-`requestMultipart()` (L829), and `requestBinary()` (L899) — call `fetch(url,
-options)` without setting `redirect`. Node's WHATWG `fetch` defaults to
-`redirect: 'follow'` (up to 20 hops). `validatePublicHost()` only resolves
-and IP-checks the **configured** `baseUrl` hostname; the `Location` header
-of any 3xx response is never re-validated against `PRIVATE_HOST_PATTERNS`
-or re-resolved through `dns.lookup`.
+All four `fetch()` call sites (`request()` at L624, `requestText()` at L745, `requestMultipart()` at L829, and `requestBinary()` at L899) call `fetch(url, options)` without setting `redirect`. Node's WHATWG `fetch` defaults to `redirect: 'follow'` (up to 20 redirects). `validatePublicHost()` validates only the configured `baseUrl` hostname. The client never validates the `Location` header of a 3xx response against `PRIVATE_HOST_PATTERNS` or `dns.lookup`.
 
-Attack: a TestRail-shaped origin the user is asked to point at — a
-self-hosted instance compromised by an attacker, a typosquatted host, a
-proxy in the path, or any reverse-proxy misconfiguration — responds to a
-benign endpoint (e.g. `get_user_by_email`) with:
+Attack: A malicious or misconfigured origin server responds to a request (such as `get_user_by_email`) with a redirect:
 
 ```
 HTTP/1.1 302 Found
 Location: http://169.254.169.254/latest/meta-data/iam/security-credentials/
 ```
 
-The client follows the redirect and the upstream `fetch()` happily hits the
-AWS IMDSv1 endpoint (or `http://localhost:6379/`, `http://127.0.0.1:9200/`,
-`http://internal-admin.testrail.example.com:9000/`, a Docker socket via
-`http://localhost/var/run/...`, etc.). The body comes back as the
-"TestRail response" — `request<T>()` then tries to `JSON.parse` it and
-throws a generic `Invalid JSON response from TestRail API`, **but the
-internal GET has already happened** and any side-effect-y endpoint (e.g.
-`POST /shutdown` on an admin port reached via a chained 307 that preserves
-the method) has fired.
+`fetch()` follows the redirect to the AWS IMDSv1 endpoint or an internal service (`http://localhost:6379/`, `http://127.0.0.1:9200/`, `http://internal-admin.testrail.example.com:9000/`, or `http://localhost/var/run/...`). `request<T>()` then attempts to parse the response with `JSON.parse` and throws `Invalid JSON response from TestRail API`, after the internal request has already executed. A `307` or `308` redirect also preserves the HTTP method and request body, so a `POST` request can trigger an internal write endpoint.
 
-Same-host port-hopping is the cleanest variant: `https://testrail.example.com`
-→ `Location: http://testrail.example.com:9200/_cluster/health`. The IP
-check on `testrail.example.com` passed at construction; the redirect target
-shares the hostname, so even per-request IP validation (finding #1 fix)
-wouldn't catch it without also re-validating the **port** and protocol
-against the originally configured baseUrl. 307/308 redirects preserve the
-HTTP method and body, so a `POST` write can land on an internal write
-endpoint.
+Same-host port redirects also bypass host checks. For example, `https://testrail.example.com` can redirect to `Location: http://testrail.example.com:9200/_cluster/health`. Even per-request IP validation (finding #1) accepts this target unless the client also validates the scheme and port against `baseUrl`.
 
-Credential exposure: undici strips the `Authorization` header on
-cross-origin redirects, but **not** on same-origin / same-host
-redirects — so the port-hopping variant above also leaks the
-`Basic <base64(email:apiKey)>` credential to whatever is listening on the
-target port.
+Credential exposure: `undici` strips the `Authorization` header on cross-origin redirects, but preserves it on same-origin and same-host redirects. A same-host port redirect therefore sends the `Basic <base64(email:apiKey)>` header to the target port.
 
-This finding is the redirect-shaped cousin of #1/#2: the SSRF guard
-inspects the configured URL once and assumes the transport layer will
-honor that decision. It doesn't.
-
-**Fix sketch (S):** pass `redirect: 'error'` to all four `fetch()` calls so
-any 3xx aborts the request with a `TypeError` (mapped to a
-`TestRailApiError` in the existing catch block). For the rare legitimate
-redirect (vanity-domain → canonical), prefer `redirect: 'manual'` + a
-helper that re-runs `validatePublicHost()` on the `Location` header,
-re-checks it shares scheme+host+port with `baseUrl`, then re-issues the
-request — capped at one hop. Tests: stand up a local server that returns
-`302 Location: http://127.0.0.1:1/`, assert the client throws
-`TestRailApiError` and **never** issues a second outbound request to the
-loopback target (intercept via `http.Agent` lookup hook or a counter on a
-second local listener).
+**Fix sketch (S):** Set `redirect: 'error'` on all four `fetch()` calls so any 3xx response fails with a `TypeError` that maps to `TestRailApiError`. Alternatively, set `redirect: 'manual'` and validate that any `Location` URL matches the scheme, host, and port of `baseUrl` and passes `validatePublicHost()` (limited to one redirect). Add a test with a local server that returns `302 Location: http://127.0.0.1:1/` and verify that the client throws `TestRailApiError` without contacting the loopback target.
 
 ### 5. TOCTOU symlink-clobber in `install-skill` — `src/cli/install-skill.ts` (Severity: MEDIUM) — [OPEN]
 
-Finding #3's `wx`/`lstat` fix covers `attachment get --out`, but **not**
-`testrail install-skill`. The handler in `runInstallSkill()` (L44–88) does:
+The `wx`/`lstat` fix for finding #3 protects `attachment get --out`, but does not protect `testrail install-skill`. `runInstallSkill()` (L44–88) runs the following code:
 
 ```ts
 if (existsSync(target) && !opts.force) {
@@ -376,137 +264,61 @@ mkdirSync(dirname(target), { recursive: true });
 copyFileSync(source, target); // L74 — also follows symlinks
 ```
 
-`existsSync` returns `false` for a **broken** symlink, so a co-tenant who
-plants a dangling symlink at `target` (e.g. `<cwd>/.claude/skills/testrail-cli/SKILL.md
--> ~/.ssh/authorized_keys`) sails through the precondition check.
-`copyFileSync(source, target)` then opens the destination with
-`O_WRONLY | O_CREAT | O_TRUNC`, which follows the symlink and creates/
-truncates the **link target** — writing the bundled SKILL.md bytes into
-the attacker-chosen path under the user's UID. No `--force` required.
+`existsSync` returns `false` for a broken symlink. If a local attacker creates a broken symlink at `target` (such as `<cwd>/.claude/skills/testrail-cli/SKILL.md -> ~/.ssh/authorized_keys`), the check passes without `--force`. `copyFileSync(source, target)` then opens the destination with `O_WRONLY | O_CREAT | O_TRUNC`, follows the symlink, and writes the bundled `SKILL.md` contents into the target file under the user's UID.
 
-Attack surface is wider than #3 because:
+This vulnerability has a wide attack surface for three reasons:
 
-- The precondition is `existsSync`, not `lstat` — broken symlinks are
-  silently accepted; #3's CLI runner explicitly switched to `lstatSync`.
-- `--global` extends the writable target to `~/.claude/skills/testrail-cli/`,
-  a directory whose ancestors may be created by other tooling with looser
-  permissions on shared dev hosts and CI runners.
-- The intermediate `mkdirSync(dirname(target), { recursive: true })` will
-  happily traverse a symlinked `~/.claude/skills/testrail-cli` pointing at
-  any directory the user can write — `copyFileSync` then drops `SKILL.md`
-  inside the redirected location. Less destructive (new filename, not a
-  clobber), but useful as a staging step (e.g. seeding a SKILL.md inside
-  a directory that another tool then sources).
+- `runInstallSkill()` uses `existsSync` instead of `lstatSync`, so it accepts broken symlinks.
+- `--global` writes to `~/.claude/skills/testrail-cli/`, where parent directories on shared hosts or CI runners may have permissive permissions.
+- `mkdirSync(dirname(target), { recursive: true })` follows symlinked parent directories (`~/.claude/skills/testrail-cli`) and writes `SKILL.md` into the target directory.
 
-The bytes are predictable (bundled SKILL.md is public on npm), so this is
-primarily a **clobber / DoS** primitive rather than a data-exfil one —
-overwrite a config file the user relies on (e.g. an `.npmrc`, a Claude
-settings JSON, a CI `authorized_keys`) and most lines will be markdown
-junk, but a single matching directive line in the SKILL.md text can be
-weaponized against the targeted config parser's tolerance for noise.
+`SKILL.md` is public, so the main risks are file corruption and denial of service. The flaw can overwrite `.npmrc`, Claude settings JSON, or `authorized_keys`.
 
-**Fix sketch (S):** mirror the `safeWriteBinary` pattern from
-`src/cli/safe-write.ts`:
+**Fix sketch (S):** Apply the `safeWriteBinary` pattern from `src/cli/safe-write.ts`:
 
-1. Replace `existsSync(target)` with `lstatSync(target)` (catch `ENOENT`)
-   so broken symlinks are detected, not followed.
-2. Replace `copyFileSync(source, target)` with `copyFileSync(source,
-target, fs.constants.COPYFILE_EXCL)` on the non-`--force` path so the
-   kernel atomically refuses any existing entry — closes the race between
-   the precondition check and the copy.
-3. On the `--force` path, `lstatSync(target)` and reject symlinks before
-   calling `copyFileSync` (mirror `safe-write.ts:30–38`).
+1. Replace `existsSync(target)` with `lstatSync(target)` (catching `ENOENT`) to detect broken symlinks without following them.
+2. When `--force` is not set, call `copyFileSync(source, target, fs.constants.COPYFILE_EXCL)` so the kernel rejects existing files and symlinks atomically.
+3. When `--force` is set, call `lstatSync(target)` and reject symlinks before calling `copyFileSync` (matching `safe-write.ts:30–38`).
 
-Tests: drop a broken symlink at the install target pointing to a sentinel
-file outside the test tmpdir, run `runInstallSkill({ force: false, ...})`
-and assert (a) the call returns 1 with a "symlink refused" error, (b) the
-sentinel file's bytes are unchanged, and (c) the symlink itself still
-points where it did. Add a `--force` variant of the same test.
+Tests: Create a broken symlink at the install target pointing to a sentinel file outside the temporary directory, and run `runInstallSkill({ force: false, ...})`. Verify that the function returns `1` with a symlink error, leaves the sentinel file unchanged, and preserves the symlink. Repeat the test with `force: true`.
 
 ### 6. `run close` is irreversible but not `--yes` gated — `src/cli/handlers/run-write.ts:23–30` + `src/cli/metadata.ts:254–260` (Severity: MEDIUM) — [SHIPPED]
 
-The destructive-ops convention introduced in v2.2 (`--yes` gates anything
-the API can't undo; `--dry-run` wins for preview) covers `attachment delete`
-and `case delete-bulk`. **`run close` was missed.**
+The v2.2 destructive-action policy requires `--yes` for irreversible API operations while allowing `--dry-run` to preview them. That policy covered `attachment delete` and `case delete-bulk`, but omitted **`run close`**.
 
-Per the TestRail API reference for `close_run`: _"Please note: Closing a
-test run cannot be undone."_ There is no `open_run` endpoint and the web
-UI offers no reopen action. The run's results stay readable, but it
-becomes immutable — no new results, no edits to existing ones, no
-re-association. Functionally identical destructive blast radius to a
-delete: an agent that ran `run close 42` instead of `run get 42` has
-permanently frozen the run.
+The TestRail API documentation states that `close_run` is irreversible. TestRail provides no `open_run` endpoint and no UI action to reopen a closed run. Closing a run makes its results read-only and prevents adding or updating results. If an agent runs `run close 42` instead of `run get 42`, the run is permanently locked.
 
-Both layers leak this:
+Two places omitted the destructive gate:
 
-- `metadata.ts:254–260`: the `ActionSpec` for `run:close` carries
-  `isWrite: true` only — no `destructive: true`. The skill generator that
-  ships `SKILL.md` to agents uses this flag to label commands; agents
-  reading the skill see `run close` as just-another-write, not as an
-  irrecoverable operation.
-- `handlers/run-write.ts:23–30`: `handleRunClose` honors `ctx.dryRun` but
-  never consults `ctx.confirmDestructive`. Compare with
-  `handleAttachmentDelete` (L91–110 of `attachment-write.ts`) and
-  `handleCaseDeleteBulk` (L59–96 of `case-write.ts`), both of which throw
-  `'Destructive action; pass --yes to confirm.'` when the flag is missing.
+- `metadata.ts:254–260`: The `ActionSpec` for `run:close` sets `isWrite: true` without `destructive: true`. The skill generator therefore lists `run close` as a standard write command in `SKILL.md`.
+- `handlers/run-write.ts:23–30`: `handleRunClose` checks `ctx.dryRun` but does not check `ctx.confirmDestructive`, unlike `handleAttachmentDelete` (`attachment-write.ts:91–110`) and `handleCaseDeleteBulk` (`case-write.ts:59–96`).
 
-Threat model is the same one the v2.2 PR locked in: an agent with shell
-access ("clean up old runs") issues `testrail run close <id>` because the
-help text shows it as a routine `--isWrite` action, then the human owner
-discovers it the next sprint. The cost of the missing gate isn't
-data loss (results are still readable) but workflow loss — the run can no
-longer accept the late results it was waiting on.
+Two related items require attention:
 
-The same audit miss likely applies to two other items already on the
-deferred list:
-
-- `plan close` (BACKLOG `## CLI write surface — destructive operations`
-  cluster) — when shipped, must inherit the `--yes` gate.
-- A future `milestone update` invocation that flips `is_completed: true`
-  is structurally a close. The current `milestone update` action carries
-  arbitrary body — agents can set `is_completed: true` via the same
-  `--data` channel without any gate. Out of scope for this finding (it's
-  a general-purpose update, not a dedicated close action), but worth
-  noting that "destructive via payload field" is a class the current
-  `destructive: true` boolean doesn't catch.
+- `plan close` (in `## CLI write surface — destructive operations`) must also require `--yes` when implemented.
+- Setting `is_completed: true` in `milestone update` also closes a milestone via the JSON payload, which the boolean `destructive: true` action flag does not track.
 
 **Fix sketch (S):**
 
-1. Add `destructive: true` to the `run:close` `ActionSpec` in
-   `metadata.ts:254`.
-2. In `handleRunClose`, insert the standard gate immediately after the
-   `dryRun` short-circuit:
+1. Add `destructive: true` to the `run:close` `ActionSpec` in `metadata.ts:254`.
+2. In `handleRunClose`, check `ctx.confirmDestructive` immediately after the `dryRun` check:
     ```ts
     if (!ctx.confirmDestructive) {
         throw new Error('Destructive action; pass --yes to confirm.');
     }
     ```
-3. Update the `Destructive actions` line in `HELP` (`src/cli/index.ts:113`)
-   to include `run close` in the enumerated list.
-4. Regenerate `skill/SKILL.md` via `npm run skill` so the agent-facing
-   command table picks up the new `destructive` label.
+3. Add `run close` to the `Destructive actions` list in `HELP` (`src/cli/index.ts:113`).
+4. Run `npm run skill` to regenerate `skill/SKILL.md` with the `destructive` label.
 
 Tests:
 
-- `tests/cli-write-handlers.test.ts`: add `run close` cases mirroring
-  the attachment-delete shape — happy path with `--yes`, reject without
-  `--yes`, dry-run-wins-over-yes preview emits `destructive: true`.
-- `tests/cli.test.ts`: add a subprocess case asserting exit code 1 and a
-  `'pass --yes to confirm'` stderr fragment when `testrail run close 42`
-  is invoked without `--yes`.
-- `tests/cli-helpers.test.ts`: extend the `destructive` ActionSpec
-  inventory test (currently asserts only `attachment:delete` and
-  `case:delete-bulk` carry the flag) to require `run:close` as well —
-  this is the drift catch for any future close-like action that needs
-  the gate.
+- `tests/cli-write-handlers.test.ts`: Add `run close` unit tests for execution with `--yes`, rejection without `--yes`, and `--dry-run` preview with `destructive: true`.
+- `tests/cli.test.ts`: Add a subprocess test verifying that `testrail run close 42` without `--yes` exits with code 1 and prints `'pass --yes to confirm'` to `stderr`.
+- `tests/cli-helpers.test.ts`: Update the `destructive` `ActionSpec` inventory test to require `run:close` alongside `attachment:delete` and `case:delete-bulk`.
 
 ### 7. TOCTOU symlink-follow on attachment **upload** — `src/cli/file-input.ts` (Severity: MEDIUM) — [OPEN]
 
-Finding #3's fix closed the symlink TOCTOU on the **download** target
-(`attachment get --out` → write through `safeWriteBinary`). The mirror
-side — the **upload** source (`attachment add-to-case|result|run|plan|
-plan-entry` and `bdd add`) — was not touched and still uses the original
-follow-the-symlink pattern:
+Finding #3 fixed the symlink TOCTOU vulnerability on attachment downloads (`attachment get --out`). However, attachment and BDD uploads (`attachment add-to-case|result|run|plan|plan-entry` and `bdd add`) still follow symlinks when reading `--file`:
 
 ```ts
 // src/cli/file-input.ts:46–67
@@ -519,59 +331,29 @@ size = stat.size;
 const buf = readFileSync(path); // ← follows symlinks again
 ```
 
-`statSync` reports the symlink's **target** metadata, so `isFile()` is
-true whenever the link points at any regular file. `readFileSync` then
-follows the link a second time and reads the target's bytes — which are
-streamed straight into `requestMultipart()` and posted to TestRail under
-the agent's auth.
+`statSync` inspects the symlink target, so `isFile()` returns `true` when the symlink points to a regular file. `readFileSync` follows the symlink again, reads the target file's bytes, and uploads them to TestRail via `requestMultipart()`.
 
-**Threat model (matches #3, inverted direction):** in a shared-filesystem
-context (CI runner with parallel jobs, multi-user dev host, container
-with mounted home volumes), a co-tenant plants a symlink at the agent's
-expected `--file` path before the agent runs:
+**Threat model:** A local attacker places a symlink at the expected `--file` path on a shared filesystem. This includes CI runners, multi-user hosts, and shared container volumes. The agent then runs:
 
 ```sh
 ln -sf /home/victim/.aws/credentials /tmp/builds/screenshots/test-42.png
 ```
 
-The agent runs `testrail attachment add-to-case 42 --file /tmp/builds/screenshots/test-42.png`:
+When the agent runs `testrail attachment add-to-case 42 --file /tmp/builds/screenshots/test-42.png`:
 
-1. `statSync` resolves the symlink → reports a 116-byte regular file. ✓
-2. `isFile()` passes; `size = 116`.
-3. `readFileSync` resolves the symlink again → reads `~/.aws/credentials`.
-4. Bytes posted to TestRail as a case attachment named `test-42.png`.
-5. Anyone with TestRail read access to that case can now `attachment get
-42 --out leaked.txt` and pull the credentials back out.
+1. `statSync` resolves the symlink and reports a regular file.
+2. `isFile()` passes and records the target file size.
+3. `readFileSync` resolves the symlink again and reads `~/.aws/credentials`.
+4. The CLI uploads the file contents to TestRail as `test-42.png`.
+5. Any user with read access to that TestRail case can download the leaked credentials with `attachment get 42 --out leaked.txt`.
 
-The TOCTOU is genuine — between the `statSync` (L46) and the
-`readFileSync` (L67) is a `basename(path)` call plus the `opts.read`
-branch plus all the `setupUpload` dry-run logic in `attachment-write.ts`
-that runs on the execute path. Microseconds, but enough for an attacker
-who is already racing the agent (the more interesting variant: the
-attacker doesn't need the race at all — they can plant the symlink
-**before** the agent's `--file` argument is computed, e.g. by reading
-the build pipeline's `screenshot-*` output convention and squatting on
-that path).
+A race window also exists between `statSync` (L46) and `readFileSync` (L67), or the attacker can create the symlink beforehand at a predictable build output path.
 
-This is strictly more exploitable than finding #3:
-
-- #3 was a **write** primitive (overwrite a user-owned file with
-  attacker-predictable content). The bytes were public, so it was a
-  DoS/clobber rather than an exfil primitive.
-- #7 is a **read** primitive (exfil any file the agent's UID can read).
-  Bytes flow outward through TestRail, which an attacker with TestRail
-  read access can retrieve. Higher-impact category.
-
-The shipped `safeWriteBinary` pattern doesn't translate directly to the
-read side — `O_NOFOLLOW` is the analogue. Node's `readFileSync(path)`
-doesn't accept a flag override, but `fs.openSync(path, fs.constants.O_RDONLY |
-fs.constants.O_NOFOLLOW)` does, and the resulting fd can be read with
-`fs.readSync` or wrapped in `fs.readFileSync(fd)`.
+Unlike finding #3 (which overwrote local files with predictable data), finding #7 exfiltrates any local file readable by the CLI user's UID to TestRail. To prevent symlink traversal on file reads, open the file with `fs.openSync(path, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW)` and pass the file descriptor to `fs.readFileSync(fd)`.
 
 **Fix sketch (S):**
 
-1. Replace the leading `statSync(path)` with `lstatSync(path)`. If
-   `isSymbolicLink()` returns true, reject the upload:
+1. Replace `statSync(path)` with `lstatSync(path)` and reject symbolic links:
     ```ts
     const lst = lstatSync(path);
     if (lst.isSymbolicLink()) {
@@ -581,9 +363,7 @@ fs.constants.O_NOFOLLOW)` does, and the resulting fd can be read with
         return { ok: false, error: `--file '${path}' is not a regular file.` };
     }
     ```
-2. On the read branch (L67), open with `O_NOFOLLOW` and read via the fd
-   so a swap **between** the lstat and the read still surfaces an
-   `ELOOP`:
+2. On the read branch (L67), open the file with `O_NOFOLLOW` and read from the file descriptor so a symlink swap after `lstatSync` fails with `ELOOP`:
     ```ts
     const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
     try {
@@ -593,38 +373,19 @@ fs.constants.O_NOFOLLOW)` does, and the resulting fd can be read with
         closeSync(fd);
     }
     ```
-3. Keep `basename(path)` for the filename derivation — that's a string
-   op on the user's argv, not a filesystem operation. The post-`lstat`
-   filename is still safe to compute from the argv path.
+3. Keep `basename(path)` to derive the default filename from the `argv` string.
 
-If the user has a legitimate workflow where the upload **source** is a
-symlink (e.g. CI pipelines that symlink artifacts into a "to-upload"
-directory), gate the relaxed behaviour behind an explicit opt-in
-flag (`--follow-symlinks`) so the default is fail-closed. Mirror the
-`--force` / `--yes` precedent.
+If users need to upload symlinked files in CI pipelines, require an explicit `--follow-symlinks` flag so the default behavior remains fail-closed.
 
 Tests:
 
-- `tests/cli-file-input.test.ts` (or extend
-  `tests/ports/fsAsyncDiffWriter.symlink.test.ts`-style coverage): plant
-  a symlink at a tmpdir path pointing at a sentinel file containing
-  `SECRET_TOKEN=abc123`, call `resolveFile({ fileFlag: <link> }, {
-read: true })`, and assert the call returns `{ ok: false }` and
-  **never** reads `SECRET_TOKEN` into the returned `contents` buffer.
-- `tests/cli-attachment-handlers.test.ts`: add a `setupUpload`-level
-  test asserting the upload short-circuits with a "symlink refused"
-  error before `requestMultipart` is invoked (spy on the client to
-  assert zero calls).
-- `tests/cli.test.ts`: add a subprocess case running `testrail
-attachment add-to-case 1 --file <symlink>` and assert exit 1 + the
-  sentinel file's bytes are not present in any captured outbound
-  request body (use a local listener as the TestRail target).
+- `tests/cli-file-input.test.ts`: Create a symlink pointing to a sentinel file containing `SECRET_TOKEN=abc123`, call `resolveFile({ fileFlag: <link> }, { read: true })`, and verify that it returns `{ ok: false }` without reading `SECRET_TOKEN`.
+- `tests/cli-attachment-handlers.test.ts`: Verify that `setupUpload` fails with a symlink error before calling `requestMultipart`.
+- `tests/cli.test.ts`: Run `testrail attachment add-to-case 1 --file <symlink>` in a subprocess and verify that it exits with code 1 and never sends the sentinel bytes.
 
 ### 8. Library constructor hijacks host SIGINT/SIGTERM with `process.exit()` — `src/client-core.ts:157–174` (Severity: MEDIUM) — [OPEN]
 
-The package ships **two entrypoints**: a CLI (`bin: ./dist/cli.js`) and a
-library (`exports['.'] → ./dist/index.js`). Both share the same
-`TestRailClientCore` constructor, which calls `registerProcessHandlers()`:
+The package ships both a CLI (`bin: ./dist/cli.js`) and a programmatic library (`exports['.'] → ./dist/index.js`). Both entrypoints use the `TestRailClientCore` constructor, which calls `registerProcessHandlers()`:
 
 ```ts
 // src/client-core.ts:157–173
@@ -639,14 +400,9 @@ process.on('SIGTERM', () => {
 });
 ```
 
-The `process.exit(130)` / `process.exit(143)` are correct for the CLI —
-the binary owns the process and should terminate immediately on Ctrl-C.
-They are **wrong** for the library — a host application that embeds the
-client now has its shutdown path silently overridden.
+Calling `process.exit(130)` and `process.exit(143)` is appropriate for the CLI, which owns the process. However, when a host application imports the library, these handlers override the host application's shutdown sequence.
 
-**Attack / failure path:** a long-running host (HTTP server, queue
-worker, daemon, Electron app) registers its own graceful-shutdown
-handler:
+**Failure path:** A long-running application (such as an HTTP server, queue worker, daemon, or Electron app) registers an asynchronous graceful-shutdown handler:
 
 ```ts
 process.on('SIGINT', async () => {
@@ -656,83 +412,37 @@ process.on('SIGINT', async () => {
 });
 ```
 
-Later it imports and constructs a TestRailClient (e.g. on first
-incoming request that needs to push results). The library's SIGINT
-listener gets registered **after** the host's. On Ctrl-C, Node fires
-both listeners synchronously in registration order:
+When the application later constructs a `TestRailClient`, the library registers its `SIGINT` listener after the host listener. On `SIGINT`, Node runs both listeners in registration order:
 
-1. Host's listener runs; queues `db.commitInFlight()` as a Promise; returns synchronously.
-2. Library's listener runs; calls `cleanupAllClients()` (sync) then `process.exit(130)`.
-3. `process.exit` terminates the process **without** draining the microtask queue. The host's `await db.commitInFlight()` never completes; in-flight transactions are aborted; the WebSocket peers get RST instead of a clean close.
+1. The host listener starts `db.commitInFlight()` asynchronously and returns a pending promise.
+2. The library listener runs `cleanupAllClients()` synchronously and calls `process.exit(130)`.
+3. `process.exit` terminates the process immediately without waiting for pending promises. In-flight database transactions abort and network connections drop without closing cleanly.
 
-The result is **partial-write data loss** under signal delivery — an
-availability/integrity primitive that an attacker who can deliver SIGINT
-(any local user, any container orchestrator scaling the pod down, any
-CI step calling `docker stop`) can weaponise to corrupt the host's
-durable state.
+This behavior causes data loss during normal shutdown signals (such as `docker stop` or pod scaling) for three reasons:
 
-This is a meaningful security boundary because:
-
-- The library doesn't document that it installs `process.exit` signal
-  handlers; nothing in the README or `TestRailConfig` JSDoc warns the
-  host. The `registerProcessHandlers()` call is hidden inside the
-  constructor.
-- `processHandlersRegistered` is module-level, so the host **cannot**
-  defensively `process.removeAllListeners('SIGINT')` after import —
-  the library re-registers on the next constructor call from another
-  module that imports it. In practice the host has no clean way to
-  opt out.
-- `cleanupAllClients()` itself iterates `activeClients` and calls
-  `destroy()` on each — a synchronous operation. The library does
-  not actually need `process.exit()` for cleanup correctness; cleanup
-  already happens via the `'exit'` listener (L163), which fires
-  during the normal exit sequence whether the host's handler exits
-  via `process.exit(0)` or natural event-loop drain.
+- The documentation and `TestRailConfig` JSDoc do not warn callers that the constructor installs `process.exit` signal handlers.
+- Because `processHandlersRegistered` is a module-level flag, callers cannot cleanly opt out by calling `process.removeAllListeners('SIGINT')`.
+- `cleanupAllClients()` is synchronous and already runs on the `'exit'` event (L163). The library therefore does not need `process.exit()` in its `SIGINT` or `SIGTERM` handlers.
 
 **Fix sketch (S):**
 
-1. **Drop `process.exit()` from SIGINT/SIGTERM listeners.** Keep
-   `cleanupAllClients()` so caches/timers are released, but let the
-   host's own listener decide when to exit. The `'exit'` listener
-   already handles the case where the host exits via natural drain
-   or `process.exit(N)`.
-2. **Make signal-handler registration opt-in.** Expose a
-   `registerSignalHandlers: boolean` flag on `TestRailConfig`
-   (default `true` for the CLI's own client construction, `false`
-   for library callers). The CLI's `src/cli/index.ts:278` would
-   pass `true` explicitly:
+1. **Remove `process.exit()` from the library's `SIGINT` and `SIGTERM` listeners.** Keep `cleanupAllClients()` and rely on the `'exit'` listener when the host process exits.
+2. **Make signal-handler registration opt-in.** Add `registerSignalHandlers: boolean` to `TestRailConfig` (default `false` for library callers, `true` for the CLI in `src/cli/index.ts:278`):
     ```ts
     client = new TestRailClient({ ...auth.config, registerSignalHandlers: true });
     ```
-    Library users who want cleanup-on-signal can opt in.
-3. **Document the trade-off.** Add a `Lifecycle` section to README
-   noting that library users should call `client.destroy()` from
-   their own shutdown path; the package no longer installs global
-   listeners by default.
-4. **Cap `MaxListeners` defensively.** Even with the opt-in default,
-   detect when the library is loaded from a context that already has
-   a non-default `process.listeners('SIGINT').length` and skip
-   registration with a one-line `console.warn` rather than silently
-   piling onto the host's handler set.
+3. **Document client lifecycle.** Add a `Lifecycle` section to `README.md` instructing library callers to call `client.destroy()` during shutdown.
+4. **Check existing listeners.** If `process.listeners('SIGINT').length` is already non-zero, skip handler registration and log a warning with `console.warn`.
 
 Tests:
 
-- `tests/client-features.test.ts`: spawn a subprocess that constructs
-  a `TestRailClient` with the default config, registers its own
-  async SIGINT handler that writes a sentinel file after a 200 ms
-  delay, and sends SIGINT. Assert that the sentinel **is** written
-  (proves the library no longer pre-empts the host's exit) and that
-  the process exits with the host's chosen code, not 130.
-- `tests/client-features.test.ts`: construct `N` clients with
-  `registerSignalHandlers: false` and assert
-  `process.listeners('SIGINT').length === 0`.
-- `tests/cli.test.ts`: regression — assert the CLI still exits with
-  130 on SIGINT (the existing behaviour is the CLI's contract).
+- `tests/client-features.test.ts`: Spawn a subprocess that constructs a default `TestRailClient`. Register an asynchronous `SIGINT` handler that writes a sentinel file after 200 ms. Send `SIGINT`. Verify that the subprocess writes the sentinel file and exits with the host's exit code instead of 130.
+- `tests/client-features.test.ts`: Construct multiple clients with `registerSignalHandlers: false` and verify that `process.listeners('SIGINT').length === 0`.
+- `tests/cli.test.ts`: Verify that the CLI still exits with code 130 on `SIGINT`.
 
 ### 9. Schema-invalid response poisons GET cache for full TTL — `src/client-core.ts:653–667` (Severity: MEDIUM) — [OPEN]
 
-`request<T>()` caches the **raw `JSON.parse(responseText)` result**
-_before_ the calling module runs Zod validation:
+`request<T>()` caches the raw `JSON.parse(responseText)` result before the calling module validates the response with Zod:
 
 ```ts
 // src/client-core.ts:653–667
@@ -750,109 +460,38 @@ try {
 }
 ```
 
-Validation actually happens one layer up, in each module's
-`this.client.parse<T>(Schema, raw)` call (e.g.
-`src/modules/users.ts:14`). By the time Zod rejects the payload, the
-unvalidated object has already been written to the LRU under
-`GET:${endpoint}` with a 5-minute TTL (`DEFAULT_CACHE_TTL_MS`).
+Each module validates the response one layer higher via `this.client.parse<T>(Schema, raw)` (for example, `src/modules/users.ts:14`). When Zod rejects the response, the unvalidated object is already stored in the LRU cache under `GET:${endpoint}` for the 5-minute TTL (`DEFAULT_CACHE_TTL_MS`).
 
-**Effect:** a _single_ 2xx response with a JSON-valid but schema-invalid
-body wedges every subsequent call to that endpoint for the full TTL.
-The caller sees `TestRailValidationError: Schema validation failed`
-on the first call, retries (or the next request from another code
-path triggers the same fetch), the cache short-circuits to the same
-bad object, and Zod throws again — forever, for 5 minutes — with no
-network call in between to recover from the transient server hiccup.
-
-This is the _exact_ class of bug the `clearCache()`-on-mutation logic
-exists to prevent (stale GETs after writes), inverted: writes can
-flush bad cache entries, but pure-read failure modes have no
-recovery path short of waiting out the TTL or calling `clearCache()`
-manually (a public method, but unmentioned in the README's recovery
-guidance because there is no recovery guidance).
+**Effect:** A single 2xx response containing valid JSON that fails schema validation causes every subsequent call to that endpoint to fail for 5 minutes. Each retry reads the invalid object from the cache and throws `TestRailValidationError: Schema validation failed` without making a new network request. Read-only workloads cannot recover until the TTL expires or the caller runs `clearCache()`.
 
 **Threat models:**
 
-1. **Server-side hiccup:** TestRail's API returns a 200 with an
-   unexpected body shape during a partial outage (cache-tier
-   misroute serving a generic 'maintenance' JSON; a misconfigured
-   reverse proxy injecting an unrelated 200 page; a TestRail plugin
-   that returns the wrong serializer). One bad response → 5 min of
-   failure even after the upstream is fixed. Pure availability loss.
+1. **Transient server error:** During a partial outage, an upstream proxy or plugin returns HTTP 200 with a maintenance JSON object. One invalid response causes 5 minutes of failed reads even after the server recovers.
+2. **Chained with finding #4 (redirect SSRF):** An attacker redirects one `GET get_run/42` request to an internal endpoint that returns valid JSON with a different schema. The client caches that response under `GET:get_run/42` for 5 minutes.
+3. **Chained with finding #1 (DNS rebinding):** A request can resolve to an internal service between `validatePublicHost()` and `fetch()`. The client caches that internal response for 5 minutes. Later lookups that return the public IP do not remove it.
 
-2. **Chained with finding #4 (redirect SSRF):** Attacker redirects
-   one inbound `GET get_run/42` to an internal endpoint
-   (`http://internal-jenkins.example.com/api/queue.json`) that
-   returns a valid-JSON-but-wrong-shape response. The Jenkins JSON
-   gets cached under `GET:get_run/42`. The client is now stuck
-   serving Jenkins data to every consumer that reads run 42 for the
-   next 5 minutes — including after the operator restores the DNS /
-   removes the bad redirect. Combined with #4 this turns a single
-   redirect into a multi-minute persistent client-side data
-   substitution.
+Because `POST` requests call `clearCache()`, read-write workloads clear poisoned entries while read-only workloads remain blocked for the full TTL.
 
-3. **Chained with finding #1's residual TOCTOU:** even after the
-   `[SHIPPED]` #1 fix (revalidate IP every request, no
-   construction-time caching), there's still a TOCTOU window
-   between `validatePublicHost()` and `fetch()`'s own resolver
-   call. A DNS rebind that lands a _single_ request on an internal
-   service is the entire payload; after that, the cache serves the
-   internal service's response for 5 minutes regardless of which
-   public IP subsequent `validatePublicHost()` calls see.
+**Fix sketch (S+):** Cache responses only after schema validation succeeds. Two approaches work:
 
-The bug is amplified by `clearCache()`-on-POST: writes from other
-endpoints **also** flush the bad entry, masking the issue in
-mixed-workload environments and making it harder to diagnose
-(reads-only workloads suffer; read-write workloads self-heal at
-write cadence).
+A. **Validate inside `request<T>`:** Add an optional `schema?: ZodType` parameter to `request<T>`, run `schema.parse()`, and cache the validated result.
 
-**Fix sketch (S+):** move the cache write to after schema
-validation. Two shapes work:
+B. **Validate in a dedicated helper:** Add `client.cachedRequest<T>(method, endpoint, schema)` to fetch, parse JSON, validate with Zod, and write to the cache.
 
-A. **Validate in `request<T>`** (the smaller change). Accept an
-optional `schema?: ZodType` parameter; if present, call
-`schema.parse()` and cache the validated output. Modules that
-currently call `client.parse(Schema, await client.request(...))`
-collapse to one call.
+In both approaches:
 
-B. **Validate in the module, cache result of `client.parse()`**
-(keeps `request<T>` schema-unaware). Introduce a
-`client.cachedRequest<T>(method, endpoint, schema)` helper that
-does fetch → JSON.parse → schema.parse → cache. Modules opt into
-it on a per-call basis. Keeps the existing `request<T>` for
-non-validating callers (which there aren't any of today, but the
-surface is public).
-
-Whichever shape is picked, **also**:
-
-- Don't cache when `response.ok` is true but `response.text()` is
-  empty (currently treated as `{} as T` and cached — same poisoning
-  shape: every subsequent call returns `{}` to a `parse<User>`
-  that requires an `id`, throws, repeat).
-- Add an integration test that exercises the "one bad response →
-  next 10 reads all fail with the same error" pattern and asserts
-  the second read makes a fresh fetch (i.e. is _not_ served from
-  cache).
+- Do not cache empty 2xx responses (`response.text() === ''`), which currently cache `{}` and fail subsequent schema checks that require fields such as `id`.
+- Add a test that returns a schema-invalid 200 response. Verify that the next read sends a new request and does not reuse the invalid object.
 
 Tests:
 
-- `tests/client-features.test.ts`: stub `fetch` to return one 200
-  with body `'{"unrelated": true}'`, then assert that
-  `client.getUser(1)` rejects, and the **second** call to
-  `client.getUser(1)` triggers a second `fetch` (not a cache hit).
-- `tests/client-features.test.ts`: assert that empty 2xx bodies are
-  treated as a cache-miss for the same endpoint on the next call,
-  not a cache hit returning `{}`.
-- `tests/client-edge-cases.test.ts`: cover the redirect-SSRF×cache
-  chain — stub `fetch` to honor one 302 to a different-shape
-  endpoint; assert that after the operator clears the bad redirect
-  the next read **still** returns the wrong shape until
-  `clearCache()` runs (this is the regression that proves the bug
-  exists today; flip the assertion when the fix lands).
+- `tests/client-features.test.ts`: Stub `fetch` to return HTTP 200 with `'{"unrelated": true}'`. Verify that `client.getUser(1)` rejects and that a second `client.getUser(1)` call triggers a second `fetch` call.
+- `tests/client-features.test.ts`: Verify that an empty 2xx response body is not cached for subsequent calls.
+- `tests/client-edge-cases.test.ts`: Stub a redirect to an endpoint with a different JSON shape and verify that subsequent reads do not serve a cached invalid response.
 
 ### 10. `parseArgs({strict: false})` silently swallows typo'd safety flags — `src/cli/index.ts:131–161` (Severity: MEDIUM) — [SHIPPED]
 
-The CLI entrypoint parses argv with `strict: false`:
+The CLI entrypoint parses command-line arguments with `strict: false`:
 
 ```ts
 // src/cli/index.ts:131–161
@@ -864,65 +503,24 @@ const parsed = parseArgs({
 });
 ```
 
-`strict: false` was chosen defensively (per the v8-ignore comment block
-at L164–171: "highly tolerant; this catch funnels any future-Node-
-version edge cases through the controlled exit path rather than
-crashing the module"). The cost: **unknown flags are silently
-accepted, not rejected**. An agent that types `--dryrun` (missing the
-hyphen) gets `values['dryrun'] = true` instead of
-`values['dry-run'] = true`. The CLI's gate at L272 reads
-`const dryRun = values['dry-run'] === true;` — `undefined === true`
-is `false`, so the command **executes for real**, not as preview.
+Because `strict: false` is set, `parseArgs` accepts unknown flags without throwing an error. If an agent passes `--dryrun` (without the hyphen), `parseArgs` sets `values['dryrun'] = true` while `values['dry-run']` remains `false`. The check `const dryRun = values['dry-run'] === true;` at L272 evaluates to `false`, and the CLI executes the live API request instead of a dry-run preview.
 
-The blast radius is exactly the operations the `--dry-run`/`--yes`
-gates exist to protect:
+This flaw affects destructive and state-changing commands:
 
-- `testrail case delete-bulk 7 --project-id 1 --data '{...}' --yes --dryrun`
-  → `--yes` matches; `--dryrun` does not match `--dry-run`; the cases
-  are deleted from TestRail. The agent's log entry shows "dry-run
-  preview" because that's the flag it intended.
-- `testrail attachment delete 42 --yes --dryrun` → attachment
-  permanently deleted.
-- `testrail run close 99 --dryrun` → run permanently frozen (today
-  unguarded per finding #6; even after #6 ships with `--yes`, a
-  `--dryrun --yes` pair still closes the run).
+- `testrail case delete-bulk 7 --project-id 1 --data '{...}' --yes --dryrun` deletes the cases on TestRail because `--yes` is set and `--dryrun` is ignored.
+- `testrail attachment delete 42 --yes --dryrun` permanently deletes the attachment.
+- `testrail run close 99 --dryrun` permanently closes the run.
 
-A symmetric typo on the destructive flag fails _safe_: `--y` instead
-of `--yes` leaves `confirmDestructive === false`, so the handler
-throws `'Destructive action; pass --yes to confirm.'` Only the
-preview-vs-execute distinction is silent. That's the worse direction
-of the asymmetry — agents expect destructive ops to error loudly when
-mis-flagged; `--dryrun` errors _quietly_ by executing.
+While a typo on `--yes` (such as `--y`) fails safely because `confirmDestructive` defaults to `false`, a typo on `--dry-run` or `--soft` fails unsafely:
 
-The exposure is amplified for agent users — the target audience per
-`CLAUDE.md` ("agents generating cases from large spec files",
-"agents that pipe artifacts"). An LLM rewriting a command from
-documentation it half-remembers is exactly the path that produces
-`--dryrun` from a mental model of "what's the dry-run flag again?".
-Human users running the same typo in an interactive shell discover
-the issue from the next state, but agents typically don't have a
-verification step — they trust their own argv construction.
+| Intended flag | Typo            | Effect when mistyped                                                                                |
+| ------------- | --------------- | --------------------------------------------------------------------------------------------------- |
+| `--dry-run`   | `--dryrun`      | Runs the live API call instead of a preview                                                         |
+| `--force`     | `--forced`/`-f` | Refuses to overwrite existing `--out` files or fails `install-skill` when the target already exists |
+| `--soft`      | `--softdelete`  | Runs a permanent delete on `case delete-bulk` instead of a server-side `soft=1` preview             |
+| `--quiet`     | `--silent`      | Does not suppress output                                                                            |
 
-Other dropped flags hit the same gap:
-
-| Intended flag | Typo            | Effect when typo'd                                                               |
-| ------------- | --------------- | -------------------------------------------------------------------------------- |
-| `--dry-run`   | `--dryrun`      | preview becomes real call (this finding)                                         |
-| `--force`     | `--forced`/`-f` | `--out` write refuses on existing file ⇒ no-op (fail-safe); but for              |
-|               |                 | `install-skill --forced` the install fails with "exists" rather than overwriting |
-| `--soft`      | `--softdelete`  | `case delete-bulk` becomes a hard delete (the `--soft` server-side preview path  |
-|               |                 | is the safer one; mis-flagging here flips the semantics)                         |
-| `--quiet`     | `--silent`      | error/output suppression doesn't engage; secrets in error text still emitted     |
-
-The `--soft` row is the _second_ high-severity case after `--dry-run`:
-the entire `case delete-bulk --soft` workflow (per BACKLOG's lock-in
-note: "`--soft` adds TestRail's `soft=1` query param — a _server-side_
-preview where TestRail returns affected-test counts without deleting")
-relies on the flag actually being recognised.
-
-**Fix sketch (S):** keep `strict: false` for the defensive purpose
-(future-Node tolerance), but add a post-parse validation pass that
-rejects any key in `parsed.values` that wasn't declared in `options`:
+**Fix sketch (S):** Keep `strict: false` in `parseArgs`, and validate that every key in `parsed.values` belongs to the known option set before calling `dispatch()`:
 
 ```ts
 const KNOWN_FLAGS = new Set([
@@ -959,30 +557,18 @@ for (const key of Object.keys(values)) {
 }
 ```
 
-The Set duplicates the `options` keys; a tiny refactor extracts both
-from a shared `FLAGS` table so they can't drift. The check runs
-before `dispatch()` so a typo aborts with a clear message, no API
-call, exit 1.
+Derive both `options` and `KNOWN_FLAGS` from a single `FLAGS` definition so they cannot drift.
 
 Tests:
 
-- `tests/cli.test.ts`: subprocess-level: `testrail case delete-bulk 7
---project-id 1 --yes --dryrun --data '{"case_ids":[1]}'` exits 1
-  with `unknown flag '--dryrun'` on stderr and `client.deleteCases`
-  is **not** called.
-- `tests/cli.test.ts`: `testrail attachment delete 1 --yes --dryrun`
-  same assertion.
-- `tests/cli.test.ts`: positive control — every flag in the canonical
-  `KNOWN_FLAGS` set is accepted when spelled correctly.
-- `tests/cli-helpers.test.ts`: unit test on the new `KNOWN_FLAGS`
-  inventory — must equal `Object.keys(options)` from the parseArgs
-  config so adding a flag in one place forces an update in the
-  other.
+- `tests/cli.test.ts`: Verify in a subprocess that `testrail case delete-bulk 7 --project-id 1 --yes --dryrun --data '{"case_ids":[1]}'` exits with code 1, writes `unknown flag '--dryrun'` to `stderr`, and does not call `client.deleteCases`.
+- `tests/cli.test.ts`: Verify the same behavior for `testrail attachment delete 1 --yes --dryrun`.
+- `tests/cli.test.ts`: Verify that every flag in `KNOWN_FLAGS` succeeds when spelled correctly.
+- `tests/cli-helpers.test.ts`: Verify that `KNOWN_FLAGS` matches `Object.keys(options)`.
 
 ### 11. CLI accepts `--api-key <key>` argv with no stdin/file alternative — `src/cli/auth.ts` + `src/cli/index.ts:136,221` (Severity: MEDIUM) — [SHIPPED]
 
-`resolveAuth()` reads the TestRail credential from `--api-key <key>`
-argv as a peer alternative to the `TESTRAIL_API_KEY` env var:
+`resolveAuth()` accepts the TestRail API key from the `--api-key <key>` command-line flag alongside `TESTRAIL_API_KEY`:
 
 ```ts
 // src/cli/auth.ts:20–37
@@ -1001,7 +587,7 @@ export function resolveAuth(flags: AuthFlags, env: AuthEnv): AuthResolution {
 apiKey: values['api-key'] as string | undefined,
 ```
 
-The CLI HELP at L87–90 lists the two forms as equivalents:
+The CLI `HELP` text at L87–90 lists the environment variable and command-line flag as equivalent options:
 
 ```
 Auth (env var or flag):
@@ -1010,115 +596,38 @@ Auth (env var or flag):
   TESTRAIL_API_KEY  / --api-key <key>
 ```
 
-with no warning that flag-passed secrets are visible to anything that
-can read process arguments on the host:
+Passing secrets in command-line arguments (`argv`, CWE-214) exposes credentials to local users and logging systems:
 
-- **`/proc/<pid>/cmdline`** — readable by any local user on Linux by
-  default (DAC mode 0o555); a busy CI runner has dozens of agents
-  poking processes per minute. `ps auxww` is the convenient form,
-  but anything in `/proc` walks straight past it.
-- **Shell history** — `~/.bash_history`, `~/.zsh_history`, fish, etc.
-  capture the exact command line; `HISTCONTROL=ignoreboth` only
-  swallows leading-space commands and dedup'd lines, not secrets.
-- **CI dashboards** — `set -x`, BuildKite/CircleCI/GitHub Actions
-  step logs, GitLab `CI_DEBUG_TRACE`. The captured stdout is
-  retained for 30+ days on most providers and is readable by
-  every project member.
-- **Container audit trails** — `kubectl get pod -o yaml` shows the
-  container's `command:` and `args:`; auditd / eBPF tracers capture
-  `execve` argv; cloud audit logs (CloudTrail for ECS, Activity
-  Log for AKS) include task definitions verbatim.
-- **Process tree dumps** — crash reporters, sysdig captures, perf
-  records, and most APM agents grab argv at process start.
+- **`/proc/<pid>/cmdline`**: Readable by all local users on Linux by default (`0o555`) and visible in `ps auxww`.
+- **Shell history**: Stored in `~/.bash_history`, `~/.zsh_history`, and other shell history files.
+- **CI logs**: Recorded in step logs when `set -x` or CI debug tracing (`CI_DEBUG_TRACE`) is enabled.
+- **Container and cloud audit logs**: Captured in pod specifications (`kubectl get pod -o yaml`), `execve` audit traces, and cloud task definitions.
+- **Crash dumps and profilers**: Recorded by crash reporters, `sysdig`, `perf`, and APM agents.
 
-The env-var alternative leaks too (env is in `/proc/<pid>/environ`,
-visible to the same DAC class), but env at least doesn't appear in
-shell history, doesn't survive a `ps` snapshot taken at a different
-time, and isn't echoed by `set -x`. The industry-standard mitigation
-is a stdin / file alternative for the secret-bearing flag — adopted
-by `kubectl --token=$(cat)`, `docker login --password-stdin`,
-`gh auth login --with-token`, `aws configure set` (file write), `op
-read`, `vault login -method=...`. None of these tools accept the
-secret in argv without at minimum a deprecation warning.
-
-The asymmetry here is sharp: every other secret-bearing position in
-the codebase is handled correctly. `--data` accepts a JSON body
-that _could_ contain an application-defined secret in a passthrough field.
-The CLI already supports
-`--data-file <path>` and stdin pipe (`echo '{...}' | testrail ...`)
-as alternatives to inline `--data`, recognising the argv-exposure
-problem for body payloads. The exact same problem for the
-_credential_ — the secret that authorises every API call — has no
-alternative path.
+Although the CLI provides `--data-file <path>` and `stdin` piping as alternatives to `--data` for request payloads, it provides no `stdin` or file alternative for `--api-key`.
 
 **Threat models:**
 
-1. **Agent-driven CI step:** an LLM agent is given a project's
-   TestRail API key in a CI variable and the documented invocation
-   pattern. It constructs `testrail run close 42 --base-url ... 
---email ... --api-key sk-xxx` because that's the syntax it found
-   in the README. The CI step log captures the full command; the
-   log is project-readable; any project member can grep for
-   `--api-key` and harvest credentials.
-2. **Multi-tenant host:** two unrelated agents share a Linux box
-   (a shared dev VM, a Kubernetes node with two pods, a CI runner
-   processing parallel jobs). Agent A runs `testrail` with
-   `--api-key`. Agent B periodically `cat /proc/*/cmdline | tr '\0' ' '`
-   to find credentials. A bash loop at 100 ms cadence catches every
-   invocation.
-3. **Postmortem disclosure:** a crash report or sysdig capture
-   from an unrelated incident is shared with a vendor / posted to
-   a bug tracker / attached to a Slack message. The argv is in the
-   dump.
-
-The risk class is well-known (CWE-214 "Invocation of Process Using
-Visible Sensitive Information"; cf. the original `docker login` CVE
-that drove the introduction of `--password-stdin`).
+1. **Agent-driven CI step:** An agent runs `testrail run close 42 --base-url ... --email ... --api-key sk-xxx`, and the CI log records the full command line for all project members to read.
+2. **Multi-tenant host:** On a shared Linux host or CI runner, another local process polls `/proc/*/cmdline` and reads the API key.
+3. **Diagnostic dumps:** A crash report or process dump includes the process `argv` containing the API key.
 
 **Fix sketch (S):**
 
-1. **Add `--api-key-stdin`** (boolean): read one line from stdin and
-   use it as the API key. Mutually exclusive with `--api-key`. The
-   existing stdin-as-body path is gated by `process.stdin.isTTY ===
-false && !isFileInputAction`; `--api-key-stdin` would steal stdin
-   the same way and must be checked before the body's stdin gate
-   (or the auth read and body read collide). Document the precedence:
-   if `--api-key-stdin` is set, the body must come from `--data` or
-   `--data-file`, not stdin.
-2. **Add `--api-key-file <path>`**: read the file's contents
-   (trimmed) and use as API key. Validates the path with the same
-   `lstatSync` rule from `safe-write.ts` so a symlink to
-   `~/.aws/credentials` is rejected (per finding #7's symlink
-   discipline).
-3. **Keep `--api-key <key>` working** for backwards compatibility,
-   but emit a one-line `stderr` deprecation warning when it's used:
-   `Warning: --api-key exposes the credential via process argv...
-prefer --api-key-stdin or TESTRAIL_API_KEY.` Behind a
-   `--silence-api-key-warning` flag for callers that have audited
-   their context.
-4. **Update HELP** at L87–90 to list the new forms and put the env
-   var first as the recommended pattern.
+1. **Add `--api-key-stdin` (boolean):** Read the API key from `stdin`. Make `--api-key-stdin` mutually exclusive with `--api-key` and `stdin` JSON body input; require `--data` or `--data-file` for write payloads when `--api-key-stdin` is used.
+2. **Add `--api-key-file <path>`:** Read the trimmed API key from a file after validating the path with `lstatSync` to reject symlinks.
+3. **Deprecate or remove `--api-key <key>`:** Emit a deprecation warning on `stderr` (or remove `--api-key` in a major release) and recommend `TESTRAIL_API_KEY` or `--api-key-stdin`.
+4. **Update `HELP`:** Recommend `TESTRAIL_API_KEY` and `--api-key-stdin`.
 
 Tests:
 
-- `tests/cli.test.ts`: subprocess: `echo 'sk-xxx' | testrail
-project list --base-url ... --email ... --api-key-stdin` succeeds
-  with the captured stdin used as auth (mock the API). Verify the
-  resulting argv (read from `/proc/self/cmdline` inside the
-  subprocess, asserted via a no-op handler that echoes its own
-  argv) does **not** contain `sk-xxx`.
-- `tests/cli.test.ts`: subprocess: `testrail ... --api-key sk-xxx`
-  still works (back-compat) but stderr contains the deprecation
-  fragment.
-- `tests/cli.test.ts`: subprocess: passing both `--api-key` and
-  `--api-key-stdin` is a hard error (exit 1).
-- `tests/cli.test.ts`: subprocess: `--api-key-file <symlink>` is
-  rejected with the same shape of error as `safeWriteBinary`'s
-  symlink refusal.
+- `tests/cli.test.ts`: Verify that `echo 'sk-xxx' | testrail project list --base-url ... --email ... --api-key-stdin` authenticates with the piped key without exposing `sk-xxx` in `argv`.
+- `tests/cli.test.ts`: Verify that passing both `--api-key` and `--api-key-stdin` exits with code 1.
+- `tests/cli.test.ts`: Verify that `--api-key-file <symlink>` is rejected.
 
 ### 12. Unbounded response body reads OOM the client — `src/client-core.ts:628,653,749,767,843,850,911,925` (Severity: MEDIUM) — [OPEN]
 
-All four `fetch()` call sites drain the response with no size cap:
+All four `fetch()` call sites read the full response body into memory without a size limit:
 
 | Method               | Success path                           | Error path                                |
 | -------------------- | -------------------------------------- | ----------------------------------------- |
@@ -1127,78 +636,20 @@ All four `fetch()` call sites drain the response with no size cap:
 | `requestMultipart()` | `await response.text()` (L850)         | `await response.text().catch(...)` (L843) |
 | `requestBinary()`    | `return response.arrayBuffer()` (L925) | `await response.text().catch(...)` (L911) |
 
-undici's `Response.text()` and `Response.arrayBuffer()` read the entire
-body into memory — there's no built-in cap and no streaming budget.
-V8 throws `RangeError: Invalid string length` at ~1 GB for strings;
-`ArrayBuffer` allocations on 64-bit hosts can climb until the process
-hits its v8 heap or container memory limit (more typical: agents in
-512 MB / 1 GB CI containers OOM-kill at that boundary).
+`Response.text()` and `Response.arrayBuffer()` buffer the entire body in memory. V8 throws `RangeError: Invalid string length` for strings at approximately 1 GB. `ArrayBuffer` allocations continue until the process exceeds its V8 heap or container memory limit. CI containers often have limits of 512 MB or 1 GB.
 
 **Threat models:**
 
-1. **Direct attacker-shaped response** — chains with finding #4
-   (redirect-following SSRF): a redirect target chosen by the
-   attacker (`http://attacker.example.com/loot.bin`) streams a
-   100 GB `Transfer-Encoding: chunked` body. `Content-Length` is
-   irrelevant under chunked encoding — undici reads until the
-   server closes the stream. The agent's container hits its
-   memory limit and is OOM-killed by the kernel / orchestrator
-   before the request completes.
+1. **Oversized redirect response (chained with finding #4):** An attacker redirects a request to `http://attacker.example.com/loot.bin`, which streams a 100 GB `Transfer-Encoding: chunked` body. `undici` reads until the process runs out of memory and terminates.
+2. **Malicious or misconfigured origin:** The configured `baseUrl` server returns an oversized response body on any endpoint.
+3. **5xx retry amplification:** The client retries 5xx responses up to `maxRetries` times. Each retry allocates another large buffer while the previous buffer awaits garbage collection.
+4. **Oversized error bodies:** The non-2xx error paths at L628, L749, L843, and L911 still read the full response body. They throw `TestRailApiError` only after storing the body in memory.
+5. **Cache amplification (chained with finding #9):** An oversized valid JSON response enters the GET cache for 5 minutes. Subsequent reads return the stored object.
 
-2. **Compromised / malicious TestRail-shaped origin** — same
-   primitive without needing the redirect chain: any host the user
-   configures as `baseUrl` can return an oversized body on any
-   endpoint. The client has already shipped credentials in the
-   request; the server's response shape is unilateral.
+**Fix sketch (M):** Enforce a configurable response-size limit across all eight body reads (`src/client-core.ts:628,653,749,767,843,850,911,925`):
 
-3. **5xx retry amplification** — the request path retries on 5xx
-   responses. Each retry re-issues the request, the attacker
-   re-responds with another oversized body, and each attempt
-   allocates from scratch. Three retries against a 500 MB body
-   means four sequential allocations: the client never aggregates
-   them, but the _peak_ memory is still ~500 MB plus the previous
-   buffer awaiting GC. Under memory pressure the GC stalls,
-   throughput collapses, and the next retry pushes the process
-   over the line.
-
-4. **Error path amplification on the same call** — even when the
-   server returns a non-2xx status, the code at L628/L749/L843/L911
-   reads the full error body before throwing. An attacker who
-   returns `503` with a 10 GB body wastes the client's memory
-   _and_ delays the throw long enough that the rate-limiter
-   window slides and the next retry gets through. The error body
-   is discarded after being put into the `response` field of
-   `TestRailApiError` — but the read has already happened.
-
-5. **Cache amplification (chains with finding #9)** — if the
-   oversized body is JSON-parseable, the parsed object is cached
-   for the full TTL (5 min default; finding #9 doesn't even
-   require schema validity for the cache write). The client now
-   holds the oversized object resident _and_ serves it back on
-   every subsequent matching GET, multiplying the memory pressure
-   across a request burst.
-
-The retry-on-network-error path also bypasses any size budget
-because the request layer doesn't know whether the prior failure
-was caused by the body read (`response.text()` throwing
-`RangeError`) or a transport-level fault — both arrive as
-`{ name: 'Error' }` at the catch block.
-
-**Fix sketch (M):** introduce a configurable response-size budget
-(default 50 MB for JSON, 256 MB for binary — matching TestRail's
-documented attachment limit, plus 1 KB for error bodies). Wire it
-through every body read:
-
-1. Add `maxResponseBytes?: number` to `TestRailConfig`. Default to
-   `DEFAULT_MAX_RESPONSE_BYTES = 50 * 1024 * 1024` in
-   `src/constants.ts`; introduce `DEFAULT_MAX_BINARY_RESPONSE_BYTES`
-   = `256 * 1024 * 1024` for `requestBinary`; introduce
-   `MAX_ERROR_BODY_BYTES = 64 * 1024` for the error-text reads (64
-   KB is plenty — error messages, not payloads).
-2. Read bodies through a helper that consumes
-   `response.body` (a `ReadableStream`), counts bytes per chunk,
-   and aborts via `controller.abort()` (the existing timeout
-   controller is in scope) when the limit is exceeded:
+1. Add `maxResponseBytes?: number` to `TestRailConfig`. Define `DEFAULT_MAX_RESPONSE_BYTES = 50 * 1024 * 1024`, `DEFAULT_MAX_BINARY_RESPONSE_BYTES = 256 * 1024 * 1024`, and `MAX_ERROR_BODY_BYTES = 64 * 1024` in `src/constants.ts`.
+2. Read `response.body` (`ReadableStream`) chunk by chunk, track the byte total, and call `controller.abort()` when the total exceeds the limit:
 
     ```ts
     async function readBodyCapped(response: Response, cap: number, controller: AbortController): Promise<Uint8Array> {
@@ -1226,39 +677,20 @@ through every body read:
     }
     ```
 
-3. Decode for the JSON / text variants:
-   `new TextDecoder('utf-8').decode(await readBodyCapped(...))`.
-4. For `requestBinary`, return the `Uint8Array.buffer` as
-   `ArrayBuffer`. Reuse the same helper.
-5. Tighten error-body reads to `MAX_ERROR_BODY_BYTES` always —
-   error bodies are diagnostic, never load-bearing for
-   subsequent logic.
-
-Sites to touch: `src/client-core.ts:628,653,749,767,843,850,911,925`
-(eight reads across four methods).
+3. For JSON and text responses, decode the byte array with `new TextDecoder('utf-8').decode(await readBodyCapped(...))`.
+4. For `requestBinary`, return `Uint8Array.buffer` as an `ArrayBuffer`.
+5. Cap all error-body reads at `MAX_ERROR_BODY_BYTES`.
 
 Tests:
 
-- `tests/client-features.test.ts`: stub `fetch` to return a
-  `ReadableStream` that yields 1 KB at a time and never closes.
-  Wrap a short timeout and assert
-  `await client.getProject(1)` rejects with a "body exceeded"
-  shape **without** the test runner allocating more than 2× the
-  cap (assertion via `process.memoryUsage().heapUsed` delta).
-- `tests/client-features.test.ts`: the success path for a 4 KB
-  body still works.
-- `tests/client-edge-cases.test.ts`: 503 error with a 100 MB body
-  is mapped to `TestRailApiError(0, 'Response body exceeded ...')`
-  rather than reading the full body before throwing the
-  `TestRailApiError(503, ...)`.
-- `tests/client-features.test.ts`: `maxResponseBytes` config
-  override raises the cap so a legitimate large download (e.g. a
-  50 MB attachment via `requestBinary`) succeeds when the user
-  knows what they're doing.
+- `tests/client-features.test.ts`: Stub `fetch` to return a `ReadableStream` that yields 1 KB chunks without closing. Verify that `await client.getProject(1)` rejects with a body-size error and keeps `process.memoryUsage().heapUsed` growth below `2 * cap`.
+- `tests/client-features.test.ts`: Verify that a normal 4 KB response succeeds.
+- `tests/client-edge-cases.test.ts`: Verify that a 503 response with a 100 MB body throws `TestRailApiError(0, 'Response body exceeded ...')` without reading the full body.
+- `tests/client-features.test.ts`: Verify that overriding `maxResponseBytes` allows large downloads within the configured limit.
 
 ### 13. POST retried without idempotency on 5xx / network error → duplicate writes — `src/client-core.ts:630–637, 685–691` (Severity: MEDIUM) — [OPEN]
 
-`request<T>()` retries on the same conditions for every HTTP method:
+`request<T>()` uses the same retry conditions for all HTTP methods:
 
 ```ts
 // src/client-core.ts:630–637 — 5xx / 429 path
@@ -1276,123 +708,62 @@ if (retryCount < this.maxRetries) {
 }
 ```
 
-The retry condition is method-agnostic — there's no `method === 'GET'`
-or `isIdempotent(endpoint)` gate. POSTs are retried under exactly the
-same conditions as GETs. `requestBinary` shares the same logic
-(L915–920). The only method that opted out is `requestMultipart`,
-where the comment at L791–792 explicitly notes "Applies rate limiting
-and throws on failure, but does NOT retry (uploads are not
-idempotent)." — proving the team is aware of the class of bug, but
-only fixed it for one endpoint.
+`request<T>()` retries `POST` requests on 5xx and network errors just like `GET` requests. Only `requestMultipart` disables retries (L791–792: "uploads are not idempotent").
 
-**The distributed-systems failure mode is textbook:**
+**Failure sequence:**
 
-1. Client `POST add_case/42` → request reaches TestRail.
-2. TestRail processes it: case is created, ID 7891 assigned, DB
-   committed.
-3. TestRail's response (`{ id: 7891, ... }`) is in flight back to
-   the client when a network blip / proxy timeout / TestRail
-   upstream LB termination drops the connection.
-4. Client's `fetch()` sees a network error (or a synthetic 502
-   from a fronting load balancer).
-5. Client `request<T>` catches, sleeps the backoff, **retries the
-   same POST**. TestRail accepts the second `add_case` — case
-   7892 is created with identical fields.
-6. The client returns case 7892 to the caller. Case 7891 is
-   orphaned in TestRail.
+1. The client sends `POST add_case/42` to TestRail.
+2. TestRail creates the case (ID 7891) and commits it to the database.
+3. A network interruption or reverse-proxy timeout drops the HTTP response in flight.
+4. `fetch()` throws a network error or receives HTTP 502 from a load balancer.
+5. `request<T>` waits for the backoff delay and sends `POST add_case/42` again. TestRail creates a duplicate case (ID 7892).
+6. The client returns case 7892 and leaves case 7891 orphaned in TestRail.
 
-For each retry attempt that the server actually received-and-
-processed, a duplicate entity is created. With `maxRetries: 3`
-(default) under sustained 5xx-then-recover noise, a single
-intended write can become 4 entities.
+With `maxRetries: 3`, a single write call can create up to 4 duplicate entities.
 
-**Affected POST endpoints** (every module method that calls
-`this.client.request<unknown>('POST', ...)` with non-idempotent
-semantics):
+**Affected POST endpoints:**
 
 | Endpoint                                                                                 | Duplicate effect                                                           |
 | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `add_case`                                                                               | Two cases with identical title in the same section                         |
-| `add_run`                                                                                | Two runs against the same project / suite / case set                       |
-| `add_result*` (all forms)                                                                | Two results for the same case in the same run — status counts double-count |
-| `add_attachment_to_*`                                                                    | (multipart — already exempt; see L791–792)                                 |
-| `add_plan` / `add_plan_entry`                                                            | Plan or entry created twice                                                |
-| `add_project` / `add_suite` / `add_section` / `add_milestone` / `add_user` / `add_group` | Twin entities                                                              |
-| `update_*`                                                                               | Repeated; latest-write-wins, _usually_ harmless                            |
-| `delete_*`                                                                               | Second call 404s; harmless                                                 |
-| `close_run`                                                                              | Second call 4xx (already closed); harmless                                 |
-| `move_cases_to_section`                                                                  | First call moves; second 4xx (already moved); harmless                     |
-| `copy_cases_to_section`                                                                  | **Two copies** of each source case in the target section                   |
+| `add_case`                                                                               | Creates two cases with identical titles in the same section                |
+| `add_run`                                                                                | Creates two runs for the same project, suite, and case set                 |
+| `add_result*` (all forms)                                                                | Adds two results for the same case in the same run, skewing status counts  |
+| `add_attachment_to_*`                                                                    | Exempt (`requestMultipart` does not retry; see L791–792)                   |
+| `add_plan` / `add_plan_entry`                                                            | Creates duplicate plans or plan entries                                    |
+| `add_project` / `add_suite` / `add_section` / `add_milestone` / `add_user` / `add_group` | Creates duplicate entities                                                 |
+| `update_*`                                                                               | Repeats the update (last write wins)                                       |
+| `delete_*`                                                                               | Returns HTTP 404 on the second call                                        |
+| `close_run`                                                                              | Returns HTTP 4xx on the second call (already closed)                       |
+| `move_cases_to_section`                                                                  | Returns HTTP 4xx on the second call (already moved)                        |
+| `copy_cases_to_section`                                                                  | Creates **two copies** of each source case in the target section           |
 
-The `add_*` family — the create endpoints — are the unsafe ones.
-`update_*`, `delete_*`, `close_*`, and `move_*` are naturally
-idempotent on the server side (latest-write-wins, or 4xx on the
-second attempt).
+**Impact:**
 
-**Why this matters for the audit set:**
-
-- **Test integrity** — `add_result` doubling under network noise
-  silently inflates pass/fail counts. A CI dashboard reading
-  TestRail's run stats sees `28 passed, 0 failed` when the real
-  shape was `14 passed, 0 failed` with 14 dropped retries. False
-  green builds.
-- **Agent retry storms** — agents writing results in bulk
-  (`result add-bulk`, `result add-bulk-by-test`) are exactly the
-  workload that triggers this. A flaky network during a 500-case
-  bulk write produces 500–2000 duplicates depending on which
-  retries the server saw.
-- **Quota / quota-driven licence pressure** — TestRail Enterprise
-  bills on test-case count; duplicate creates inflate the count
-  and may move a tenant into a higher tier mid-billing-cycle.
+- **Test integrity:** Duplicate `add_result` calls inflate pass and fail counts in TestRail run statistics.
+- **Bulk write amplification:** Retrying `result add-bulk` or `result add-bulk-by-test` during network instability duplicates hundreds of results.
+- **License quota usage:** Duplicate case creation increases the total test-case count on TestRail Enterprise accounts.
 
 **Fix sketch (S+):**
 
-1. **Gate retries on idempotent methods** (the standard HTTP-client
-   default). For `request<T>()`, treat GET as the only auto-retried
-   method:
+1. **Restrict 5xx and network-error retries to idempotent methods (`GET`):** Allow non-GET methods to retry only on HTTP 429 (rate-limited, before the server processes the write):
     ```ts
     const isIdempotent = method === 'GET';
-    if ((response.status >= 500 || response.status === 429)
-        && isIdempotent && retryCount < this.maxRetries) { ... }
+    if ((response.status === 429 || (isIdempotent && response.status >= 500))
+        && retryCount < this.maxRetries) { ... }
     ```
-    Same gate for the network-error path. POSTs that fail surface
-    to the caller; the caller decides whether to retry with
-    user-visible cost awareness.
-2. **Document the trade-off** in JSDoc for `request<T>` and in the
-   `closeRun` / `addCase` / `addResult` JSDoc blocks: "POSTs are
-   not auto-retried — a failure may have been processed
-   server-side; the caller is responsible for deciding whether to
-   re-issue."
-3. **(Optional) Surface a `retryablePost: boolean` opt-in on
-   `TestRailConfig`** for callers who _want_ the old behaviour
-   despite the duplicate risk (e.g., daily idempotent reporting
-   imports where the source-of-truth dedupes downstream).
-4. **(Optional, longer-horizon) `Idempotency-Key` header** — when
-   TestRail supports it (currently not documented), include a
-   UUID per logical call so retries are recognised server-side
-   and deduped. Skip for now; not actionable until TestRail's API
-   exposes the header.
+    Apply `isIdempotent` to the network-error retry path as well so failed writes surface immediately to the caller.
+2. **Document retry behavior** in the JSDoc for `request<T>`, `closeRun`, `addCase`, and `addResult`.
+3. **(Optional) Add `retryablePost?: boolean` to `TestRailConfig`** for callers that explicitly want automatic retries on `POST`.
 
 Tests:
 
-- `tests/client-features.test.ts`: stub `fetch` to return one
-  502 then one 200; call `client.addCase(1, { title: 't' })` and
-  assert `fetch` was called **once**, the error propagates to
-  the caller, and no second `add_case` is issued.
-- Mirror test for the network-error path: first call rejects
-  with a synthetic network error; assert no retry.
-- Regression: `client.getProject(1)` retries on 502 as before
-  (GET stays auto-retried).
-- `tests/client-features.test.ts`: `closeRun` and `deleteRun`
-  retry-allowed-as-effectively-idempotent assertion — surfaces
-  the per-endpoint decision instead of hiding it in the
-  method-name pattern.
+- `tests/client-features.test.ts`: Stub `fetch` to return HTTP 502 followed by HTTP 200. Call `client.addCase(1, { title: 't' })` and verify that `fetch` runs once and throws the 502 error.
+- `tests/client-features.test.ts`: Verify that `client.addCase` does not retry when `fetch` rejects with a network error.
+- `tests/client-features.test.ts`: Verify that `client.getProject(1)` still retries on HTTP 502.
 
 ### 14. Cache returns mutable reference; caller mutation poisons next read — `src/client-core.ts:462–500` (Severity: LOW–MEDIUM) — [OPEN]
 
-Both `setCachedData()` and `getCachedData()` store and return the
-_same object identity_ — no clone, no `Object.freeze`, no defensive
-copy at either boundary:
+`setCachedData()` and `getCachedData()` store and return direct object references without cloning or freezing:
 
 ```ts
 // src/client-core.ts:467–472
@@ -1412,11 +783,7 @@ this.cache.set(cacheKey, {
 });
 ```
 
-Any caller-side mutation of the returned object — whether
-intentional or via downstream code that takes "the response" as a
-mutable scratchpad — _is the cache entry from that point on_.
-Subsequent cache hits return the mutated object until the TTL
-expires (default 5 minutes) or a `POST` flushes the cache.
+If a caller mutates the returned object, that mutation modifies the cached entry in place. Every subsequent cache hit returns the mutated object until the 5-minute TTL expires or a write call clears the cache:
 
 ```ts
 const projects = await client.getProjects(); // miss → fetch → cache stores reference
@@ -1425,121 +792,37 @@ const again = await client.getProjects(); // hit → returns same reference
 console.log(again[0].name); // 'Modified by caller' — not 'Authoritative'
 ```
 
-This is the canonical mutable-shared-state hazard described in the
-project's own coding directives (`rules/common/coding-style.md`:
-"ALWAYS create new objects, NEVER mutate existing ones … prevents
-hidden side effects, makes debugging easier, and enables safe
-concurrency"). The cache is the one place where the library's
-_output_ becomes its _input_ on the next call, so the rule applies
-with extra force here.
-
 **Threat models:**
 
-1. **Cross-tenant cache poisoning when one client is shared** — a
-   host service that fronts TestRail for multiple downstream
-   tenants and shares a single `TestRailClient` instance (common
-   pattern for memoised SDK clients). Tenant A reads `getCases(7)`,
-   gets the array, mutates `cases[0].title = 'X'` for display
-   formatting. Tenant B reads `getCases(7)` 30 seconds later and
-   sees `'X'` instead of TestRail's authoritative title. Cross-
-   tenant data substitution under shared cache.
+1. **Cross-request data corruption:** A service shares one `TestRailClient` across requests. One handler changes `cases[0].title` for display, and subsequent callers receive that modified title.
+2. **Test contamination:** A test mutates a returned object, and later tests in the same suite read the mutated object from the cache.
+3. **Combined with findings #4 and #9:** Mutating a cached response writes changes back into the shared cache entry for the remainder of the TTL.
 
-2. **Inadvertent test contamination** — a test helper reads
-   `getProjects()`, picks `projects[0]`, sets a flag on it for
-   later assertion (`(projects[0] as any).__testTag = 'a'`). The
-   _next_ test in the same `describe` block reads
-   `getProjects()`, sees the tagged object, and conflates "this
-   field is from the API" with "this field was added in setup."
-   Hard to debug.
-
-3. **Force-multiplier on finding #9** — finding #9 noted that a
-   malformed response gets cached for the full TTL. With #14, an
-   _attacker_ response that has _valid_ fields plus an extra
-   `__noteToFutureCallers: '...'` survives the cache write, the
-   schema parse (since schemas use `.passthrough()`), and is
-   readable to every caller for the TTL. If a downstream sink
-   trusts arbitrary fields, the attacker has a one-shot persistent
-   payload-injection slot.
-
-4. **Combined with finding #4 redirect-SSRF** — the redirected
-   response gets cached. The mutable reference means a caller
-   that wraps and "fixes up" the cached object (e.g., normalises
-   field names) writes the fixups _back into the cache_, so the
-   poisoned-by-SSRF entry stabilises into a normalised-looking
-   shape for the rest of the TTL.
-
-**The defensive contract is also asymmetric for the LRU update:**
-the get path does `delete` + `set` to reorder. If a caller has
-captured the reference and reads `cache.data` between those two
-lines — impossible in single-threaded JS today, but a sharp edge
-if the file ever moves to a worker context — the entry could
-appear briefly absent.
-
-**Fix sketch (S):** clone at one boundary. Two practical shapes:
-
-A. **Freeze on write** — `Object.freeze` (shallow) or
-`structuredClone` + `Object.freeze` at every level:
+**Fix sketch (S):** Clone cached values at both boundaries (`setCachedData` and `getCachedData`) with `structuredClone` (or deep-freeze cached entries on write):
 
 ```ts
 private setCachedData<T>(cacheKey: string, data: T): void {
     if (!this.enableCache) return;
     // … LRU eviction unchanged …
     this.cache.set(cacheKey, {
-        data: deepFreeze(structuredClone(data)) as T,
+        data: structuredClone(data),
         expiry: Date.now() + this.cacheTtl,
     });
 }
 ```
 
-Freezing aborts caller mutations loudly in strict mode (default
-for ESM, which this package is). Catches bugs at the mutation
-site rather than at the surprising-second-read site.
-
-B. **Clone on read** — `structuredClone(entry.data)` before
-returning. Defensive against all caller patterns; costs one
-deep copy per hit. For a TestRail SDK with mostly small
-payloads (a list of 100 cases is ~50 KB), `structuredClone` is
-well under 1 ms.
-
-Pick (B) if you want callers to _be able_ to mutate their
-returned object (the natural ergonomic for "this is my copy").
-Pick (A) if you want to enforce immutability as a contract.
-
-Also fix the symmetric issue at write time: today, `setCachedData`
-holds a reference into the caller's parsed JSON. If the caller
-keeps and mutates that reference _before_ the next cache hit
-fetches the same key, the mutation is visible to all subsequent
-readers. (B) on the read side doesn't solve this — only (A) on
-the write side does. So the recommendation is the combined
-shape: `structuredClone` on write, `Object.freeze` on the cached
-copy, return the frozen reference on read. Net cost: one clone
-per cache write, zero clones per cache hit, mutations throw at
-the site that did them.
+Cloning on both write and read protects the stored cache entry. Callers can change initial responses and cache-hit responses without changing the cache.
 
 Tests:
 
-- `tests/client-features.test.ts`: read a cached entry, mutate it,
-  read again, assert the second read **does not reflect the
-  mutation**.
-- `tests/client-features.test.ts`: assert `Object.isFrozen(cached)`
-  on the returned value (if implementing the freeze variant).
-- `tests/client-features.test.ts`: mutate the parsed-JSON object
-  immediately after the first call returns; second call returns
-  the original shape (covers the write-side reference issue).
-- `tests/client-features.test.ts`: measure latency overhead of
-  `structuredClone` on a representative 200-case `getCases`
-  response and assert the regression is sub-ms (perf guard for
-  the chosen fix).
+- `tests/client-features.test.ts`: Read a cached entry, mutate a field, read the entry again, and verify that the second read returns the original value.
+- `tests/client-features.test.ts`: Mutate the object returned from the initial cache-miss call, then verify that the subsequent cache hit returns the unmodified value.
 
 ### 15. IPv6 SSRF allowlist gaps: `fec0::/10`, 6to4 `2002::/16`, NAT64 `64:ff9b::/96` — `src/client-core.ts:31–96` (Severity: LOW–MEDIUM) — [OPEN]
 
-The SSRF defense has two layers: the synchronous regex pre-check
-`PRIVATE_HOST_PATTERNS` (L31–42) and the post-`dns.lookup` IP
-classifier `isPrivateOrLoopbackIP()` (L66–96). Both layers have IPv6
-coverage holes that don't surface until you reach them with an
-actual address.
+The SSRF guard uses two layers: the synchronous regular-expression check `PRIVATE_HOST_PATTERNS` (L31–42) and the post-lookup IP classifier `isPrivateOrLoopbackIP()` (L66–96). Both layers miss several IPv6 private and transition address ranges.
 
-**Layer 1 — `PRIVATE_HOST_PATTERNS` (regex on `bare` hostname):**
+**Layer 1 — `PRIVATE_HOST_PATTERNS`:**
 
 ```ts
 /^::1$/                  // IPv6 loopback, canonical only
@@ -1547,27 +830,14 @@ actual address.
 /^f[cd][0-9a-f]{2}:/i    // ULA fc00::/7 (matches fc** and fd**)
 ```
 
-The third pattern requires the _second_ hex character of the first
-hextet to be `c` or `d`. That matches `fc**` (fc00–fcff) and `fd**`
-(fd00–fdff), which together cover the ULA `/7` correctly. But it
-silently excludes:
+These patterns miss:
 
-- `fe**` where the third nibble is `c`–`f` — i.e. `fec0::/10`, the
-  deprecated IPv6 site-local range (RFC 3879 deprecated; still
-  routable on Solaris/AIX/legacy enterprise stacks; still allowed
-  by Linux `getaddrinfo` and `connect()`). Pattern starts `fe`,
-  second nibble `c–f` → not matched by `fe80:` (which is exact)
-  and not matched by `f[cd][0-9a-f]{2}:` (second nibble must be
-  c/d, but here the first hextet leads with `f`+`e`).
-- `2002::/16` (RFC 3056 6to4) — addresses of the form
-  `2002:<ipv4-hex>::`. `2002:7f00:0001::` is the 6to4 wrapping of
-  `127.0.0.1`. The regex doesn't even attempt to match this.
-- `64:ff9b::/96` (RFC 6052 NAT64) — Well-known NAT64 prefix.
-  `64:ff9b::a00:1` translates to `10.0.0.1`. Not matched.
-- `100::/64` (RFC 6666 IPv6 discard) — not a routing target, but
-  not blocked.
+- `fec0::/10` (`fec0`–`feff` in the first hextet): Deprecated IPv6 site-local range (RFC 3879), still routable on legacy enterprise networks.
+- `2002::/16` (RFC 3056 6to4): Embeds an IPv4 address in hextets 2 and 3 (for example, `2002:7f00:0001::` wraps `127.0.0.1`).
+- `64:ff9b::/96` (RFC 6052 NAT64): Embeds an IPv4 address in the final 32 bits (for example, `64:ff9b::a00:1` translates to `10.0.0.1`).
+- `100::/64` (RFC 6666 IPv6 discard prefix).
 
-**Layer 2 — `isPrivateOrLoopbackIP()` (post-lookup IP classifier):**
+**Layer 2 — `isPrivateOrLoopbackIP()`:**
 
 ```ts
 // src/client-core.ts:86–92
@@ -1581,69 +851,15 @@ return (
 );
 ```
 
-`fec0`–`feff` first-hextet leads (the deprecated site-local space)
-match neither `fc*`/`fd*` nor `fe8`/`fe9`/`fea`/`feb`. The classifier
-returns `false` — the lookup is accepted as public. Same miss for
-`2002:*` (6to4) and `64:ff9b:*` (NAT64); the classifier doesn't unwrap
-the embedded IPv4.
+`isPrivateOrLoopbackIP()` checks only `::ffff:a.b.c.d` for embedded IPv4 addresses and returns `false` for `fec0::/10`, `2002::/16`, and `64:ff9b::/96`.
 
-The `isPrivateOrLoopbackIPv4` mapped-address handler (L67–73) only
-unwraps the `::ffff:a.b.c.d` form — the canonical IPv4-mapped IPv6
-prefix — and stops there. 6to4 and NAT64 are _different_ transition
-mechanisms that embed IPv4 differently; both walk straight past the
-mapped-form check.
+**Threat models:**
 
-**Threat models (in decreasing real-world likelihood):**
+1. **6to4 wrapping a private IPv4 address:** On a network with 6to4 routing enabled, `https://[2002:7f00:1::]/` passes `validatePublicHost()` and connects to `127.0.0.1`.
+2. **NAT64 wrapping a private IPv4 address:** On a DNS64/NAT64 network, `https://[64:ff9b::a00:1]/` passes validation and translates to `10.0.0.1`.
+3. **Legacy site-local `fec0::/10`:** Passes validation on networks that route site-local IPv6 addresses.
 
-1. **6to4 wrapping a private IPv4** — on a network with 6to4
-   routing enabled (Linux default if `sit0` is up; common on older
-   carrier networks), `https://[2002:7f00:1::]/` connects to
-   `127.0.0.1`. The agent's `validatePublicHost()` accepts the
-   address (neither layer catches `2002:*`), and `fetch()`
-   dispatches the request to the host's loopback. Credentialed
-   probe of localhost services — the exact threat the SSRF guard
-   is supposed to block.
-
-2. **NAT64 wrapping a private IPv4** — same idea on a network that
-   runs DNS64+NAT64 (common in modern IPv6-only carrier mobile
-   networks and some IPv6-first cloud deployments).
-   `https://[64:ff9b::a00:1]/` → translates to `10.0.0.1` →
-   reaches a private VPC service.
-
-3. **`fec0::/10` legacy site-local** — niche; Linux removed
-   default routing for fec0::/10 long ago, but the SSRF guard's
-   _job_ is to be conservative. The defense should match the
-   RFC 4193 ULA boundary (fc00::/7) _and_ the deprecated-but-
-   formerly-private fec0::/10 — because attackers will configure
-   it where they can.
-
-4. **IPv6 unspecified `::` as base URL** — actually _is_ caught
-   (the explicit `normalized === '::'` branch at L80–82), but
-   only when the address is canonicalised. A baseUrl of
-   `https://[0:0:0:0:0:0:0:0]/` — whether Node's URL parser
-   canonicalises to `::` reliably under all version skews —
-   is a separate question. The pattern check uses
-   `bare === "::"`, equality on the string. Defensive: also
-   match the IPv6-unspecified case in `isPrivateOrLoopbackIP`
-   via parsed-form classification, not string equality.
-
-**Force-multiplier on existing findings:**
-
-- Combines with **#1's residual TOCTOU**: an attacker who controls
-  authoritative DNS for a public-looking hostname can return a
-  6to4 or NAT64 address from one `dns.lookup` call (which the
-  current classifier accepts) and a `127.0.0.1` from the next.
-  Even if `validatePublicHost` is called fresh on every request,
-  the classifier's gaps mean it never produces a rejection
-  verdict for the 6to4 form.
-- Combines with **#4's redirect-follow SSRF**: the redirect
-  target's `Location: https://[2002:7f00:1::]/admin` is accepted
-  by the (also-broken) classifier when the redirect rewrite
-  validation is added per the #4 fix sketch.
-
-**Fix sketch (S):** complete the IPv6 classifier. Add prefix matches
-in `isPrivateOrLoopbackIP` for the missing ranges and recognise the
-two transition encodings:
+**Fix sketch (S):** Update `isPrivateOrLoopbackIP` and `PRIVATE_HOST_PATTERNS` to block `fec0::/10`, `2002::/16`, and `64:ff9b::/96`:
 
 ```ts
 // IPv6 site-local (deprecated, still routable on legacy stacks).
@@ -1684,8 +900,7 @@ if (normalized.startsWith('64:ff9b:') || normalized.startsWith('64:ff9b::')) {
 }
 ```
 
-Also extend `PRIVATE_HOST_PATTERNS` so the synchronous pre-check
-catches these literals at construction time without waiting on DNS:
+Add the matching prefixes to `PRIVATE_HOST_PATTERNS`:
 
 ```ts
 /^fe[c-f][0-9a-f]:/i,        // fec0::/10
@@ -1693,35 +908,14 @@ catches these literals at construction time without waiting on DNS:
 /^64:ff9b:/i,                 // NAT64
 ```
 
-The pattern entries are deliberately broad — they catch the
-_literal_ and force the lookup phase (which does the embedded-IPv4
-classification) to decide. Pure 6to4/NAT64 wrappers of public IPs
-would also trip the pattern but pass the classifier; safe behaviour
-for an SSRF guard is to err toward refusal here.
-
 Tests:
 
-- `tests/client-features.test.ts`: every entry in the gap list
-  (`https://[fec0::1]/`, `https://[2002:7f00:1::]/`,
-  `https://[64:ff9b::a00:1]/`, `https://[fed1::42]/`,
-  `https://[2002:c0a8:1::]/`) is rejected by
-  `validateConfig` at construction time with the existing
-  "private/loopback host" error wording. One assertion per
-  entry; parameterise with `it.each`.
-- `tests/client-features.test.ts`: `allowPrivateHosts: true`
-  continues to accept all of the above (the escape hatch
-  contract).
-- `tests/client-features.test.ts`: 6to4 wrapping a _public_
-  IPv4 (`https://[2002:0808:0808::]/` == `8.8.8.8`) is also
-  rejected when the broader pattern fires — and accepted only
-  when the network operator opts in via `allowPrivateHosts`.
-  Documents the conservative-by-default contract; if a user
-  needs 6to4 to a public IPv4, that's a niche workflow that
-  should opt in.
+- `tests/client-features.test.ts`: Verify with `it.each` that `validateConfig` rejects `https://[fec0::1]/`, `https://[2002:7f00:1::]/`, `https://[64:ff9b::a00:1]/`, `https://[fed1::42]/`, and `https://[2002:c0a8:1::]/`.
+- `tests/client-features.test.ts`: Verify that `allowPrivateHosts: true` accepts all of those addresses.
 
 ### 16. Reflected user input in stderr error messages enables ANSI/OSC terminal injection — `src/cli/output.ts:93`, `src/cli/index.ts:168,282,293`, `src/cli/install-skill.ts:49`, `src/cli/ids.ts:11` (Severity: MEDIUM) — [SHIPPED]
 
-Every CLI error path funnels through one of two shapes:
+CLI error paths write error messages directly to `process.stderr`:
 
 ```ts
 // src/cli/output.ts:93
@@ -1731,8 +925,7 @@ process.stderr.write(`Error: ${message}\n`);
 process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
 ```
 
-The `message` / `e.message` payload routinely embeds **user-supplied
-values**, reflected verbatim:
+Many error messages include unescaped user input:
 
 | Source                                                                  | Message shape                                                                     |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -1746,90 +939,22 @@ values**, reflected verbatim:
 | `resolveFile` — file read (`file-input.ts:54,72`)                       | `` `Cannot stat --file '${path}': ${err.message}` ``                              |
 | `resolveOut` — out path (`file-output.ts:55,62,69`)                     | `` `Refusing to write through symbolic link '${path}'.` ``                        |
 
-None of these strip or escape **C0/C1 control characters or
-ANSI/OSC escape sequences**. They land in `process.stderr.write()`
-which is a TTY in the agent's terminal — and the terminal happily
-interprets every escape byte it sees.
+Because these paths do not strip C0/C1 control characters or ANSI/OSC escape sequences (CWE-150), terminal emulators execute any embedded escape sequences written to `stderr`:
 
-**Exploitable terminal behaviours** (common defaults across xterm,
-iTerm2, GNOME Terminal, Windows Terminal, VS Code's integrated
-terminal):
-
-- `\x1b[2J\x1b[H` — clears screen, parks cursor at home (cheap
-  cover-up: hide everything the agent just printed).
-- `\x1b]52;c;<base64>\x07` — **OSC 52 clipboard write**.
-  Default-on in xterm with `allowWindowOps`; opt-in in some
-  others. The attacker writes their value to the user's
-  clipboard. Next paste = attacker payload.
-- `\x1b]8;;https://attacker.example.com\x07Click here\x1b]8;;\x07`
-  — OSC 8 **hyperlink injection**. Terminal renders the text as
-  a clickable link to the attacker URL. The user clicks an
-  apparent error message and lands on phishing.
-- `\x1b[?1049h\x1b[?25l` — switch to alternate screen buffer +
-  hide cursor. Subsequent stdout appears in a hidden buffer; the
-  user sees an empty terminal and assumes the command hung.
-- `\x1bP...\x1b\\` — DCS sequence; some terminals enter "device
-  command" mode and silently consume bytes that follow.
-- `\x1b[c` — DA (device attributes) — terminal **writes its
-  response back to stdin**. With Bash, this can be made to inject
-  characters into the next shell prompt (the well-known "terminal
-  echo injection" class; cf. CVE-2003-0063, CVE-2017-1000117 for
-  git submodule, CVE-2022-29154 for rsync, plus modern variants).
+- `\x1b[2J\x1b[H`: Clears the screen and moves the cursor to the home position, hiding prior output.
+- `\x1b]52;c;<base64>\x07`: Overwrites the user's clipboard via OSC 52.
+- `\x1b]8;;https://attacker.example.com\x07Click here\x1b]8;;\x07`: Renders a clickable phishing link via OSC 8.
+- `\x1b[?1049h\x1b[?25l`: Switches to the alternate screen buffer and hides the cursor.
+- `\x1bP...\x1b\\`: Sends a Device Control String (DCS) sequence.
+- `\x1b[c`: Queries Device Attributes (DA), causing the terminal to write a response back to `stdin`.
 
 **Threat models:**
 
-1. **Prompt-injected agent runs the CLI on attacker text.** An LLM
-   agent is told (by an attacker-controlled document) to "diagnose
-   the connection by running `testrail run get <ID>` with ID set
-   to <pasted-payload>". The payload contains
-   `\x1b]52;c;…\x07` followed by an obviously-invalid character.
-   The agent calls `testrail run get '<payload>'`. `parseId`
-   rejects with `run_id must be a positive integer (got: <payload>)`
-   — the payload bytes go to stderr → clipboard overwritten.
-   Next time the user pastes, they paste the attacker's payload.
-2. **CI build log poisoning.** A CI job runs `testrail`, the
-   error is logged to a CI dashboard that renders ANSI (most do
-   — Buildkite, GitLab, GitHub Actions all render the
-   xterm-256-color subset). The attacker's `--base-url`
-   parameter (read from a misconfigured webhook) injects screen-
-   clear escapes that hide later log lines, including a
-   successful destructive operation. The audit trail visually
-   appears clean.
-3. **Terminal hyperlink phishing.** An attacker convinces an
-   agent to pass `--base-url 'https://example.com\x1b]8;;phish\x07
-real-name\x1b]8;;\x07'`. The URL parse fails; the validation
-   error reflects the literal as a hyperlink. The user sees
-   `Error: baseUrl must be a valid URL... real-name` and clicks
-   the link out of habit.
-4. **Shell injection via DA response.** Attacker pipes
-   `\x1b[c` into the error stream. The terminal responds with its
-   device attributes string back into the readline buffer. With
-   `bash`'s default readline binding for some terminal-response
-   sequences, this can trigger key combinations the user did
-   not type.
+1. **Prompt-injected agent:** An attacker-controlled document instructs an agent to run `testrail run get '<payload>'` containing an OSC 52 sequence. `parseId` fails and prints the payload to `stderr`, overwriting the user's clipboard.
+2. **CI log manipulation:** An attacker-supplied parameter injects screen-clear sequences into a CI log that renders ANSI escapes, hiding subsequent error or destructive-action messages.
+3. **Terminal hyperlink phishing:** A malformed `--base-url` containing an OSC 8 sequence renders a deceptive clickable link in the terminal error message.
 
-The risk class (CWE-150 _Improper Neutralization of Escape,
-Meta, or Control Sequences_) has a long history in CLI tools
-that surface user input back to a terminal: `rsync` (CVE-2022-
-29154), `git` submodule URLs (CVE-2017-1000117), `curl` (CVE-2023-
-38545's stderr was specifically out of scope, but curl now strips),
-`kubectl` (multiple historical advisories). Every modern CLI tool
-ships a sanitiser for at least C0 (`\x00–\x1f`, `\x7f`) on values
-echoed back.
-
-**Force-multiplier on existing findings:**
-
-- Pairs with **#10** (typo'd flags silently dropped) — an agent
-  that mis-types a flag _and_ passes an injection payload gets
-  the payload reflected via the existing error wording.
-- Pairs with **#11** (`--api-key` argv exposure) — an attacker
-  who can already see the credential via `ps aux` can also
-  feed escape payloads via the same argv channel; the CLI's
-  reflective errors become the rendering target.
-
-**Fix sketch (S):** strip C0 / C1 controls from every value
-embedded in an error message before it reaches
-`process.stderr.write`. One centralised helper:
+**Fix sketch (S):** Strip C0 (except `\t` and `\n`), DEL (`0x7F`), and C1 (`0x80`–`0x9F`) control characters from all error messages before writing to `stderr`:
 
 ```ts
 // Strip control chars (C0: 0x00–0x1F except 0x09 tab; 0x7F DEL;
@@ -1840,40 +965,17 @@ function sanitiseForTerminal(s: string): string {
 }
 ```
 
-Apply at the two write sites (`output.ts:93`,
-`install-skill.ts:49`) and at the catch-all wrappers
-(`index.ts:168,282,293`). The replacement character `U+FFFD` is
-the conventional "an unsafe byte was here" marker (cf.
-`response.text()` for invalid UTF-8); it's terminal-safe and
-makes the substitution visible to the operator without truncating
-the value.
-
-Optional refinement: when stderr is _not_ a TTY (e.g., piped to a
-file or a CI log that does _not_ render ANSI), pass through the
-raw bytes so debugging tools that parse byte-exact error messages
-still work. Detect via `process.stderr.isTTY === true`. Pure
-terminals get sanitised, redirected streams get the original.
+Apply `sanitiseForTerminal` at all `stderr` write sites (`output.ts:93`, `install-skill.ts:49`, and `index.ts:168,282,293`).
 
 Tests:
 
-- `tests/cli-helpers.test.ts`: `sanitiseForTerminal` round-trips
-  ASCII unchanged, replaces every C0 (except `\t`/`\n`) and C1
-  byte with `U+FFFD`.
-- `tests/cli.test.ts`: subprocess: `testrail run get $'\x1b]52;c;cGF5bG9hZA==\x07'`
-  exits 1 and stderr contains **no** `\x1b]52` byte sequence
-  (assert via `Buffer.includes(Buffer.from([0x1b, 0x5d, 0x35, 0x32]))`).
-- `tests/cli.test.ts`: subprocess: `testrail run get $'\x1b[2J'`
-  same; no `\x1b[2J` bytes leak.
-- `tests/cli.test.ts`: the legitimate dotted-quad and IDN
-  hostname cases still appear unmodified in error output (no
-  false positives on benign text).
-- Regression: when stderr is redirected to a file (non-TTY),
-  the raw bytes pass through (proves the TTY-aware variant).
+- `tests/cli-helpers.test.ts`: Verify that `sanitiseForTerminal` preserves printable ASCII, tabs, and newlines, and replaces all other C0, DEL, and C1 characters with `U+FFFD`.
+- `tests/cli.test.ts`: Run `testrail run get $'\x1b]52;c;cGF5bG9hZA==\x07'` and `testrail run get $'\x1b[2J'` in a subprocess and verify that `stderr` contains no `\x1b` bytes.
+- `tests/cli.test.ts`: Verify that valid IPv4 and IDN hostnames appear unchanged in error output.
 
 ### 17. `--data-file` reads through symlinks with no size cap → JSON-body exfil primitive — `src/cli/body.ts:63–71` (Severity: MEDIUM) — [OPEN]
 
-`resolveBody()` reads the `--data-file <path>` argument with a bare
-`readFileSync`:
+`resolveBody()` reads `--data-file <path>` with `readFileSync`:
 
 ```ts
 // src/cli/body.ts:63–71
@@ -1890,33 +992,12 @@ Tests:
 }
 ```
 
-Two defensive omissions in one call:
+This call has two vulnerabilities:
 
-1. **No `lstat` / `O_NOFOLLOW` check.** `readFileSync` follows
-   symbolic links to the target. A co-tenant who plants a symlink
-   at the agent's expected `--data-file` path (e.g.
-   `/tmp/build/payload.json` → `~/.config/something-with-title.json`)
-   wins the file content as the request body.
-2. **No size cap.** `readFileSync(path, 'utf-8')` allocates the
-   entire file into a string. Pointing at `/dev/zero` hangs the
-   process while V8 grows a UTF-8 string until OOM; pointing at a
-   100 GB regular file does the same; pointing at a fifo / socket
-   blocks indefinitely.
+1. **No `lstat` or `O_NOFOLLOW` check:** `readFileSync` follows symbolic links. If a local attacker places a symlink at the `--data-file` path, the CLI reads the target file and sends its contents in the request body.
+2. **No file size limit:** `readFileSync(path, 'utf-8')` reads the entire file into memory. Passing `/dev/zero`, a large file, or a named pipe (FIFO) causes the process to run out of memory or hang indefinitely.
 
-This is the symmetric sibling of finding #7 (`--file` upload TOCTOU)
-but on a different code path with a _different_ exfil channel: the
-file's contents become the **JSON request body sent to TestRail**,
-visible to anyone with TestRail read access on the targeted
-resource — typically less restricted than the binary attachment
-listing.
-
-**Exploit shape — schema-permissive JSON exfil:**
-
-Every CLI write action that consumes `--data-file` runs the parsed
-JSON through a Zod schema. With `.passthrough()` enabled on every
-`zObject(...)` builder (`src/schemas.ts:3`), extra fields are
-**preserved and forwarded** to TestRail verbatim. Several payload
-schemas require a single trivial field:
+Because all write payload schemas use `.passthrough()` (`src/schemas.ts:3`), Zod preserves extra JSON properties and forwards them to TestRail. Many schemas require only a single common field:
 
 | Schema                      | Hard requirement                | Result if any JSON file has a matching field       |
 | --------------------------- | ------------------------------- | -------------------------------------------------- |
@@ -1927,50 +1008,14 @@ schemas require a single trivial field:
 | `AddMilestonePayloadSchema` | `name: string`                  | Entire JSON sent as a milestone body               |
 | `MoveSectionPayloadSchema`  | (all optional) — passes on `{}` | Any JSON file passes; passthrough fields forwarded |
 
-The bar for the symlink target is dramatically lower than callers
-might assume — the file only needs to be valid JSON and to contain
-the one mandatory field. `~/.config/<app>/recents.json`,
-`~/Library/Application Support/<app>/state.json`, browser bookmarks
-exports, notion exports, CMS config dumps, GitHub Actions context
-JSON (`{ name: "..." }` is everywhere), package-lock summaries —
-many JSON files in a user's home directory contain `name` or
-`title`. The `MoveSectionPayloadSchema` row is the worst: every
-JSON file with a valid root object passes, _all_ extra fields are
-forwarded.
-
-After the call, the attacker retrieves the leaked contents by
-reading the just-created TestRail entity via the normal API (a
-read-only TestRail user account is enough — much weaker than the
-attacker's local-co-tenant requirement to plant the symlink).
-
 **Threat models:**
 
-1. **Co-tenant symlink plant on shared CI / dev host.** Same
-   threat model as findings #3, #5, #7. The attacker plants
-   `/tmp/<build>/payload.json` → `~/.config/<app>/auth-state.json`
-   before the agent runs. Agent: `testrail case add 42 --data-file
-/tmp/<build>/payload.json`. TestRail receives the file's
-   contents as a new case body, viewable to any reader of the
-   project.
-2. **Prompt-injected agent.** An LLM agent is instructed (via a
-   poisoned doc) to "load the config from this canonical path"
-   and pipe it to TestRail. The canonical path is a sensitive
-   file. No symlink needed — the path itself is the attack.
-3. **DoS via device file.** Agent told to use `--data-file
-/dev/zero` (a path that reads forever). `readFileSync`
-   blocks while V8 allocates; the process OOMs. Process kill
-   is the _expected_ recovery, but the work-in-flight (e.g. an
-   in-progress test run's interim results) is lost.
-
-The mirror finding #7 fixed `resolveFile`'s upload TOCTOU; the
-authors recognised the symlink class for binary inputs but
-overlooked the JSON-body input that runs through `resolveBody`
-in `body.ts`.
+1. **Local symlink exfiltration:** An attacker on a shared CI runner or host links `/tmp/<build>/payload.json` to a JSON configuration file. A file with `name` or `title` can pass validation; `section move` accepts any JSON object. When the agent runs `testrail case add 42 --data-file /tmp/<build>/payload.json`, the CLI sends the file contents to TestRail, where any user with read access to the project can view them.
+2. **Denial of service via special files:** Passing `--data-file /dev/zero` or a FIFO blocks or crashes the CLI process.
 
 **Fix sketch (S):**
 
-1. Mirror the `resolveFile` lstat + `O_NOFOLLOW` pattern (per
-   finding #7's fix sketch):
+1. Validate the path with `lstatSync`, reject symlinks and non-regular files, and open the file with `O_NOFOLLOW`:
     ```ts
     let raw: string;
     try {
@@ -1992,10 +1037,7 @@ in `body.ts`.
         }
     } catch (e) { … }
     ```
-2. **Add a size cap.** TestRail rejects bodies beyond a few MB
-   server-side; client should refuse far earlier. Constant
-   `MAX_DATA_FILE_BYTES = 4 * 1024 * 1024` in `src/constants.ts`.
-   Check via `lst.size` _before_ the open:
+2. **Enforce a file size limit:** Define `MAX_DATA_FILE_BYTES = 4 * 1024 * 1024` in `src/constants.ts` and check `lst.size` before reading:
     ```ts
     if (lst.size > MAX_DATA_FILE_BYTES) {
         return {
@@ -2005,37 +1047,17 @@ in `body.ts`.
         };
     }
     ```
-3. **Add the same opt-in for legitimate symlinked artifacts** as
-   #7 proposed (`--follow-symlinks` flag, fail-closed by default,
-   shared semantics across `--file` and `--data-file`).
 
 Tests:
 
-- `tests/cli-body-source.test.ts`: plant a symlink at a tmpdir
-  path pointing at a sentinel JSON file containing
-  `{"title":"SECRET_TITLE","note":"…"}`. Call `resolveBody`
-  with that path against `AddCasePayloadSchema`; assert
-  `{ ok: false }` with the "symlink refused" wording, and that
-  the resolved body returned to handlers is empty.
-- `tests/cli.test.ts`: subprocess invocation
-  `testrail case add 1 --data-file <symlink-pointing-at-secrets>`
-  exits 1, never calls `client.addCase`, and **no bytes from the
-  sentinel file appear in any captured outbound request body**
-  (use a local HTTP listener as the TestRail target with the
-  body-capture pattern from finding #4's test scaffold).
-- `tests/cli-body-source.test.ts`: oversized regular file
-  (`MAX_DATA_FILE_BYTES + 1` bytes) is rejected by the size
-  check before the read; `/dev/zero` is rejected because its
-  `lstat.size` is 0 but it's not `isFile()` (special).
-- Positive control: legitimate `--data-file` with a regular
-  4 KB JSON file still succeeds.
+- `tests/cli-body-source.test.ts`: Create a symlink to a JSON file containing `{"title":"SECRET_TITLE"}`, call `resolveBody` with `AddCasePayloadSchema`, and verify that it returns `{ ok: false }` with a symlink error.
+- `tests/cli.test.ts`: Run `testrail case add 1 --data-file <symlink>` in a subprocess and verify that it exits with code 1 and makes no network request.
+- `tests/cli-body-source.test.ts`: Verify that files larger than `MAX_DATA_FILE_BYTES` and non-regular files (such as `/dev/zero`) are rejected.
+- `tests/cli-body-source.test.ts`: Verify that a valid 4 KB JSON file succeeds.
 
 ### 18. `--format table` reflects TestRail-controlled string fields verbatim to stdout (ANSI/OSC terminal injection on the success path) — `src/cli/output.ts:11–25, 32–51` (Severity: MEDIUM) — [SHIPPED]
 
-Finding #16 closed the **error** reflection path (`stderr` via
-`Error: ${message}`). The **success** path has the same class of bug
-when the user picks `--format table` — except the reflected bytes
-come from **TestRail**, not from the user's own argv.
+Finding #16 fixed terminal injection on the error path (`stderr` via `Error: ${message}`). The success path has the same vulnerability when the user selects `--format table`. On this path, the reflected bytes come from TestRail rather than from user arguments.
 
 ```ts
 // src/cli/output.ts:11–25
@@ -2072,13 +1094,9 @@ const out = (data: unknown): void => {
   `JSON.stringify(data, null, 2)`, which encodes ESC `\x1b` as
   ``, all C0 controls as `\u00XX`, etc. The terminal sees the
   literal six-char ``, not the escape byte.
-- **Table output is not** — `valueToString` returns the raw string
-  for `typeof v === 'string'`. `renderTable` joins those raw strings
-  with `' | '` padding and pipes the result to
-  `process.stdout.write`. Any C0/C1 byte in a TestRail-side string
-  field reaches the terminal as a control byte and is executed.
+- **Table output is not safe:** `valueToString` returns the raw string when `typeof v === 'string'`. `renderTable` joins these raw strings with `' | '` padding and writes the result to `process.stdout.write`. The terminal executes any C0 or C1 control byte in a TestRail string field.
 
-The relevant TestRail fields that the CLI surfaces via table output:
+The CLI renders the following TestRail fields in table output:
 
 | Endpoint                                                  | Fields rendered                                                |
 | --------------------------------------------------------- | -------------------------------------------------------------- |
@@ -2094,54 +1112,20 @@ The relevant TestRail fields that the CLI surfaces via table output:
 | `shared-step list`                                        | `title`, `custom_steps_separated[*].content` (via passthrough) |
 | `bdd get` (returns raw text — already C0-bearing by spec) | Gherkin text                                                   |
 
-Most of those fields accept arbitrary user input via the TestRail
-UI; nothing in TestRail's API surface strips C0 control bytes before
-storing.
+Most of these fields accept arbitrary user input in the TestRail UI. The TestRail API does not strip C0 control bytes before it stores data.
 
 **Threat models:**
 
-1. **Hostile co-tenant on a shared TestRail instance** — a low-
-   privilege TestRail user creates a case titled
-   `"Innocuous title\x1b]52;c;<base64-of-attacker-payload>\x07"`.
-   Any user who later runs `testrail case get <that_id> --format
-table` or `testrail case list --project-id ... --format table`
-   has the OSC 52 sequence executed by their terminal: clipboard
-   overwritten with the attacker's payload. Next `cmd-V` somewhere
-   sensitive pastes the attacker's choice.
-2. **Cross-project leak via run / milestone descriptions** — the
-   `run list` and `milestone list` outputs include `description`
-   fields that often hold free-form notes. A user with write
-   access to _any_ project in the TestRail tenant can plant
-   payloads visible to every other user who lists runs across
-   projects in `--format table`.
-3. **Chains with finding #4 (redirect SSRF)** — an attacker who
-   controls the redirect target returns crafted JSON
-   (`{"name": "...\x1b[2J\x1b[?1049h..."}`) that gets surfaced via
-   `--format table`. Terminal switches to the alternate screen
-   buffer; the user's subsequent commands appear in a hidden
-   buffer; the audit trail visible on the primary screen looks
-   clean.
-4. **Chains with finding #9 (cache poisoning)** — once the
-   attacker's response shape is cached for the TTL, every
-   `--format table` read from that cache key replays the
-   injection. One redirect-borne response, five minutes of
-   reliable terminal pwn.
+1. **Hostile co-tenant on a shared TestRail instance:** A low-privilege TestRail user creates a case with the title `"Innocuous title\x1b]52;c;<base64-of-attacker-payload>\x07"`. When another user runs `testrail case get <that_id> --format table` or `testrail case list --project-id ... --format table`, their terminal executes the OSC 52 sequence. This overwrites the user's clipboard with the attacker's payload.
+2. **Cross-project leak through run or milestone descriptions:** The `run list` and `milestone list` outputs include `description` fields. A user with write access to any project in the TestRail tenant can insert payloads that appear to every user who lists runs in `--format table`.
+3. **Combination with Finding #4 (redirect SSRF):** An attacker who controls the redirect target returns crafted JSON (`{"name": "...\x1b[2J\x1b[?1049h..."}`) in `--format table`. The terminal switches to the alternate screen buffer and hides subsequent user commands from the primary screen.
+4. **Combination with Finding #9 (cache poisoning):** The cache stores the attacker response for its TTL. Every `--format table` read from that cache key repeats the terminal injection.
 
-The risk class is the same CWE-150 covered in #16, but with a
-strictly larger threat model: the data source is **remote** and
-**multi-tenant**, where #16's source was the operator's own argv.
-A low-privilege TestRail account is enough; the attacker doesn't
-need any local foothold on the operator's machine.
+This vulnerability is CWE-150, like Finding #16, but has a larger threat model because the data comes from a remote multi-tenant server. An attacker only needs a low-privilege TestRail account.
 
-The same `valueToString` function is also exported and used by
-test helpers and any consumer that imports `./cli/output.js`
-directly (publicly re-exported per `package.json` exports map's
-`./cli` subpath via `cli.ts`). Sanitisation should live in the
-helper, not at the write site, so downstream callers also benefit.
+Test helpers and external consumers that import `./cli/output.js` also use `valueToString`. Sanitize strings inside `valueToString` so that all callers receive sanitized output.
 
-**Fix sketch (S):** reuse the `sanitiseForTerminal` helper from
-finding #16's fix (or introduce it in this fix and have #16's fix
-share it):
+**Fix sketch (S):** Reuse the `sanitiseForTerminal` helper from Finding #16:
 
 ```ts
 function sanitiseForTerminal(s: string): string {
@@ -2156,15 +1140,9 @@ export function valueToString(v: unknown): string {
 }
 ```
 
-Apply at `valueToString` — the single chokepoint that every table
-cell flows through. JSON output already encodes controls, so no
-change needed there.
+Apply `sanitiseForTerminal` inside `valueToString`, which formats every table cell. JSON output already encodes control characters, so it requires no changes.
 
-As with #16, gate on `process.stdout.isTTY === true` so non-TTY
-pipes (e.g., `testrail case list --format table > cases.tsv`) keep
-the raw byte stream for downstream byte-exact tooling. The
-sanitisation is a terminal-safety guard, not a sanitisation-at-
-storage policy.
+Check `process.stdout.isTTY === true` before sanitizing so that non-TTY pipes (such as `testrail case list --format table > cases.tsv`) preserve the raw byte stream.
 
 Tests:
 
@@ -2175,174 +1153,74 @@ Tests:
   `{ id: 1, name: 'Inn\x1b]52;c;cGF5bG9hZA==\x07' }`; run
   `testrail project get 1 --format table`; assert stdout contains
   **no** `\x1b]52` byte sequence.
-- `tests/cli.test.ts`: same test under `--format json` is a
-  positive control — the encoded `` form appears in JSON
-  and is harmless; assert the raw byte does NOT appear (proves
-  the JSON path was never vulnerable, fixed-or-not).
-- Regression: legitimate non-control content (emoji, RTL, IDN
-  hostnames, dotted-quad IPs) round-trips through `valueToString`
-  unchanged.
+- `tests/cli.test.ts`: Repeat the test with `--format json` as a positive control. Verify that JSON contains the harmless encoded `\u001b` form. Verify that the raw escape byte is absent. This confirms that JSON output was safe before and after the fix.
+- Regression: Verify that valid non-control content (emoji, RTL text, IDN hostnames, and IPv4 addresses) passes through `valueToString` unchanged.
 
 ### 19. `install-skill`'s `mkdirSync` omits `mode`, producing world-writable directories under permissive `umask` — `src/cli/install-skill.ts:73` (Severity: LOW–MEDIUM) — [OPEN]
 
-`runInstallSkill()` creates the install target's parent chain with
-no explicit mode:
+`runInstallSkill()` creates the parent directories of the installation target without an explicit mode:
 
 ```ts
 // src/cli/install-skill.ts:73
 mkdirSync(dirname(target), { recursive: true });
 ```
 
-Node's `fs.mkdirSync` defaults to mode `0o777` (rwxrwxrwx),
-_umask-modified_ at the syscall (`mkdir(2)` applies the
-process's umask). The resulting directory mode is
-`0o777 & ~umask`. On most operator hosts (`umask 022` is the
-Linux default) that's `0o755` — owner-write-only, world-readable.
-Safe.
+Node.js `fs.mkdirSync` defaults to mode `0o777`, modified by the process `umask`. The resulting directory mode is `0o777 & ~umask`. On most systems (`umask 022`), this produces `0o755` (writable only by the owner).
 
-But several common operator environments ship a **permissive
-umask** by default, and the library has no synchronous control over
-it:
+However, several environments use a permissive `umask` by default:
 
-- **Distroless / busybox base images** — `busybox sh` historically
-  set `umask 000` in its built-in init; even modern minimal
-  containers inherit from a parent `sh` that may have set it.
-- **Some CI runners** — GitHub Actions self-hosted runners,
-  GitLab Kubernetes executors, and several CircleCI legacy
-  images run with `umask 000` either explicitly or because the
-  pod's PID 1 inherited it.
-- **Mounted overlay filesystems** — when `~/.claude` is on a
-  bind-mounted host volume from a container, the host's effective
-  umask applies, not the container's perceived one.
+- **Minimal container images:** Some `busybox sh` environments set `umask 000` during initialization.
+- **CI runners:** Some self-hosted runners and Kubernetes executors run with `umask 000`.
+- **Mounted overlay filesystems:** When a container bind-mounts `~/.claude` from the host, the host `umask` applies.
 
-Under any of those, `mkdirSync(dirname(target), { recursive: true })`
-creates **`0o777` (world-writable)** directories at every level the
-recursive walk had to create. That's all of:
+In these environments, `mkdirSync(dirname(target), { recursive: true })` creates `0o777` (world-writable) directories at every newly created level:
 
 - `<cwd>/.claude/`
 - `<cwd>/.claude/skills/`
 - `<cwd>/.claude/skills/testrail-cli/`
 
-(or the `~` variants with `--global`). Any local user on the host
-can subsequently:
+(or the `~` equivalents when `--global` is set). Any local user on the host can then:
 
-1. **Drop files into the world-writable dir.** Other tooling that
-   reads from `.claude/skills/` — Claude Code's own skills auto-
-   loader is the canonical example, plus any third-party tool
-   that crawls the same path — picks up attacker-placed
-   `SKILL.md`-like files. The agent loads attacker-controlled
-   instructions on next launch.
-2. **Delete and replace the legitimate SKILL.md.** The file
-   itself inherits its mode from `copyFileSync` (which copies
-   source mode through umask — generally 0o644 stays 0o644), so
-   the _file_ isn't world-writable. But the parent directory
-   _is_, and POSIX permits unlinking any file in a writable
-   directory regardless of the file's own mode. The attacker
-   replaces SKILL.md with a malicious variant.
-3. **Plant the symlinks that findings #5, #7, #17 already
-   exploit.** This bug _enables_ those bugs to be cheaply
-   weaponised on shared hosts — finding #5 requires the
-   attacker to already have write access to the target
-   directory; finding #19 hands them that access by default
-   on permissive-umask hosts.
+1. **Add files to the world-writable directory:** Tools that read from `.claude/skills/`, such as Claude Code, will load attacker-controlled skill files on the next launch.
+2. **Delete and replace `SKILL.md`:** Even if `SKILL.md` has mode `0o644`, POSIX allows any user to unlink and replace a file inside a writable directory.
+3. **Create symlinks for Findings #5, #7, and #17:** World-writable directories give local attackers the write access required to exploit symlink vulnerabilities.
 
-The umask-dependence makes the gap deceptive:
-
-- Operators auditing on a developer laptop (umask 022) see
-  `0o755` and conclude the install is locked down.
-- The same code in their CI container produces `0o777`.
-- The behaviour is silent — no warning, no log.
+Because directory permissions depend on `umask`, operators who test on a machine with `umask 022` see `0o755` while CI containers silently create `0o777` directories.
 
 **Threat models:**
 
-1. **Co-tenant on shared CI runner** — a runner that processes
-   parallel jobs (each job sees the same shared `~`) is a
-   multi-user host for the purposes of this finding even though
-   nominally each job is "its own user." Pod1 runs
-   `testrail install-skill --global`. Pod2 (same host, different
-   user/UID) waits for the dir to exist, drops a malicious
-   `~/.claude/skills/<other-tool>/SKILL.md`. Pod3 (back to the
-   first user) runs Claude Code, which auto-loads the planted
-   skill.
-2. **Distroless container with persistent volume** — a service
-   container running with `umask 000` (because its base image
-   was busybox-derived) writes the skill to a persistent volume.
-   The volume is later mounted by an admin container for
-   debugging — the admin's tooling now has a planted file under
-   a world-writable directory the attacker also has access to.
-3. **Privilege boundary on a multi-user dev VM** — a shared
-   dev server where each developer's `~` is on the same
-   filesystem. Dev A's `umask 000` (because they sourced an
-   unusual `.bashrc` setup script) installs the skill;
-   `~/.claude/skills/testrail-cli/` is world-writable. Dev B
-   (unrelated) plants a SKILL.md in dev A's tree pointing at
-   their own malicious payload. Next time dev A re-runs Claude
-   Code, the agent's runtime profile is partially controlled by
-   dev B.
-
-The fix is the same hardening that every well-audited CLI tool
-applies when creating dot-directories under the operator's HOME:
-pass an explicit, tight mode.
+1. **Co-tenant on a shared CI runner:** Job 1 runs `testrail install-skill --global` on a shared host. Job 2 (running as a different UID on the same host) places a malicious `SKILL.md` in the world-writable directory. Job 3 runs Claude Code, which loads the malicious skill.
+2. **Container with a persistent volume:** A container running with `umask 000` writes the skill to a persistent volume. Another container later mounts that volume and loads a file modified by an unprivileged container user.
+3. **Multi-user development VM:** Developer A has `umask 000` and installs the skill. Developer B replaces `SKILL.md` in Developer A's home directory.
 
 **Fix sketch (S):**
 
-1. Pass an explicit mode on the create. `0o700` for `--global`
-   targets (truly under `~`, where the owner is the only
-   intended reader/writer) and `0o755` for project-local
-   `<cwd>/.claude/skills/` (where other tooling in the project
-   _does_ need to read it, but no other user should write):
+1. Pass an explicit mode to `mkdirSync`. Use `0o700` for `--global` targets under `~`, and `0o755` for project-local `<cwd>/.claude/skills/` targets:
 
     ```ts
     const mode = opts.global ? 0o700 : 0o755;
     mkdirSync(dirname(target), { recursive: true, mode });
     ```
 
-2. After the create, **re-`chmod` the target leaf** so that
-   even if `recursive: true` short-circuited (the dir already
-   existed with a wider mode), the final state is tight:
+2. Call `chmodSync` on the target directory after creation so that pre-existing directories with wider permissions are also restricted:
 
     ```ts
     chmodSync(dirname(target), mode);
     ```
 
-3. **Lock down the file mode too.** `copyFileSync` copies the
-   source's mode but doesn't override the file's perms after
-   the copy. Add an explicit `chmodSync(target, 0o600)` for the
-   `--global` case and `0o644` for project-local. The
-   global-mode file shouldn't be world-readable on a multi-user
-   host — there's no reason a skill installed under `~/.claude/`
-   needs to be readable by other UIDs.
-
-4. **Warn loudly when the inherited umask is permissive.**
-   At construction (or at install-skill entry), check
-   `process.umask()` (which returns the current value without
-   changing it) and if it's < `0o022`, emit a one-line stderr
-   note: `Warning: umask 0xxx may produce overly-permissive
-directory perms; --global install paths are being created with
-explicit mode 0o700.` Operators on permissive-umask hosts get
-   visibility into the trade-off.
+3. Set explicit permissions on the installed file. Call `chmodSync(target, 0o600)` for `--global` installations and `chmodSync(target, 0o644)` for project-local installations.
+4. Check `process.umask()` during installation. If the `umask` is less restrictive than `0o022`, write a warning to `stderr`.
 
 Tests:
 
-- `tests/install-skill.test.ts`: temp-dir setup with
-  `process.umask(0o000)`, run `runInstallSkill({ force: false,
-cwdOverride: tmp, ... })`, then assert
-  `lstatSync(join(tmp, '.claude', 'skills', 'testrail-cli')).mode
-& 0o777` is `0o755` (project-local case), not `0o777`.
-- `tests/install-skill.test.ts`: same but with
-  `opts.global = true` and `homeOverride: tmp`; assert mode is
-  `0o700`.
-- `tests/install-skill.test.ts`: assert the file's mode is
-  `0o644` (project-local) / `0o600` (global) regardless of
-  source mode and umask.
-- Regression: under default umask `0o022`, the install behaviour
-  is unchanged from today (same modes, no warnings, no errors).
+- `tests/install-skill.test.ts`: Set `process.umask(0o000)`, run `runInstallSkill({ force: false, cwdOverride: tmp, ... })`, and verify that `lstatSync(join(tmp, '.claude', 'skills', 'testrail-cli')).mode & 0o777` is `0o755`.
+- `tests/install-skill.test.ts`: Run with `opts.global = true` and `homeOverride: tmp`, and verify that the directory mode is `0o700`.
+- `tests/install-skill.test.ts`: Verify that the installed file mode is `0o644` for project-local installs and `0o600` for global installs, regardless of source mode and `umask`.
+- Regression: Verify that installation behavior under `umask 0o022` remains unchanged.
 
 ### 20. `baseUrl` accepted with embedded userinfo (`user:pass@…`) → credential string preserved in heap, URLs, and fetch error metadata — `src/client-core.ts:255–290, 200, 603, 724, 813, 893` (Severity: LOW–MEDIUM) — [OPEN]
 
-`validateConfig` parses `config.baseUrl` through `new URL()` and
-checks the protocol and hostname, but **never inspects the URL's
-`username` / `password` components**:
+`validateConfig` parses `config.baseUrl` with `new URL()` and checks the protocol and hostname, but it does not check `url.username` or `url.password`:
 
 ```ts
 // src/client-core.ts:255–289
@@ -2354,96 +1232,35 @@ try {
 }
 ```
 
-`new URL('https://foo:bar@testrail.example.com/').hostname` is just
-`testrail.example.com`; the regex check and the eventual DNS lookup
-both see the bare hostname and pass. The full string —
-`https://foo:bar@testrail.example.com` — is then stored as
-`this.baseUrl` after the trailing-slash strip (L200) and
-concatenated into every outbound URL:
+For `new URL('https://foo:bar@testrail.example.com/')`, `hostname` is `testrail.example.com`. The regex check and DNS lookup both pass. The client then stores the full string `https://foo:bar@testrail.example.com` in `this.baseUrl` (L200) and concatenates it into every outbound URL:
 
 ```ts
 // src/client-core.ts:603, 724, 813, 893 (one per fetch site)
 const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
 ```
 
-**What happens at the network layer:** undici's
-`Request` constructor strips userinfo from the URL before serialising
-the request line (per WHATWG fetch §5.5, "request's URL's username
-and password" are removed in the _credentials_ path), AND the client
-already sets an explicit `Authorization: Basic` header from
-`config.email`/`config.apiKey`, so the userinfo in the URL doesn't
-get forwarded as a _second_ auth header on the wire. So the
-immediate "two auths sent" failure mode is avoided.
+**Network layer behavior:** The `undici` `Request` constructor removes userinfo from the URL before sending the HTTP request line. The client sets an explicit `Authorization: Basic` header from `config.email` and `config.apiKey`. Therefore, the client does not send a second authentication header over the network.
 
-**What still leaks:**
+**Remaining exposure:**
 
-1. **`this.baseUrl` retains the userinfo string for the lifetime
-   of the client.** The destroy path at L560 zeroes `this.auth`
-   (the proper Authorization-derived secret) but leaves `baseUrl`
-   intact — that field is marked `readonly` and isn't touched by
-   `destroy()`. A heap snapshot taken at any point during the
-   client's life recovers `foo:bar` plaintext. The library
-   already calls out the heap-dump risk for `this.auth`
-   ("recoverable from a heap dump", L182–183 comment); the same
-   risk applies to `this.baseUrl` and is not mitigated.
-2. **Every URL string allocated for `fetch()` contains the
-   userinfo.** Strings are immutable in V8; until GC reclaims
-   them, each constructed URL sits in the heap with the secret
-   embedded. With `maxRetries: 3` per call, a flaky run can
-   allocate 4× the URL string per logical request.
-3. **fetch error surfaces.** undici's `TypeError: fetch failed`
-   error sets `error.cause` with diagnostic info; for some failure
-   classes (DNS, TLS), the cause includes the host _with_
-   userinfo when the URL was the input form. The client's
-   network-error wrapper at L691 stuffs `error.message` into a
-   `TestRailApiError`:
+1. **`this.baseUrl` retains the userinfo string for the lifetime of the client:** `destroy()` (L560) clears `this.auth`, but `this.baseUrl` is `readonly` and remains in memory. A heap snapshot can recover `foo:bar` in plaintext.
+2. **Every fetch URL contains userinfo:** Each constructed URL remains in the heap with embedded credentials until garbage collection removes the immutable V8 string.
+3. **Fetch error messages may include the URL:** `undici` attaches diagnostic information to `error.cause`. When the client wraps network errors at L691:
     ```ts
     throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
     ```
-    The CLI then prints `e.message` to stderr (per finding #16's
-    reflection surface). If the error message included the
-    userinfo-bearing URL (verifiable via Node's
-    `--experimental-network-inspection`), the credential reaches
-    the user's terminal and CI logs.
-4. **The `redirect: 'follow'` default (finding #4) preserves
-   userinfo on same-origin redirects** — so any redirect at all
-   issued by the server forwards `foo:bar` to the next URL in
-   the chain. Even if the explicit Authorization header
-   overrides it on the wire, the redirect rewrite metadata still
-   moves the literal through internal state.
+    If the error message includes the URL with userinfo, the CLI writes the credentials to `stderr` and CI logs.
+4. **Same-origin redirects preserve userinfo:** When `redirect: 'follow'` is active (Finding #4), same-origin redirects forward `foo:bar` to the next URL in the redirect chain.
 
 **Threat models:**
 
-1. **Operator-as-attacker-to-themselves.** An operator who
-   "conveniently" puts their TestRail API key in the URL — e.g.,
-   migrating from a curl one-liner like `curl
-https://email:apikey@testrail.example.com/api/...` — has both
-   `--email`/`--api-key` _and_ userinfo in baseUrl. The library
-   silently accepts it. Heap dumps, crash reports, CI artifacts
-   ("dump environment for debugging") pick up the userinfo
-   variant of the credential.
-2. **Library mode + log capture.** Host applications that
-   construct a `TestRailClient` log their `config` object on
-   startup for ops visibility. `JSON.stringify(config)` includes
-   `baseUrl` verbatim — the userinfo lands in the structured
-   log pipeline (Datadog, Splunk, Logz). Whereas if the URL
-   had been rejected at construction, the operator would have
-   moved the secret to `email`/`apiKey` (which the log
-   convention can redact).
-3. **Force-multiplier on finding #11** (`--api-key` argv
-   exposure). #11 covered argv-visible credentials. The
-   userinfo path is a _second_ uncovered surface for the same
-   class of operator mistake — and the library currently
-   guarantees neither is rejected nor sanitised.
-
-The fix is a 4-line addition during `validateConfig` parsing
-that all major HTTP clients adopt (axios, ky, undici-direct, gh
-CLI's URL parser):
+1. **Operator credential exposure:** An operator who migrates from a `curl https://email:apikey@testrail.example.com/api/...` command may leave userinfo in `baseUrl`. Heap dumps, crash reports, and debug logs then capture the credentials.
+2. **Application startup logs:** Applications that log their startup `config` send `baseUrl` to structured log systems such as Datadog or Splunk. Redaction rules usually target `apiKey`, not `baseUrl`.
+3. **Combination with Finding #11 (`--api-key` argv exposure):** Passing userinfo in `--base-url` exposes credentials in process arguments as well.
 
 **Fix sketch (S):**
 
-1. Reject any `baseUrl` whose URL contains a non-empty
-   `username` or `password`:
+1. Reject any `baseUrl` that contains a non-empty `username` or `password`:
 
     ```ts
     // src/client-core.ts:257 (inside the existing try { … } block)
@@ -2456,45 +1273,19 @@ CLI's URL parser):
     }
     ```
 
-2. Add a defensive normaliser step on the stored `baseUrl` even
-   under `allowPrivateHosts`/escape-hatch paths: serialise the
-   URL via `url.origin + url.pathname.replace(/\/$/, '')` rather
-   than `config.baseUrl.replace(/\/$/, '')`. `url.origin` is
-   guaranteed by WHATWG to _not_ include userinfo, so a future
-   bypass that slips past the validation gate still doesn't
-   reach `this.baseUrl`. (This is the same hardening pattern as
-   #15's "broaden the synchronous check" — failure cases get
-   stripped, not just rejected.)
-
-3. Document in the README's Config section that credentials
-   belong in `email` / `apiKey`, never in `baseUrl`. The HELP
-   text at L87–90 of `index.ts` already lists the env-var /
-   flag forms; cross-reference them from a new "Auth" section
-   in the README.
+2. Normalize the stored `baseUrl` using `url.origin + url.pathname.replace(/\/$/, '')` instead of `config.baseUrl.replace(/\/$/, '')`. Because `url.origin` never includes userinfo, credentials cannot reach `this.baseUrl`.
+3. Document in the `README.md` Configuration section that credentials must be passed in `email` and `apiKey`, not in `baseUrl`.
 
 Tests:
 
-- `tests/client-features.test.ts`: every variant of userinfo
-  rejects at construction with the new error wording —
-  `https://u@host/`, `https://u:p@host/`, `https://:p@host/`,
-  `https://%40:p@host/` (encoded `@` in username).
-- `tests/client-features.test.ts`: a benign `baseUrl` without
-  userinfo continues to round-trip through `this.baseUrl`
-  unchanged.
-- `tests/client-features.test.ts`: even if the validation
-  check is bypassed (mock the URL constructor to lie about
-  `.username`), the `url.origin`-based normaliser ensures
-  `this.baseUrl` never contains the userinfo string. Defence-
-  in-depth assertion.
-- `tests/client-edge-cases.test.ts`: a redirect from a
-  userinfo-bearing URL (per finding #4's eventual fix) does
-  _not_ forward the userinfo to the redirect target — the
-  normalised baseUrl never had it.
+- `tests/client-features.test.ts`: Verify that `https://u@host/`, `https://u:p@host/`, `https://:p@host/`, and `https://%40:p@host/` all throw `TestRailValidationError` at construction.
+- `tests/client-features.test.ts`: Verify that a valid `baseUrl` without userinfo is stored unchanged.
+- `tests/client-features.test.ts`: Verify that `url.origin` normalization strips userinfo from `this.baseUrl` even if the validation check is bypassed.
+- `tests/client-edge-cases.test.ts`: Verify that redirects do not forward userinfo to the redirect target.
 
 ### 21. Slowloris-on-body DoS: timeout cleared before body is read — `src/client-core.ts:611–625, 732–746, 826–840, 896–908` (Severity: MEDIUM) — [OPEN]
 
-All four fetch sites share the same timeout pattern, and the same
-bug:
+All four fetch sites clear the request timeout before reading the response body:
 
 ```ts
 // src/client-core.ts:611–625 (request<T>; identical at 732/826/896)
@@ -2507,37 +1298,19 @@ try {
     const responseText = await response.text();   // ← unbounded wait
 ```
 
-The `setTimeout(...).then abort` only protects the **headers
-roundtrip** — `await fetch(...)` resolves as soon as response
-headers arrive, even before any body byte is received. The very
-next line clears the timeout, so the body read (`response.text()`,
-`response.arrayBuffer()`) runs with **no time budget**.
+The `setTimeout` timer only protects the header round-trip. `await fetch(...)` resolves as soon as the response headers arrive, before any body bytes are read. The next line calls `clearTimeout(timeoutId)`, so `response.text()` and `response.arrayBuffer()` run with no time limit.
 
-WHATWG fetch's `AbortController` is plumbed through both the
-request _and_ the response body stream — aborting the signal
-errors the body read. The library wires that correctly via
-`signal: controller.signal` in the `RequestInit`. The bug is
-that the timer that would _fire_ the abort gets cancelled the
-moment headers land.
+`controller.signal` controls both the request and response body stream. However, the client cancels the `controller.abort()` timer when the headers arrive.
 
-**This is textbook slowloris-on-response.** A malicious or
-compromised TestRail-shaped origin (or any host reached via #4's
-redirect path):
+**Slowloris attack on the response body:** A malicious or compromised server (or redirect target from Finding #4):
 
-1. Receives the request, returns `200 OK` headers immediately.
-2. Drips body bytes one at a time, say one byte every 30
-   seconds, for the next 7 days.
-3. The client's `response.text()` call sits in an `await` for the
-   full week (or until the underlying TCP/HTTP layer gives up on
-   its own, which undici's default keep-alive timeout doesn't
-   prevent on a steadily-drip-fed connection).
+1. Accepts the request and immediately returns `200 OK` headers.
+2. Sends the response body at 1 byte every 30 seconds.
+3. Holds the client's `await response.text()` call open indefinitely because the steady trickle prevents TCP keep-alive timeouts from firing.
 
-The advertised `timeout: DEFAULT_TIMEOUT_MS = 30_000` (30 s)
-config is silently ignored for body reads. Even
-`timeout: MAX_TIMEOUT_MS = 300_000` (5 min, the documented upper
-bound) doesn't help once headers have landed.
+As a result, the client ignores `DEFAULT_TIMEOUT_MS = 30_000` (30 s) and `MAX_TIMEOUT_MS = 300_000` (5 min) during body reads.
 
-**Affected paths** — every fetch in the codebase:
+**Affected paths:**
 
 | Method             | setTimeout site | first clearTimeout (headers) | body read after               |
 | ------------------ | --------------- | ---------------------------- | ----------------------------- |
@@ -2546,42 +1319,16 @@ bound) doesn't help once headers have landed.
 | `requestMultipart` | L826            | L840                         | L843 / L850                   |
 | `requestBinary`    | L896            | L908                         | L911 / L925                   |
 
-The pattern is symmetric across all four; fix one, fix the
-template for all.
+**Interaction with other findings:**
 
-**Force-multipliers on the existing findings:**
+- **Finding #4 (redirect SSRF):** Redirecting to a slow-streaming internal endpoint holds connections open, exhausting rate-limit slots and sockets.
+- **Finding #12 (unbounded response body):** A slow server can also grow the response buffer without a limit. Growth stops only at the V8 string length limit.
+- **Finding #13 (POST idempotency):** Because the server returns `200 OK` headers, retries never trigger and the client hangs on the first attempt.
+- **Finding #9 (cache poisoning):** If the slow response eventually completes, the client caches the response for the full TTL.
 
-- **#4 (redirect SSRF):** an attacker who redirects to a slow-
-  responding internal endpoint (e.g., an internal metrics
-  scraper that streams metrics at 1 byte/s as a "performance
-  preview" — surprisingly common) holds the client open for
-  hours. Each held connection consumes one rate-limit slot
-  and one socket. A handful of such redirects exhausts the
-  agent's rate limiter and its socket pool simultaneously.
-- **#12 (unbounded response body):** combined, the attacker
-  drips bytes _and_ the buffer grows unbounded. Hits the
-  V8 ~1 GB string-length limit after a few days of dripping
-  one byte per 30 seconds — by which time the agent is long
-  gone, but the rate-limit and socket exhaustion already
-  occurred.
-- **#13 (POST idempotency):** since 5xx-and-network-error are
-  the only retry triggers and slowloris produces neither (the
-  server happily returns 200 from the client's perspective),
-  retries don't even kick in — the client just hangs in the
-  first attempt. No retry storm; just silent stall.
-- **#9 (cache poisoning):** the slow drip eventually completes
-  (or doesn't); if it does, the bad data is cached for the TTL.
-  If it doesn't, the call never returns — no cache write — but
-  every subsequent concurrent call to the same endpoint is its
-  own fresh slowloris (no shared promise dedup; cf. #14's
-  stampede note).
+**Fix sketch (M):** Keep the timeout timer active until the body is completely read, or set a separate timer for the body read:
 
-**Fix sketch (M):** keep the timer armed until the body is fully
-consumed, OR re-arm it for the body phase. Two practical shapes:
-
-A. **Don't clear until after the body.** Move the
-`clearTimeout(timeoutId)` calls to **after** the
-corresponding `response.text()` / `response.arrayBuffer()`:
+A. **Clear the timeout after reading the body:** Move `clearTimeout(timeoutId)` after `response.text()` and `response.arrayBuffer()`:
 
 ```ts
 try {
@@ -2601,51 +1348,22 @@ try {
 }
 ```
 
-Simplest patch; the same `this.timeout` budget now covers
-headers + body, end-to-end. Aborts mid-body-read via the
-existing `controller.abort()` are mapped to `AbortError`
-in the existing catch block and produce the existing
-408 `TestRailApiError` shape — no new error-class plumbing.
+With this change, `this.timeout` covers both headers and body end-to-end. If the timer fires during the body read, `controller.abort()` aborts the stream and the existing `catch` block throws a 408 `TestRailApiError`.
 
-B. **Re-arm with a separate body timeout.** Stricter: track
-header arrival as the end of phase 1, then schedule a fresh
-`setTimeout` for the body phase with the same (or a shorter)
-budget. Lets operators tune them independently
-(`headerTimeout` / `bodyTimeout`) via a follow-up config knob.
-Defer this shape unless an operator asks; (A) closes the
-bug with a minimal patch.
+B. **Use a separate body timeout:** Clear the header timer when headers arrive, then start a second `setTimeout` for the body read (configurable via `bodyTimeout`).
 
-In both shapes, pair the fix with finding #12's size-capped
-streamed read so the budget enforces _time_ and the cap enforces
-_bytes_ — two orthogonal guards.
+Combine either option with the streaming byte limit from Finding #12 so that body reads enforce both time and byte limits.
 
 Tests:
 
-- `tests/client-features.test.ts`: stub `fetch` to return a
-  `Response` whose body is a `ReadableStream` that yields one
-  byte every 200 ms (or a custom `setTimeout`-paced
-  controller). Set `timeout: 500`. Assert
-  `client.getProject(1)` rejects with the 408
-  `TestRailApiError` _because the body wasn't fully read in
-  time_, not because headers were late. Measure wall-clock —
-  the rejection must arrive within ~500 ms + tolerance, not
-  after the stream completes.
-- `tests/client-features.test.ts`: same pattern for
-  `requestBinary` (binary slow-drip), `requestText`,
-  `requestMultipart` — proves all four sites are patched.
-- Regression: a fast normal response still completes within
-  the configured timeout window and does not falsely abort.
-- `tests/client-features.test.ts`: error path — a slow-drip
-  body on a 5xx response. The body is read for the
-  `TestRailApiError.response` field; assert that read is also
-  time-budgeted (i.e. the L628/L749/L843/L911 error-body reads
-  share the patched clear-timeout site).
+- `tests/client-features.test.ts`: Stub `fetch` to return a `Response` with a `ReadableStream` body that yields 1 byte every 200 ms. Set `timeout: 500`. Verify that `client.getProject(1)` rejects with a 408 `TestRailApiError` within ~500 ms.
+- `tests/client-features.test.ts`: Repeat the slow-stream test for `requestBinary`, `requestText`, and `requestMultipart`.
+- Regression: Verify that a fast response completes normally without aborting.
+- `tests/client-features.test.ts`: Verify that a slow-streaming error body on a 5xx response also aborts when the timeout expires.
 
 ### 22. Prototype-chain property access in `dispatch()` crashes the CLI on `Object.prototype` resource names — `src/cli/dispatch.ts:118–131, 144–163` (Severity: LOW) — [OPEN]
 
-`RESOURCES` is built as a plain JS object (its prototype is
-`Object.prototype`), and `dispatch()` reads it with bracket-access on
-user-supplied argv:
+`RESOURCES` is a plain JavaScript object that inherits from `Object.prototype`. `dispatch()` indexes into `RESOURCES` using the user-supplied `resource` argument:
 
 ```ts
 // src/cli/dispatch.ts:118–131
@@ -2672,9 +1390,7 @@ export function dispatch(resource: string, action: string): DispatchResult {
 }
 ```
 
-Standard CWE-1321-adjacent gadget. For every property name that
-exists on `Object.prototype`, `RESOURCES[name]` returns the
-prototype's value rather than `undefined`:
+For any property name on `Object.prototype`, `RESOURCES[resource]` returns the inherited prototype property instead of `undefined`:
 
 | `resource` argv                                                                   | `RESOURCES[resource]` returns         | `.includes(...)` outcome                        |
 | --------------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------- |
@@ -2688,14 +1404,14 @@ prototype's value rather than `undefined`:
 | `toLocaleString`                                                                  | …                                     | `TypeError: actions.includes is not a function` |
 | `__defineGetter__` / `__defineSetter__` / `__lookupGetter__` / `__lookupSetter__` | …                                     | same shape                                      |
 
-Empirical confirmation (Node 24):
+Verification on Node.js 24:
 
 ```
 $ node -e "const r = {}; try { r['__proto__'].includes('x'); } catch(e) { console.log(e.message); }"
 r.__proto__.includes is not a function
 ```
 
-The TypeError propagates up to `main()`'s catch at `index.ts:281`:
+The `TypeError` propagates to the `catch` block in `main()` (`index.ts:281`):
 
 ```ts
 } catch (e: unknown) {
@@ -2704,56 +1420,24 @@ The TypeError propagates up to `main()`'s catch at `index.ts:281`:
 }
 ```
 
-The user sees a bare `Error: actions.includes is not a function`
-on stderr instead of the clean `Unknown resource '__proto__'.
-Use: project, suite, ...` shape that every other unknown-resource
-case returns.
+The user receives `Error: actions.includes is not a function` on `stderr` instead of `Unknown resource '__proto__'. Use: project, suite, ...`.
 
 **Impact assessment:**
 
-- **No data leak.** The TypeError message is generic V8 wording;
-  it doesn't reveal the resource string or actions list.
-- **No auth bypass.** The dispatch fails before any client is
-  constructed (the `RESOURCES[resource]` check at L145 runs
-  before `resolveAuth()` at L217).
-- **No write-side effect.** Construction of `RESOURCES` (the
-  IIFE at L118–131) operates on the static `Object.keys(HANDLERS)`,
-  none of which contain `__proto__`-style keys; the
-  `grouped[resource] = [action]` write at L125 never gets a
-  prototype-poisoning input. The IIFE is safe in isolation; the
-  gadget lives entirely on the consumer-side read at L145.
-- **Per-invocation DoS only.** The CLI exits 1 on the
-  malformed-resource input, which is the same outcome an
-  agent would get for any typo. Slightly worse UX (cryptic
-  error instead of the canonical "Unknown resource ... Use:
-  ..." menu).
-- **Class signal.** The vulnerability class is well-known
-  (CWE-1321), and even though _this_ instance has low impact,
-  the same pattern (`Record<string, …>` with prototype-typed
-  default + bracket access on user input) crops up in 5 more
-  places in this codebase that should be audited together: 1. `RESOURCES[resource]` (L145) — _this finding_ 2. `HANDLERS[\`${resource}:${action}\`]`(L158) — concatenated
-key, accidentally safe:`'**proto**:foo'`isn't on
-Object.prototype, so this access returns`undefined`. But
-`resource = 'constructor', action = 'prototype'`→`HANDLERS['constructor:prototype']`is`undefined`. Safe
-       _by accident_ — change the join character and the safety
-       evaporates.
-    3. `grouped[resource]`(L123) — write-side; safe per above
-       because keys come from`Object.keys(HANDLERS)`.
-    4. `Object.keys(RESOURCES).join(', ')`in the error message
-       (L149) —`Object.keys`enumerates only own properties, so
-       prototype gunk doesn't reach the user-visible string.
-       Safe.
-    5.`ACTIONS.find(...)`in`getActionSpec` (`metadata.ts:551`) —
-       `Array.prototype.find` only iterates indexed entries; no
-  proto walk. Safe.
+- **No data leak:** The `TypeError` message does not expose sensitive data.
+- **No authentication bypass:** `dispatch()` fails at L145 before `resolveAuth()` runs at L217.
+- **No prototype pollution:** `RESOURCES` is populated from static `Object.keys(HANDLERS)` entries, none of which are prototype keys.
+- **Per-invocation failure only:** The CLI exits with code 1, but prints a `TypeError` instead of the help message.
+- **Related lookup sites in `src/cli/`:**
+  1. `RESOURCES[resource]` (L145): Vulnerable to prototype lookup.
+  2. `HANDLERS[\`${resource}:${action}\`]` (L158): Concatenates a colon, which does not match any `Object.prototype` key, but remains a plain object lookup.
+  3. `grouped[resource]` (L123): Safe because keys come from `Object.keys(HANDLERS)`.
+  4. `Object.keys(RESOURCES).join(', ')` (L149): Safe because `Object.keys` only enumerates own properties.
+  5. `ACTIONS.find(...)` in `getActionSpec` (`metadata.ts:551`): Safe because `Array.prototype.find` iterates array elements.
 
-            (1) is the only live bug. (2) is a latent footgun.
+**Fix sketch (S):** Store `RESOURCES` in a container without `Object.prototype`:
 
-**Fix sketch (S):** switch `RESOURCES` to a prototype-less
-container so bracket access can't walk into `Object.prototype`:
-
-A. **`Object.create(null)`** — minimal change, preserves the
-`Record<string, readonly string[]>` typing:
+A. **Use `Object.create(null)`:**
 
 ```ts
 const RESOURCES: Record<string, readonly string[]> = (() => {
@@ -2769,14 +1453,9 @@ const RESOURCES: Record<string, readonly string[]> = (() => {
 })();
 ```
 
-`Object.create(null)` produces an object with `__proto__ === null`,
-so `grouped['__proto__']` reads literal `undefined` (no
-prototype walk) and the existing `if (actions === undefined)`
-branch returns the clean error.
+`Object.create(null)` creates an object with a `null` prototype, so `grouped['__proto__']` returns `undefined`.
 
-B. **`Map<string, readonly string[]>`** — stronger guarantee.
-Map's `get()` is fully prototype-isolated and the API forces
-the call sites to be explicit:
+B. **Use `Map<string, readonly string[]>`:**
 
 ```ts
 const RESOURCES = new Map<string, readonly string[]>();
@@ -2786,30 +1465,16 @@ const actions = RESOURCES.get(resource);
 if (actions === undefined) { … }
 ```
 
-Pick (A) if the goal is the minimum patch; pick (B) if you want
-the same hardening applied to `HANDLERS` (L158 latent footgun) at
-the same time — `HANDLERS` is the dispatch table that _will_
-hit a similar gadget the day someone changes the join char or
-introduces a hashed key.
-
 Tests:
 
-- `tests/cli.test.ts`: subprocess: `testrail __proto__ foo` exits
-  1 with stderr matching `Unknown resource '__proto__'`. (The
-  `''` arg quote prevents bash from expanding; supply via
-  argv-array to the test's `spawnSync`.)
-- Same for `constructor`, `toString`, `valueOf`, `hasOwnProperty`,
-  `propertyIsEnumerable`, `isPrototypeOf`. Use `it.each`.
-- `tests/cli-helpers.test.ts`: assert
-  `dispatch('__proto__', 'foo').error.startsWith("Unknown resource")`.
-- Regression: legitimate `dispatch('project', 'get')` still
-  returns `{ ok: true, handler }`.
+- `tests/cli.test.ts`: Run `testrail __proto__ foo` in a subprocess and verify that it exits with code 1 and prints `Unknown resource '__proto__'`.
+- Repeat the test for `constructor`, `toString`, `valueOf`, `hasOwnProperty`, `propertyIsEnumerable`, and `isPrototypeOf`.
+- `tests/cli-helpers.test.ts`: Verify that `dispatch('__proto__', 'foo').error.startsWith("Unknown resource")` is `true`.
+- Regression: Verify that `dispatch('project', 'get')` returns `{ ok: true, handler }`.
 
 ### 23. Cache stampede: N concurrent identical GETs fan out into N parallel network calls — `src/client-core.ts:591–598, 661–665` (Severity: LOW–MEDIUM) — [OPEN]
 
-The GET-LRU is a _result_ cache, not an _in-flight_ cache. The cache
-write only happens after the response body parses; until then, every
-concurrent reader sees a miss:
+The GET LRU cache stores completed responses, not in-flight requests. Because the client writes to the cache only after the response body parses, concurrent callers of the same endpoint all miss the cache:
 
 ```ts
 // src/client-core.ts:591–598 (request<T>)
@@ -2829,88 +1494,29 @@ if (method === 'GET' && !skipCache) {
 return result;
 ```
 
-For `N` concurrent callers of `client.getCase(42)`:
+When `N` callers invoke `client.getCase(42)` concurrently:
 
-1. Caller 1: cache miss → starts fetch
-2. Caller 2 (before caller 1's fetch resolves): cache miss → starts fetch
-3. Caller 3: cache miss → starts fetch
-4. …
-5. Caller N: cache miss → starts fetch
-6. All N fetches resolve, each writes to cache (overwrites are no-ops)
-7. All N callers return the same data
+1. Caller 1 misses the cache and starts a `fetch` request.
+2. Callers 2 through `N` also miss the cache before Caller 1 finishes, and each starts a separate `fetch` request.
+3. All `N` requests resolve, overwrite the same cache entry, and return the same data.
 
-**N parallel network roundtrips, N cache writes, N rate-limit slots
-consumed, N response bodies allocated** — for a logical single read.
-Standard "cache stampede" / "dogpile" anti-pattern.
+This results in `N` network requests, `N` cache writes, `N` rate-limit slots consumed, and `N` response body allocations for a single logical read.
 
-**Compounding bug surfaces:**
+**Compounding effects:**
 
-1. **Rate limit exhaustion.** `checkRateLimit` (L383–405) records
-   each request in a sliding-window array. With the default
-   `maxRequests: 100`, a single `Promise.all(ids.map(id =>
-client.getCase(id)))` over 100 unique IDs eats 100 slots in
-   one tick. The next non-redundant call throws 429 with the
-   "wait 60 seconds" message. With _duplicate_ IDs in the
-   array, the same endpoint hits N times — pure waste. Agents
-   that defensively call `Promise.all([client.getProject(1),
-client.getProject(1), ...])` (intending to read once but
-   accidentally creating an array with the same ID via a loop
-   bug) instantly deplete the budget.
-
-2. **Force-multiplier on finding #12** (unbounded response
-   body). The body-size limit is per-response, but with the
-   stampede there are N responses allocating in parallel —
-   peak memory ≈ N × cap. The fix sketch in #12 set
-   `DEFAULT_MAX_RESPONSE_BYTES = 50 MB`; 100-way stampede at
-   that cap puts the agent at 5 GB peak before backpressure.
-
-3. **Force-multiplier on finding #21** (slowloris-on-body).
-   If the server slow-drips, _every_ stampede caller is its own
-   slowloris connection. 100 open sockets per stampede. The
-   socket pool exhausts long before the body-read time-budget
-   (post-#21 fix) fires for any single call.
-
-4. **Force-multiplier on finding #4** (redirect SSRF). A
-   single redirect to an internal endpoint is bad; N parallel
-   redirects from a stampede are an internal-port-scan
-   amplifier — N TCP connections to the SSRF target instead
-   of 1.
-
-5. **Force-multiplier on finding #13** (POST retry idempotency).
-   Stampede only affects GET (POSTs always allocate fresh), but
-   if a GET stampede causes one of the N concurrent fetches to
-   fail with a 5xx, _that one_ retries with backoff — while
-   the other N-1 succeed. The retry's exponential-backoff
-   sleep happens _after_ its N-1 siblings have already
-   populated the cache, so the retry's final fetch is wasted
-   work even after the cache is warm.
+1. **Rate-limit exhaustion:** `checkRateLimit` (L383–405) records each request in a sliding window (`maxRequests: 100` by default). Concurrent calls with duplicate IDs consume multiple rate-limit slots for the same resource and can trigger 429 errors.
+2. **Interaction with Finding #12 (unbounded response body):** `N` concurrent responses allocate memory in parallel, multiplying peak memory usage by `N`.
+3. **Interaction with Finding #21 (slowloris on body):** If the server streams slowly, all `N` concurrent requests hold open sockets simultaneously.
+4. **Interaction with Finding #4 (redirect SSRF):** `N` concurrent requests amplify a redirect into `N` parallel connections to the redirect target.
+5. **Interaction with Finding #13 (retry behavior):** One of `N` concurrent GET requests can fail with a 5xx error. It retries with backoff even after the other `N - 1` requests populate the cache.
 
 **Threat models:**
 
-1. **Self-DoS via batch agent.** An agent issues
-   `Promise.all(...)` over a deduplication-bug array (e.g.
-   `cases.flatMap(c => [c.id, c.id])` — common debounce/coalesce
-   error). 200 concurrent calls instead of 100; agent hits the
-   rate limit it set for itself.
-2. **Cold-cache stampede on startup.** A long-running host
-   process restarts; the cache is empty. The first inbound
-   request burst (10 dashboards refreshing
-   "TestRail status" simultaneously, each calling `getProject(1)`)
-   produces 10 parallel calls. With 100 requests/min limit,
-   that's 10 percent of the budget on one operation that's
-   trivially cacheable.
-3. **Chained with finding #9** (cache poisoning). N
-   concurrent fetches to a flapping upstream produce N
-   _different_ outcomes (caller 1 sees 200 with shape A;
-   caller 2 sees 200 with shape B during the flap). The
-   last-write-wins semantics of the cache mean only one
-   shape ends up cached, but each caller has _already_ used
-   their copy. Cross-caller data-integrity drift, undetectable
-   from inside any single caller.
+1. **Batch requests with duplicate IDs:** An agent calls `Promise.all(...)` over an array containing duplicate IDs and exhausts its own rate-limit budget.
+2. **Cold-cache startup burst:** When a process starts with an empty cache, simultaneous requests for the same project or run trigger parallel upstream calls.
+3. **Interaction with Finding #9 (cache poisoning):** Concurrent requests during an upstream change can receive different responses, causing callers to see inconsistent data.
 
-**Fix sketch (S):** introduce an in-flight Promise map keyed by the
-same `GET:${endpoint}` string so the second-and-later concurrent
-readers hook onto the first reader's pending promise:
+**Fix sketch (S):** Track in-flight GET promises in a `Map` keyed by `GET:${endpoint}` so that concurrent callers share the pending promise:
 
 ```ts
 // Field on TestRailClientCore:
@@ -2938,74 +1544,27 @@ if (method === 'GET' && !skipCache) {
 return inflightPromise as Promise<T>;
 ```
 
-Key constraints:
+Key requirements:
 
-- **Coalesce on success _and_ on rejection.** All N concurrent
-  callers share the same outcome — if the leader fetch fails,
-  every follower sees the same `TestRailApiError`. Don't
-  re-issue from the followers (that re-introduces the stampede
-  for the retry case).
-- **Don't coalesce across `skipCache: true`** — the existing
-  escape hatch (5th argument to `request<T>`) is there for
-  callers that _need_ a fresh fetch; preserve that contract.
-- **Don't coalesce POSTs.** Their `data` parameter differs per
-  call; their server-side side effects must not be deduplicated
-  (the very thing #13's idempotency fix protects against). The
-  `method === 'GET'` gate already provides this; keep it.
-- **Apply symmetrically to `requestBinary`.** Same flow, same
-  bug, same fix shape — `attachment get` is the canonical
-  reader workload that the stampede afflicts hardest (large
-  binary, slow round-trips, expensive to repeat).
-
-`requestText` and `requestMultipart` are not affected:
-`requestText` already bypasses cache by design (the comment at
-L703 notes this is intentional to avoid cross-method collisions);
-`requestMultipart` is POST-only.
+- **Share both resolved and rejected promises:** If the in-flight request fails, all waiting callers receive the same `TestRailApiError` without starting new requests. When combined with Finding #14, clone the resolved value for each caller.
+- **Do not coalesce when `skipCache: true` is set:** Callers that set `skipCache: true` must always perform a fresh fetch.
+- **Do not coalesce POST requests:** Only coalesce `GET` requests.
+- **Apply the same coalescing to `requestBinary`:** Concurrent attachment downloads benefit from sharing in-flight requests. `requestText` bypasses the cache by design, and `requestMultipart` only uses `POST`.
 
 Tests:
 
-- `tests/client-features.test.ts`: spawn 50 concurrent
-  `client.getProject(1)` calls; stub `fetch` to count
-  invocations and resolve after a microtask. Assert exactly
-  **one** fetch happens. All 50 callers receive identical
-  references (or identical-by-value, if combined with #14's
-  fix).
-- `tests/client-features.test.ts`: 50 concurrent calls where
-  the leader's fetch rejects with a 502 (no retry — assume
-  `maxRetries: 0` for this test). Assert all 50 receive the
-  same `TestRailApiError` and exactly **one** fetch happened.
-- `tests/client-features.test.ts`: heterogeneous concurrent
-  calls — 30 × `getProject(1)` + 20 × `getProject(2)`. Assert
-  exactly **two** fetches happen, partitioned correctly.
-- `tests/client-features.test.ts`: regression — sequential
-  calls behave identically to today (no inflight entry
-  visible to the second call because the first already
-  cleaned up via `.finally`).
-- `tests/client-edge-cases.test.ts`: a successful concurrent
-  burst followed by a `skipCache: true` call still issues a
-  fresh fetch (`skipCache` honoured).
+- `tests/client-features.test.ts`: Run 50 concurrent `client.getProject(1)` calls with a mocked `fetch`. Verify that `fetch` is called once and all 50 callers receive the result.
+- `tests/client-features.test.ts`: Run 50 concurrent calls where `fetch` rejects with 502 (`maxRetries: 0`). Verify that all 50 callers receive `TestRailApiError` and `fetch` is called once.
+- `tests/client-features.test.ts`: Run 30 concurrent `getProject(1)` calls and 20 concurrent `getProject(2)` calls. Verify that `fetch` is called exactly twice.
+- `tests/client-features.test.ts`: Verify that sequential calls clean up the `inflight` entry in `.finally()`.
+- `tests/client-edge-cases.test.ts`: Verify that a call with `skipCache: true` performs a new fetch.
 
 ### 24. Unbounded stdin read for write-action bodies — `src/cli/index.ts:269`, `src/cli/body.ts:75–78` (Severity: LOW–MEDIUM) — [SHIPPED — partial]
 
-> **Scope shipped in v3.0:** memory-exhaustion DoS only. `readBoundedStdin`
-> in `src/cli/stdin.ts` caps accumulated bytes at 1 MiB; pipes larger
-> than that throw before any allocation past the cap.
->
-> **Follow-up (not shipped):** a producer that holds the pipe open
-> without ever sending more than `maxBytes` (e.g. `tail -f`, a FIFO
-> writer that never closes, a slow trickle) still blocks the CLI
-> indefinitely on the synchronous `fs.readSync` call. Closing that
-> requires switching `BodyInput.readStdin` from `() => string` to
-> `() => Promise<string>`, replacing the `readSync` loop with an
-> async stream reader gated by an `AbortController`/wall-clock
-> deadline (e.g. 30 s), and threading the async signature through
-> `resolveBody`. Surfaced by Copilot review on PR #70. Track as
-> "stdin wall-clock deadline" — extends this finding rather than
-> reopens it, since the memory-DoS half is locked in.
+> **Scope shipped in v3.0:** Fixed memory exhaustion. `readBoundedStdin` in `src/cli/stdin.ts` limits stdin reads to 1 MiB and throws an error when input exceeds the limit.
+> > **Follow-up (not shipped):** A producer can keep the pipe open without exceeding `maxBytes`. Examples include `tail -f` and an unclosed FIFO. The CLI then blocks indefinitely on `fs.readSync`. Change `BodyInput.readStdin` from `() => string` to `() => Promise<string>`. Replace the `readSync` loop with an async stream reader and a wall-clock timeout, such as 30 s. Update `resolveBody` to be async. Copilot review on PR #70 identified this remaining time-limit requirement.
 
-The CLI exposes stdin as the third body source (alongside `--data`
-and `--data-file`) via a thunk that performs an _unbounded_ read from
-file descriptor 0:
+The CLI provides `stdin` as a third body source (alongside `--data` and `--data-file`) through a function that performs an unbounded read from file descriptor 0:
 
 ```ts
 // src/cli/index.ts:269
@@ -3026,15 +1585,9 @@ file descriptor 0:
 }
 ```
 
-`readFileSync(0, 'utf-8')` blocks until EOF and buffers the entire
-stream into a single UTF-8 string. The only gate is the
-`process.stdin.isTTY === false` check at index.ts:269 — present
-_only_ to avoid trying to drain an interactive terminal — and the
-fileInput-action exclusion (which already covers attachment
-uploads). There is no size cap, no time budget, no chunk-level
-backpressure, and no aware-of-content-shape early termination.
+`readFileSync(0, 'utf-8')` blocks until EOF and buffers the entire stream into a single UTF-8 string. It enforces no byte limit and no time limit.
 
-**Concrete failure modes:**
+**Failure modes:**
 
 | Invocation                                                  | Outcome                                                                                        |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -3044,61 +1597,23 @@ backpressure, and no aware-of-content-shape early termination.
 | `dd if=/dev/random bs=1M count=2048 \| testrail case add 1` | 2 GB string allocation — OOM-killed in any default container                                   |
 | `nc -l 4444 \| testrail case add 1`                         | Same as `tail -f`; netcat doesn't close stdin until the remote does                            |
 
-The same gap that finding #17 closed for `--data-file` exists on
-the stdin path, with a worse contract: a regular file has a known
-size you can `lstat()` _before_ opening; a stdin pipe has no size
-metadata at all, so the only sane defence is a hard byte cap plus
-a hard wall-clock budget.
-
-The `MAX_DATA_FILE_BYTES` constant proposed in #17 is the natural
-ceiling for _both_ paths; the stdin path also needs the
-**wall-clock cap** because a slow producer (or a never-closing fifo,
-or `tail -f`) has no size to check up-front.
+Unlike `--data-file` (Finding #17), where the client can check file size with `lstat()` before reading, a `stdin` pipe has no upfront size metadata. Defending `stdin` requires both a byte limit and a wall-clock timeout.
 
 **Threat models:**
 
-1. **Prompt-injected agent piping unbounded streams.** An LLM agent
-   is told (via a poisoned doc) to "tail the build log and pipe
-   each line as a case-add". The agent constructs
-   `tail -f /var/log/build.log | testrail case add 42`. The CLI
-   blocks indefinitely; the agent considers the call "in progress"
-   and either hangs its own loop or eventually crashes the
-   container. Either is a clean DoS primitive against the agent's
-   own progress.
-2. **Adversarial CI step.** An attacker who controls one upstream
-   step in a CI pipeline (e.g., a malicious shared action) emits
-   gigabytes of data on its stdout. The next step pipes that
-   stdout through `testrail`. The runner OOM-kills the entire job;
-   later steps (security scans, audit logging) never run.
-3. **Self-DoS via shell mis-quoting.** A human operator writes
-   `cat large.json | testrail case add 1` but the file is
-   100 MB instead of the expected 1 KB. V8 allocates the
-   100 MB string before JSON.parse even sees it. On a CI runner
-   with a 512 MB heap cap, the call OOMs _before_ the JSON parser
-   could surface the actual error ("body too large; max
-   `MAX_REQUEST_BODY_BYTES`").
-4. **Force-multiplier on finding #10** (`strict: false` typo'd
-   flags). An agent issues
-   `echo '{...huge...}' | testrail case add 1 --dryrun --yes`
-   (typo'd `--dryrun`). The dry-run gate doesn't engage; the
-   massive stdin still gets drained _and_ the real API call
-   fires with the bloated payload. TestRail rejects 4xx, but the
-   memory and time cost happened.
+1. **Prompt-injected agent piping an unending stream:** A prompt-injected agent runs `tail -f /var/log/build.log | testrail case add 42`. The CLI hangs indefinitely.
+2. **Malicious upstream CI step:** A compromised upstream CI step writes gigabytes of data to `stdout` and pipes it to `testrail`. The runner terminates the job with an out-of-memory error.
+3. **Accidental large file pipe:** An operator runs `cat large.json | testrail case add 1` with a 100 MB file, causing an out-of-memory crash on memory-constrained CI runners before `JSON.parse` runs.
+4. **Combination with Finding #10 (mistyped flags):** An agent supplies a mistyped `--dryrun` flag and a large stdin stream. The CLI reads the full stream and sends the request.
 
-The CI threat (model 2) is the sharpest: in any pipeline where a
-predecessor step's stdout is attacker-influenced, the testrail CLI
-becomes a DoS amplifier.
+**Fix sketch (S–M):** Enforce both a byte limit and a timeout when reading `stdin`:
 
-**Fix sketch (S–M):** introduce two caps and read stdin via a stream
-with byte counting + timeout:
-
-1. Constants in `src/constants.ts`:
+1. Define constants in `src/constants.ts`:
     ```ts
     export const MAX_STDIN_BODY_BYTES = 4 * 1024 * 1024; // same as MAX_DATA_FILE_BYTES from #17
     export const MAX_STDIN_WAIT_MS = 30 * 1000; // 30 s default
     ```
-2. Replace the `readFileSync(0)` thunk with a stream-based reader
-   that yields a `BodyResolution`-compatible result:
+2. Replace `readFileSync(0)` with a stream reader:
     ```ts
     async function readStdinCapped(
         maxBytes: number,
@@ -3132,38 +1647,19 @@ with byte counting + timeout:
         });
     }
     ```
-3. Plumb the async result into `resolveBody`. Today the thunk is
-   sync (`() => string`); making it `() => Promise<...>` is a
-   small refactor — `resolveBody` already returns
-   `BodyResolution<T>` and is awaited at the handler boundary, so
-   the only change is dropping the `as () => string` cast and
-   awaiting the thunk.
-4. **Refuse non-pipe stdin sources defensively.** Today the
-   `process.stdin.isTTY === false` gate is the only filter. Add an
-   `fstatSync(0).isFIFO() || isSocket() || isCharacterDevice()`
-   check; warn and refuse for `isDirectory()` / other surprising
-   cases.
+3. Update `resolveBody` to await the async `readStdin` function.
+4. Check `fstatSync(0)` and reject directory file descriptors on `stdin`.
 
 Tests:
 
-- `tests/cli-body-source.test.ts`: write `MAX_STDIN_BODY_BYTES + 1`
-  bytes to a piped child's stdin; assert exit 1 + the
-  "stdin exceeded ... bytes" error fragment + no API call made.
-- `tests/cli-body-source.test.ts`: open a fifo, never close it,
-  pipe to the CLI's stdin; assert the call rejects with the
-  "stdin read exceeded ... ms" error within
-  `MAX_STDIN_WAIT_MS + tolerance`.
-- `tests/cli-body-source.test.ts`: positive — a normal 4 KB JSON
-  on stdin still parses and the call succeeds.
-- `tests/cli.test.ts`: subprocess: `yes 'y' | testrail case add 1
---base-url ... --email ... --api-key ...` exits 1 within ~30 s,
-  not after V8's RangeError.
+- `tests/cli-body-source.test.ts`: Write `MAX_STDIN_BODY_BYTES + 1` bytes to `stdin` and verify that the CLI exits with code 1, prints the `stdin exceeded ... bytes` error, and makes no API call.
+- `tests/cli-body-source.test.ts`: Open a FIFO without closing it, pipe it to `stdin`, and verify that the call fails with `stdin read exceeded ... ms` within `MAX_STDIN_WAIT_MS`.
+- `tests/cli-body-source.test.ts`: Verify that a valid 4 KB JSON payload on `stdin` succeeds.
+- `tests/cli.test.ts`: Run `yes 'y' | testrail case add 1 --base-url ... --email ... --api-key ...` in a subprocess and verify that it exits with code 1 before hitting a V8 `RangeError`.
 
 ### 25. `Retry-After` honored only for 429; ignored on 503 and all other retryable 5xx — `src/client-core.ts:632–636, 751–754, 915–918` (Severity: LOW–MEDIUM) — [OPEN]
 
-All three retryable code paths gate the `Retry-After` parse on
-`response.status === 429` and use exponential backoff for every
-other 5xx:
+All three retryable code paths parse `Retry-After` only when `response.status === 429` and use exponential backoff for all 5xx responses:
 
 ```ts
 // src/client-core.ts:632–636 (request<T>; identical at 751 and 915)
@@ -3175,83 +1671,34 @@ if ((response.status >= 500 || response.status === 429) && retryCount < this.max
 }
 ```
 
-`getRetryDelay(retryCount)` is `min(1000 * 2^N, 10000)` — i.e. 1 s,
-2 s, 4 s, 8 s, 10 s, … capped at 10 s. With `maxRetries: 3`
-(default) the client retries at +1 s, +2 s, +4 s = at most 7 s of
-upstream-friendly backoff.
+`getRetryDelay(retryCount)` computes `min(1000 * 2^N, 10000)` (1 s, 2 s, 4 s, 8 s, up to 10 s). With the default `maxRetries: 3`, the client retries at +1 s, +2 s, and +4 s (at most 7 s total wait).
 
-**RFC 7231 §7.1.3 explicitly authorises `Retry-After` on `503
-Service Unavailable`:**
+RFC 7231 Section 7.1.3 specifies `Retry-After` on `503 Service Unavailable`:
 
-> "The `Retry-After` HTTP header field can be used with any
-> 3xx (Redirection) … or 503 (Service Unavailable) response to
-> indicate how long the user agent ought to wait before making
-> a follow-up request."
+> "The `Retry-After` HTTP header field can be used with any 3xx (Redirection) … or 503 (Service Unavailable) response to indicate how long the user agent ought to wait before making a follow-up request."
 
-503 is _the_ canonical advertised-outage status — every well-known
-upstream (CloudFront, Cloudflare, NGINX rate-shaping middleware,
-Kubernetes ingress with maintenance pages) returns
-`503 Retry-After: <N>` when load-shedding. TestRail's own
-operational runbook recommends sending `Retry-After` from
-maintenance-mode and from its built-in rate guard for batch
-upserts.
+Upstream services and reverse proxies (CloudFront, Cloudflare, NGINX, and TestRail maintenance mode) return `503 Retry-After: <N>` during load shedding or maintenance.
 
-The client ignores all of that signal. When TestRail (or any proxy
-in the path) returns `503 Retry-After: 60` to a fleet of clients,
-this client retries at +1 s, +2 s, +4 s — **hitting the upstream 3
-times before the operator's stated 60 s window has even opened**.
-With three retries per logical call and one rate-limit slot per
-attempt, a single batch read hammers the upstream during the very
-window it asked to be left alone.
+Because the client ignores `Retry-After` on 503 responses, a `503 Retry-After: 60` response causes the client to retry at +1 s, +2 s, and +4 s. It sends three additional requests before the 60-second recovery window opens.
 
-**Compounding bug surfaces:**
+**Compounding effects:**
 
-1. **Self-DoS during real outages.** A 100-call batch under
-   503 conditions multiplies into ~400 fetches (1 initial +
-   3 retries × 100) inside the first 7 s — exactly when the
-   upstream is least able to handle it. The
-   `cleanupAllClients`/`signal handler` discussion in finding
-   #8 already noted the library doesn't help operators do graceful
-   shutdown; here it actively works _against_ graceful
-   degradation.
-2. **Cross-tenant noisy-neighbour.** TestRail's per-account
-   rate budget is finite; one client that retry-storms during
-   503 consumes budget that another client (in the same TestRail
-   account) needs to do correct work.
-3. **Stampede multiplier on finding #23.** N concurrent
-   GETs to a 503-returning upstream each retry 3 times. 100-way
-   stampede × 4 attempts = 400 hits in the first 7 s, instead
-   of 1 hit + the operator-requested 60 s wait.
-4. **Time-budget thrashing with finding #21 (slowloris).** If
-   the 503 includes a slow-drip body (some load-shedders
-   intentionally slow-respond to throttle clients), the
-   _unbounded_ error-body read combined with rapid retries
-   produces overlapping slow reads that exhaust the socket
-   pool.
-5. **The HTTP-date branch of `parseRetryAfterMs` is also
-   unreachable for 5xx.** `parseRetryAfterMs` already handles
-   both numeric-seconds (`Retry-After: 60`) and HTTP-date
-   (`Retry-After: Wed, 21 Oct 2026 07:28:00 GMT`) forms; both
-   are dead code for any 5xx because the L632 gate cuts off
-   before the parser runs.
+1. **Outage amplification:** A batch of 100 requests during a 503 outage generates 400 requests within 7 seconds.
+2. **Shared rate-limit depletion:** Retries during a 503 outage consume the TestRail account rate budget needed by other clients.
+3. **Interaction with Finding #23 (cache stampede):** `N` concurrent GET requests to an endpoint returning 503 each retry 3 times (`4 * N` requests in 7 seconds).
+4. **Interaction with Finding #21 (slowloris):** Rapid retries against a 503 response with a slow body create overlapping connections that exhaust the socket pool.
+5. **Unreachable HTTP-date parsing on 5xx:** `parseRetryAfterMs` supports both delay-seconds (`Retry-After: 60`) and HTTP-date (`Retry-After: Wed, 21 Oct 2026 07:28:00 GMT`), but the `response.status === 429` condition prevents either format from running on 5xx responses.
 
-The fix is one line — drop the `=== 429` gate so 503 (and every
-other 5xx that includes the header) shares the same parse path:
+**Fix sketch (S):** Remove the `response.status === 429` condition so that all retryable statuses use `parseRetryAfterMs(response)`:
 
 ```ts
 const retryAfterMs = this.parseRetryAfterMs(response);
 const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
 ```
 
-`parseRetryAfterMs` already returns `null` when the header is
-absent or unparseable, so the fallback to `getRetryDelay()` is
-preserved for 5xx responses without `Retry-After` (the common
-case). And the existing cap at `MAX_RETRY_DELAY_MS = 10 s`
-inside `parseRetryAfterMs` prevents a misbehaving / hostile
-upstream from holding the client open for hours via
-`Retry-After: 999999`.
+When the `Retry-After` header is absent or invalid, `parseRetryAfterMs` returns `null` and the client falls back to `getRetryDelay()`. The existing `MAX_RETRY_DELAY_MS = 10 s` cap in `parseRetryAfterMs` prevents a server from stalling the client with a huge `Retry-After` value.
 
-**Fix sketch (S):** apply the one-line change at three sites:
+Apply this change at all three retry sites:
 
 | Site                          | File:Line                |
 | ----------------------------- | ------------------------ |
@@ -3259,48 +1706,17 @@ upstream from holding the client open for hours via
 | `requestText` retry trigger   | `src/client-core.ts:752` |
 | `requestBinary` retry trigger | `src/client-core.ts:916` |
 
-Drop the `response.status === 429 ?` ternary in each. Document the
-behaviour in the JSDoc for `request<T>` — operators should know
-that the client now respects any `Retry-After` honourably (capped).
-
-Optional: also recognise `Retry-After` on **408 Request Timeout**
-and **425 Too Early** (RFC 9110 broadened the field's applicability
-in 2022). Both are rare in TestRail's API; defer unless an
-operator reports them.
-
-**Defence-in-depth:** the existing
-`Math.min(seconds * 1000, MAX_RETRY_DELAY_MS)` cap inside
-`parseRetryAfterMs` already protects against the inverse case (a
-malicious server hands the client `Retry-After: 86400` to stall
-it for a day; the cap clamps to 10 s). The fix here only changes
-which response codes consult the parser — the cap path stays
-intact.
-
 Tests:
 
-- `tests/client-features.test.ts`: stub `fetch` to return one
-  `503 Retry-After: 3` then one `200`; assert wall-clock between
-  the two `fetch` calls is ≥3 s (within the cap, so the full
-  hint is honoured) and ≤ 10.5 s. Compare with today's `1 s`
-  exponential backoff.
-- `tests/client-features.test.ts`: stub `503 Retry-After: 99999`;
-  assert backoff is clamped to `MAX_RETRY_DELAY_MS = 10 s` (the
-  existing cap protects against hostile values).
-- `tests/client-features.test.ts`: `500 Internal Server Error`
-  _without_ `Retry-After` continues to use exponential backoff
-  (`getRetryDelay`) — the fallback path is preserved.
-- `tests/client-features.test.ts`: HTTP-date form
-  `Retry-After: Wed, 21 Oct 2099 07:28:00 GMT` is also honoured
-  on 503 (proves the dead-code branch wakes up).
-- `tests/client-features.test.ts`: the same three assertions apply
-  to `requestText` (BDD endpoint) and `requestBinary` (attachment
-  download) — proves all three retry sites were patched together.
+- `tests/client-features.test.ts`: Stub `fetch` to return `503 Retry-After: 3` followed by `200`. Verify that the delay between the two `fetch` calls is at least 3 s and at most 10.5 s.
+- `tests/client-features.test.ts`: Stub `503 Retry-After: 99999` and verify that the delay is clamped to `MAX_RETRY_DELAY_MS` (10 s).
+- `tests/client-features.test.ts`: Verify that `500 Internal Server Error` without `Retry-After` uses `getRetryDelay`.
+- `tests/client-features.test.ts`: Verify that an HTTP-date `Retry-After` header is honored on 503 responses.
+- `tests/client-features.test.ts`: Verify the same behavior for `requestText` and `requestBinary`.
 
 ### 26. `allowInsecure: true` enables cleartext credential transmission with no runtime warning or audit trail — `src/client-core.ts:262–269`, `src/types.ts:35` (Severity: LOW–MEDIUM) — [OPEN]
 
-`validateConfig` gates HTTP URLs behind a `config.allowInsecure ===
-true` opt-in, with this exact error message when the flag is _not_
-set:
+`validateConfig` requires `config.allowInsecure === true` for HTTP URLs and throws an error when the flag is not set:
 
 ```ts
 // src/client-core.ts:262–269
@@ -3312,17 +1728,9 @@ if (url.protocol === 'http:' && config.allowInsecure !== true) {
 }
 ```
 
-The wording is unambiguous — "credentials in cleartext", "isolated
-development environments only". But once `allowInsecure: true` is
-actually passed, **nothing happens**. No `console.warn` at
-construction, no flag echoed back to the caller, no entry in the
-client's state visible to a host application's startup
-introspection. The library silently accepts the opt-in and proceeds
-to send `Authorization: Basic ${base64(email:apiKey)}` over plain
-HTTP for the entire client lifetime.
+However, when the caller sets `allowInsecure: true`, the client logs no warning at construction and exposes no state flag. It sends `Authorization: Basic ${base64(email:apiKey)}` over cleartext HTTP for the lifetime of the client without any diagnostic message.
 
-For comparison, the library _does_ emit a runtime warning for the
-much less impactful `maxCacheSize: 0` footgun:
+In contrast, the client logs a warning for `maxCacheSize: 0`:
 
 ```ts
 // src/client-core.ts:212–218
@@ -3334,69 +1742,22 @@ if (config.maxCacheSize === 0 && (config.enableCache ?? true)) {
 }
 ```
 
-So the precedent and pattern are already established. The asymmetric
-treatment is the bug: a config that "can cause unbounded memory
-growth" earns a warning; a config that explicitly transmits the
-master credential in cleartext does not.
+**Failure modes:**
 
-**Real-world failure modes (no exotic threat model needed):**
+1. **Configuration drift between staging and production:** A developer enables `allowInsecure: true` for a local HTTP mock and deploys the same configuration to production. Credentials are transmitted in cleartext with no startup warning.
+2. **Copied migration configurations:** Operators who migrate from legacy HTTP setups keep `allowInsecure: true` in environments that already support HTTPS.
+3. **Internal HTTP with log capture:** An endpoint such as `http://testrail.internal:8080/` can use `allowPrivateHosts: true` and `allowInsecure: true`. It sends cleartext Basic authentication headers that network monitors or log collectors can capture.
+4. **Environment variable injection:** An attacker changes a host application `.env` file to set `TESTRAIL_ALLOW_INSECURE=true`. The application then starts without a cleartext authentication warning.
 
-1. **Production-as-staging drift.** A developer adds
-   `allowInsecure: true` to their local-dev config (testing
-   against a HTTP local mock), then ships the same config
-   shape to production with the flag still set. The credential
-   silently leaks on every request. Without a startup warning,
-   the regression escapes code review and CI; the only signal
-   is somebody sniffing the wire (which by definition only
-   surfaces the leak _after_ it has happened).
-2. **Copy-paste from migration docs.** Operators porting from
-   older self-signed-TLS-only on-prem TestRail setups (where
-   the workaround was a stunnel + HTTP origin) copy the flag
-   into a new environment that has proper TLS available. The
-   flag is unneeded but harmless-looking, so it stays.
-3. **Container internal HTTP.** A Kubernetes pod talks to
-   TestRail via the cluster's internal HTTP endpoint
-   (`http://testrail.internal:8080/`). `allowPrivateHosts:
-true` + `allowInsecure: true` is the documented in-cluster
-   pattern. Everything works on day 1. On day 30, an operator
-   exposes the same client config to a Datadog log shipper that
-   captures the request URL _and the Authorization header_ (a
-   common Datadog default). The Authorization is `Basic
-<base64>` — trivially reversible. The credential is now in
-   the SaaS log retention.
-4. **Library-mode silent acceptance.** A host application reads
-   its config from a `.env` file. An attacker who controls one
-   line of that file (limited filesystem foothold, supply-chain
-   compromise of a config template) sets
-   `TESTRAIL_ALLOW_INSECURE=true`. The host's startup transcript
-   doesn't surface the change; the credential begins leaking
-   on the next API call.
+**Interaction with other findings:**
 
-**Force-multipliers on the existing findings:**
-
-- **#4 (redirect SSRF) on HTTP.** The redirect-follow path is
-  defenceless against scheme downgrade — `https://...` → `Location:
-http://...` — even _without_ `allowInsecure: true`, because the
-  scheme check runs only at construction. Once that scheme-downgrade
-  pattern is in play, this finding compounds it: a same-host
-  HTTPS-to-HTTP redirect to port 80 strips TLS and leaks the
-  Authorization header to any wire-tap. The fix needs to land in
-  _both_ findings: #4 forbids cross-scheme redirects; #26 warns
-  whenever HTTP is actively in use.
-- **#20 (`baseUrl` userinfo).** A baseUrl of
-  `http://email:apikey@testrail.local/` with `allowInsecure: true`
-  leaks credentials _twice_: once in the userinfo string (per
-  #20), and once in the Basic auth header on every request (per
-  this finding). Both happen silently.
-- **#11 (`--api-key` argv exposure).** Combined: the credential
-  is visible via argv _and_ every wire packet. A passive observer
-  at any of {ps, journald, tcpdump, netflow} sees the secret.
+- **Finding #4 (redirect SSRF):** Cross-scheme redirects from HTTPS to HTTP expose the `Authorization` header in cleartext.
+- **Finding #20 (`baseUrl` userinfo):** An HTTP `baseUrl` with embedded userinfo exposes credentials both in the URL and in the `Authorization` header.
+- **Finding #11 (`--api-key` argv exposure):** Combining `--api-key` on the command line with HTTP exposes credentials in both process listings and network traffic.
 
 **Fix sketch (S):**
 
-1. **Emit a startup warning when `allowInsecure: true` is
-   active.** Mirror the existing `maxCacheSize: 0` pattern at
-   `src/client-core.ts:212–218`:
+1. **Emit a startup warning when `allowInsecure: true` is active on an `http:` URL:**
 
     ```ts
     // After `this.baseUrl = ...` is set:
@@ -3412,53 +1773,20 @@ http://...` — even _without_ `allowInsecure: true`, because the
     }
     ```
 
-2. **Suppress the warning programmatically** for legitimate
-   on-prem use that doesn't want stderr noise — add an
-   `acknowledgeInsecure?: boolean` config field that, when set
-   to `true`, treats the operator as having explicitly opted
-   into the trade-off. The warning fires _unless_
-   `acknowledgeInsecure === true`, so silence is opt-in (a
-   second, explicit step), not the default. Matches the
-   security-engineering principle "loud by default; quiet only
-   on explicit acknowledgement."
-
-3. **Expose `isInsecure(): boolean`** on the public client
-   surface so host applications can log "TestRail client
-   running in insecure mode" in their own startup transcript.
-   Tiny method; readonly on `this.allowInsecure`. Lets the
-   host's audit/observability pipeline pick it up without
-   parsing stderr.
-
-4. **Cross-reference from #20's fix.** When #20 lands the
-   `baseUrl` userinfo rejection, also extend the message to
-   note: "credentials belong in `email`/`apiKey`, not in
-   `baseUrl` or `allowInsecure` workarounds". A single
-   well-worded error message at the top of the validation
-   chain frames the whole trust model.
+2. **Add an optional `acknowledgeInsecure?: boolean` configuration field** to suppress the warning when explicitly set to `true`.
+3. **Expose `isInsecure(): boolean` on the client** so that host applications can inspect the security state at startup.
 
 Tests:
 
-- `tests/client-features.test.ts`: construct a client with
-  `allowInsecure: true` and assert `console.warn` was called
-  once with the expected fragment. (Vitest's
-  `vi.spyOn(console, 'warn')` already used in the
-  `maxCacheSize: 0` regression test.)
-- `tests/client-features.test.ts`: construct with
-  `allowInsecure: true, acknowledgeInsecure: true` and
-  assert `console.warn` was **not** called.
-- `tests/client-features.test.ts`: construct an HTTPS client
-  (default) and assert `console.warn` was not called.
-- `tests/exports.test.ts`: `TestRailConfig` type exports
-  the new `acknowledgeInsecure?: boolean` field.
-- `tests/client-features.test.ts`: `client.isInsecure()`
-  returns `true` only when both `allowInsecure: true` _and_
-  the resolved URL is HTTP (defends against a future bug
-  where `allowInsecure: true` is set but the URL is HTTPS
-  anyway — that combination shouldn't report "insecure").
+- `tests/client-features.test.ts`: Construct a client with `allowInsecure: true` and verify that `console.warn` is called once with the warning message.
+- `tests/client-features.test.ts`: Construct a client with `allowInsecure: true, acknowledgeInsecure: true` and verify that `console.warn` is not called.
+- `tests/client-features.test.ts`: Construct an HTTPS client and verify that `console.warn` is not called.
+- `tests/exports.test.ts`: Verify that `TestRailConfig` exports `acknowledgeInsecure?: boolean`.
+- `tests/client-features.test.ts`: Verify that `client.isInsecure()` returns `true` only when `allowInsecure: true` is set and the URL uses `http:`.
 
 ### 27. `parseId` silently accepts hex / binary / scientific forms via `Number()` — `src/cli/ids.ts:8–14` (Severity: LOW) — [OPEN]
 
-`parseId` validates positive integers using bare `Number(raw)`:
+`parseId` validates positive integers using `Number(raw)`:
 
 ```ts
 // src/cli/ids.ts:8–14
@@ -3471,9 +1799,7 @@ export function parseId(raw: string | undefined, name: string): number {
 }
 ```
 
-`Number()` is JavaScript's most permissive numeric parser. It
-silently accepts every literal form the JS lexer recognises, plus
-leading/trailing whitespace. Empirical confirmation (Node 24):
+`Number()` accepts hexadecimal, binary, scientific notation, and whitespace-padded strings:
 
 | `raw` input  | `Number(raw)` returns             | `Number.isInteger` | `> 0` | `parseId` outcome         |
 | ------------ | --------------------------------- | ------------------ | ----- | ------------------------- |
@@ -3488,66 +1814,16 @@ leading/trailing whitespace. Empirical confirmation (Node 24):
 | `'Infinity'` | `Infinity`                        | false              | —     | rejected ✓                |
 | `''`         | `0`                               | true               | false | rejected ✓ (`raw === ''`) |
 
-So **`0x42` is silently interpreted as `66`**, **`1e10` is silently
-interpreted as `10_000_000_000`**, **`0b101` is silently interpreted as
-`5`**, and surrounding whitespace is silently trimmed. The CLI then
-puts the decimal form in the URL path: `get_case/66`, `get_case/10000000000`,
-`get_case/5` — which is `Number.toString()`'s output, not the input
-string.
+`parseId` converts `'0x42'` to `66`, `'1e10'` to `10000000000`, and `'0b101'` to `5`. It places the converted decimal numbers in the URL paths `get_case/66`, `get_case/10000000000`, and `get_case/5`.
 
-**Silent semantic confusion failure modes:**
+**Failure modes:**
 
-1. **Agent receives ID as opaque string from one upstream, decimal
-   from another.** An LLM agent reads "case 0x42" from a markdown
-   doc (the author wrote it in hex for readability), then `testrail
-case get 0x42`. The CLI returns case **66**, not case **0x42**.
-   If the agent's downstream logic compares the returned `case.id`
-   (66, an integer) against its original input (the string `"0x42"`),
-   identity checks fail; the agent loops "looking for the case it
-   just fetched" because string-equality says they differ.
-2. **Decimal-looking IDs that hit scientific-notation interpretation.**
-   `testrail case get 1e10` — the user _meant_ an ID literally
-   spelled `1e10` (which is a perfectly valid TestRail-generated
-   identifier shape in some integrations that use base-36 / opaque
-   IDs). The CLI sends `get_case/10000000000` instead. TestRail
-   returns 404, but the error message doesn't explain the
-   transformation.
-3. **Whitespace-bearing pasted IDs.** An operator copies a case ID
-   from a TestRail link that has a trailing space: `'42 '`. The
-   CLI silently trims and accepts. Looks like a feature; _is_ a
-   feature for `'42 '` but produces "felt like the system tolerated
-   my typo" trust that **doesn't extend to `'42abc'`** (which is
-   rejected). The asymmetric tolerance is a UX trap.
-4. **Beyond-MAX_SAFE_INTEGER precision loss.** `parseId('9007199254740993')`
-   computes `Number('9007199254740993')` = `9007199254740992` (loss
-   of precision; the value is past `Number.MAX_SAFE_INTEGER`).
-   `Number.isInteger(9007199254740992)` is true. > 0. **Accepted as
-   9007199254740992** — a _different_ integer than the user typed.
-   The CLI sends a URL for an ID the user did not specify. No
-   warning, no error.
+1. **Hexadecimal string coercion:** An agent runs `testrail case get 0x42` and receives case `66` instead of an error.
+2. **Scientific notation coercion:** Running `testrail case get 1e10` requests `get_case/10000000000`.
+3. **Inconsistent whitespace handling:** `parseId` trims `'42 '` to `42` without warning.
+4. **Precision loss above `Number.MAX_SAFE_INTEGER`:** IEEE 754 precision limits cause `parseId('9007199254740993')` to return `9007199254740992`. The client requests the wrong ID without an error.
 
-The `validateId` method in `client-core.ts:411–415` (the _programmatic_
-ID guard) has the same shape — `typeof id !== 'number' ||
-!Number.isInteger(id) || id <= 0` — so a programmatic caller passing
-`client.getCase(0x42)` is structurally correct (0x42 _is_ 66 at the JS
-language level; the caller wrote a literal). The CLI's `parseId`
-inherits that shape but applies it to _user-typed strings_, where the
-semantic gap matters.
-
-**Threat model is operational, not security-critical:**
-
-- No auth bypass: ID coercion doesn't elevate privileges.
-- No SSRF: URL stays on `baseUrl`.
-- No data exfil: response is what TestRail returned for the coerced
-  ID — usually a 404 or a wrong-resource error.
-- The "wrong ID returned" pattern _can_ compound with agent
-  trust: an agent that accepts the API response verbatim may
-  attach attachments / record results against the coerced ID
-  instead of the intended one. The blast radius is the _wrong
-  case got attached_ class.
-
-**Fix sketch (S):** replace `Number(raw)` with a stricter parser that
-only accepts the decimal-integer form expected by REST URL paths:
+**Fix sketch (S):** Validate that `raw` contains only base-10 digits and fits within `Number.isSafeInteger`:
 
 ```ts
 export function parseId(raw: string | undefined, name: string): number {
@@ -3568,44 +1844,20 @@ export function parseId(raw: string | undefined, name: string): number {
 }
 ```
 
-- `^[1-9]\d*$` rejects `0`-prefix, hex `0x`, binary `0b`, scientific
-  `1e10`, dotted `1.0`, whitespace, sign chars, and non-digits. The
-  caller has to pass exactly what they'd put in the URL.
-- `Number.isSafeInteger` (instead of `Number.isInteger`) rejects
-  values past `2^53 - 1` where precision is lost. TestRail IDs
-  realistically fit in 32 bits; the cap is generous.
-- The error message now reflects the user input verbatim
-  (post-sanitisation per finding #16; `name`-prefixed; ends with
-  `got: <raw>` so the operator immediately sees the input that
-  failed).
-
-Apply the same hardening to `optInt(raw)` (sibling function at
-`src/cli/ids.ts:16–20`) which uses the same lax `Number(raw)` for
-pagination args (`--limit`, `--offset`). `optInt` returning silently-
-coerced values means `--limit 1e6` becomes 1 million per page —
-TestRail server-side caps may or may not catch it, but the _intent_
-was different.
+- `^[1-9]\d*$` rejects leading zeros, hex (`0x`), binary (`0b`), scientific notation (`1e10`), decimals (`1.0`), whitespace, and sign characters.
+- `Number.isSafeInteger` rejects values greater than `2^53 - 1`.
+- Apply the same decimal-only validation to `optInt(raw)` (`src/cli/ids.ts:16–20`) for `--limit` and `--offset`.
 
 Tests:
 
-- `tests/cli-helpers.test.ts`: `parseId('0x42', 'case_id')` throws
-  `IdParseError` with the "decimal" wording (currently passes the
-  hex case → fails this assertion until fix).
-- `tests/cli-helpers.test.ts`: same for `'1e10'`, `'0b101'`,
-  `'  42  '`, `'1.0'`, `'+42'`, `'042'` (leading zero).
-- `tests/cli-helpers.test.ts`: `parseId('9007199254740993', 'id')`
-  throws with the "MAX_SAFE_INTEGER" wording.
-- `tests/cli-helpers.test.ts`: `parseId('42', 'id')` returns `42`
-  (positive control).
-- `tests/cli.test.ts`: subprocess: `testrail case get 0x42` exits 1
-  with the new strict error, instead of hitting the API with
-  `get_case/66`.
+- `tests/cli-helpers.test.ts`: Verify that `parseId('0x42', 'case_id')`, `'1e10'`, `'0b101'`, `'  42  '`, `'1.0'`, `'+42'`, and `'042'` throw `IdParseError`.
+- `tests/cli-helpers.test.ts`: Verify that `parseId('9007199254740993', 'id')` throws `IdParseError`.
+- `tests/cli-helpers.test.ts`: Verify that `parseId('42', 'id')` returns `42`.
+- `tests/cli.test.ts`: Run `testrail case get 0x42` in a subprocess and verify that it exits with code 1 without calling the API.
 
 ### 28. `cleanupAllClients` has no try-catch — one throwing `destroy()` aborts cleanup for all subsequent clients — `src/client-core.ts:150–155` (Severity: LOW) — [OPEN]
 
-The process-exit / signal-handler cleanup loop iterates
-`activeClients` and calls `destroy()` on each with no error
-isolation:
+The process-exit and signal-handler cleanup loop iterates over `activeClients` and calls `destroy()` on each client without a `try/catch` block:
 
 ```ts
 // src/client-core.ts:150–155
@@ -3617,62 +1869,22 @@ function cleanupAllClients(): void {
 }
 ```
 
-If any one `client.destroy()` throws — for any reason, in any
-client — the loop **aborts immediately**. Every subsequent client
-in the Set retains:
+If `client.destroy()` throws on any client, the loop aborts immediately. Every remaining client in `activeClients` retains:
 
-- The base64-encoded `Basic` credential string in `this.auth`
-  (which the comment at L182–183 explicitly notes is "recoverable
-  from a heap dump").
-- The full GET response cache (potentially containing sensitive
-  TestRail data: case bodies, run results, attachment metadata
-  with comments).
-- The running `cacheCleanupTimer` interval (which doesn't keep
-  the process alive due to `unref?.()`, but does keep the
-  client object referenced from the timer callback's closure).
+- The base64-encoded `Basic` credential string in `this.auth`.
+- The GET response cache in memory.
+- The `cacheCleanupTimer` interval reference.
 
-The Set iteration order is insertion order, so it's the
-_later-constructed_ clients that suffer most — a common pattern in
-host applications that bootstrap a "shared" client first and add
-per-request clients later. The bootstrap client cleans up; the
-later ones leak.
+Because `Set` iterates in insertion order, a failure in an earlier client prevents all later clients from being destroyed.
 
-**Why does `destroy()` throw in practice today?** The current
-implementation is sync and minimal — `clearInterval`, `cache.clear`,
-`auth = ''`, `activeClients.delete(this)`. None of these _should_
-throw under normal conditions. So the immediate exploitability is
-low. The bug is latent:
+**Potential causes of exceptions in `destroy()`:**
 
-1. **Subclass overrides.** `TestRailClient extends TestRailClientCore`;
-   a future override of `destroy()` that calls additional cleanup
-   (releasing a custom dispatcher, flushing a metrics buffer, etc.)
-   can throw. A user-land subclass adding shutdown logic is
-   guaranteed to hit this eventually.
-2. **Monkey-patched intervals.** Test frameworks that replace
-   `setInterval`/`clearInterval` (Vitest's fake timers, Sinon's
-   sandbox) can leave the timer in a state where `clearInterval`
-   throws on an already-cleared handle. Production rarely sees
-   this; CI environments running cleanup-with-fake-timers do.
-3. **`activeClients.delete(this)` under Set mutation.** ES spec
-   guarantees iterators handle deletion, but **a buggy polyfill
-   or a Set proxy** can throw on concurrent delete during
-   for-of. Less hypothetical: a test that wraps `activeClients`
-   in a Proxy for assertion purposes is exactly the shape of
-   code that breaks this.
-4. **`this.cache.clear()`** is similarly a Map method that's
-   "safe" today but could throw if the cache is replaced by a
-   Proxy-backed instance for instrumentation.
-5. **Future `destroy()` evolution.** If the library ever adds an
-   `await`-aware async cleanup path (graceful shutdown of
-   in-flight requests, per finding #8's discussion), the sync
-   `destroy()` wrapper that aggregates state will have more
-   surface area to throw from.
+1. **Subclass overrides:** A subclass of `TestRailClient` or `TestRailClientCore` that overrides `destroy()` to release external resources may throw an exception.
+2. **Mocked timers in tests:** Test runners that replace `setInterval` and `clearInterval` can throw when clearing an invalid or already-cleared timer handle.
+3. **Proxied `Set` or `Map` instances:** Instrumentation or test proxies around `activeClients` or `this.cache` can throw during `delete()` or `clear()`.
+4. **Future `destroy()` logic:** Additional cleanup steps added to `destroy()` in future releases could throw during teardown.
 
-**The "no-throw guarantee" of the current `destroy()` is an
-implicit invariant** that nothing on the type system or the test
-suite enforces. The defence-in-depth fix is one line:
-
-**Fix sketch (S):**
+**Fix sketch (S):** Wrap `client.destroy()` in a `try/catch` block inside `cleanupAllClients()`:
 
 ```ts
 // src/client-core.ts:150–155
@@ -3689,59 +1901,17 @@ function cleanupAllClients(): void {
 }
 ```
 
-**Why swallow the error rather than log it?**
-
-- This runs from `process.on('exit', ...)` and the SIGINT/SIGTERM
-  handlers. The `'exit'` handler executes during process
-  teardown — `console.error()` may already be unusable (the
-  underlying stream FD may be closed by the runtime's exit
-  sequence).
-- The handlers either call `process.exit()` immediately (per
-  finding #8's discussion of those handlers) or fall through to
-  natural exit. Either way, the error is the _last_ event the
-  process will see; there's no caller to surface it to.
-- The cost of a silent swallow is a debugging blind spot during
-  shutdown; the benefit is that **every** client that _can_ be
-  cleaned up _will_ be. For a security-relevant cleanup loop
-  (credential zeroing), guaranteed completion is the right
-  trade.
-
-Optional refinement: gate the swallow behind a
-`process.env.TESTRAIL_DEBUG_CLEANUP` check that, when set, emits
-the per-client errors via `process.stderr.write` (which is more
-likely to be alive during exit than `console.error`'s buffered
-chain). Defaults to silent.
-
-**Cross-reference with finding #8:** that finding proposes making
-signal handler registration _opt-in_ via `registerSignalHandlers:
-false` (default) for library mode. With that fix, this cleanup
-loop only runs from CLI mode or operator opt-in — which means the
-guaranteed-completion property matters more, not less (operators
-chose this cleanup path; it should be reliable).
+Ignoring per-client errors during process exit guarantees that `cleanupAllClients()` attempts to clear credentials on every registered client.
 
 Tests:
 
-- `tests/client-features.test.ts`: construct two clients, replace
-  the first one's `destroy()` with a stub that throws (`Object.assign(c1, { destroy: () => { throw new Error('boom') } })`).
-  Call `cleanupAllClients()` directly (export it for tests via
-  a `__test__` symbol if needed). Assert: the second client's
-  `isDestroyed` is true (proves the loop continued past the
-  throw) and `c2.auth` is zeroed.
-- `tests/client-features.test.ts`: with three clients where the
-  _middle_ one's destroy throws, assert all three of the first
-  and last clients reach `isDestroyed === true`. Set position
-  in the iteration order must not matter.
-- `tests/client-features.test.ts`: positive control —
-  `cleanupAllClients()` with all healthy destroys completes
-  without invoking the catch path (verifiable via an internal
-  counter or by spying on a synthetic destroy method).
-- Regression: existing exit-handler tests still pass — no
-  observable behaviour change for the all-healthy case.
+- `tests/client-features.test.ts`: Create two clients, stub the first client's `destroy()` method to throw an error, and call `cleanupAllClients()`. Verify that the second client is destroyed and its `auth` field is cleared.
+- `tests/client-features.test.ts`: Create three clients where the second client's `destroy()` throws, and verify that both the first and third clients are destroyed.
+- `tests/client-features.test.ts`: Verify that `cleanupAllClients()` destroys all clients when no errors occur.
 
 ### 29. `validateEntryId` accepts any non-empty string; entryId is concatenated raw into endpoint URLs (`updatePlanEntry` / `deletePlanEntry` / `addRunToPlanEntry`) — `src/client-core.ts:417–425`, `src/modules/plans.ts:79–98` (Severity: MEDIUM) — [OPEN]
 
-`validateEntryId` is the _only_ gate between the caller's `entryId`
-argument and the URL the client constructs:
+`validateEntryId` only checks that `entryId` is a non-empty string after trimming:
 
 ```ts
 // src/client-core.ts:417–425
@@ -3752,9 +1922,7 @@ public validateEntryId(entryId: string): void {
 }
 ```
 
-That's the _entire_ validation. Anything that isn't an empty string
-(after trim) passes. The validated value is then directly
-template-interpolated into the endpoint path:
+The client then interpolates `entryId` directly into the endpoint URL path:
 
 ```ts
 // src/modules/plans.ts:82
@@ -3765,17 +1933,7 @@ await this.client.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`
 await this.client.request<unknown>('POST', `add_run_to_plan_entry/${planId}/${entryId}`, payload);
 ```
 
-Compare with `validateId` for numeric IDs (`projectId`, `caseId`,
-etc.) which enforces `Number.isInteger(id) && id > 0` — a strict
-type-and-range gate that makes path-injection impossible. The
-string `entryId` path gets none of that discipline.
-
-TestRail's plan entry IDs are documented as **UUID-shape** —
-32-character hex with four dashes (e.g.,
-`01234567-89ab-cdef-0123-456789abcdef`). The value space is tightly
-bounded by the API contract. The validator's "non-empty string"
-check is dramatically looser than the actual shape, and the gap
-makes the following payloads pass:
+Unlike `validateId`, which restricts numeric IDs to positive integers, `validateEntryId` allows path-traversal and query-string characters. TestRail plan entry IDs are UUIDs (32 hexadecimal characters separated by four hyphens, such as `01234567-89ab-cdef-0123-456789abcdef`). Because `validateEntryId` accepts any non-empty string, all of the following values pass validation:
 
 | `entryId` value                                       | URL result                                                           |
 | ----------------------------------------------------- | -------------------------------------------------------------------- |
@@ -3790,71 +1948,20 @@ makes the following payloads pass:
 | `'a'.repeat(1e6)`                                     | 1 MB URL — TestRail rejects 414                                      |
 | `'abc\x00inject'`                                     | NUL byte in path — fetch likely rejects, but the encode is undefined |
 
-**At the wire layer:**
+**URL parsing behavior:**
 
-- CR/LF (`\r`, `\n`, `\t`) — WHATWG URL parser **rejects** these
-  with `TypeError: Invalid URL`, so direct header injection via
-  `entryId` is blocked. Good.
-- The `?` and `#` characters **do** parse as query/fragment
-  separators in the URL the client builds. Since the URL already
-  has a `?` (TestRail's pattern is `index.php?/api/v2/…`), a
-  _second_ `?` is just a literal char. But a `#` _does_ truncate
-  the URL at the fragment boundary — `fetch` strips fragments
-  before sending. So `entryId = 'real-uuid#fragment'` truncates
-  silently.
-- The `/` character in `entryId` is **NOT URL-encoded** —
-  template-literal interpolation passes the raw byte. So
-  `entryId = 'a/b'` produces `…/update_plan_entry/42/a/b` (an
-  extra path segment). TestRail's router likely 404s, but the
-  attacker has reshaped the URL.
-- Percent-encoded path-traversal (`'%2E%2E%2F'` → `../`) is
-  passed through verbatim. TestRail's URL decoder receives it
-  literally; whether its API router normalises `..` is
-  TestRail's behaviour, not the client's. The client should
-  refuse to send these in the first place.
+- The WHATWG URL parser rejects CR, LF, and tab characters (`\r`, `\n`, `\t`) with `TypeError: Invalid URL`.
+- A `#` character truncates the request URL because `fetch` strips URL fragments before sending the request.
+- A `/` character adds extra path segments to the endpoint URL without URL encoding.
+- Percent-encoded traversal sequences (`%2E%2E%2F`) pass through unchanged to the server.
 
 **Threat models:**
 
-1. **Prompt-injected agent passes malicious entryId.** An LLM
-   agent receives a plan entry ID from an attacker-controlled
-   doc, then calls `client.deletePlanEntry(7, '${entryId}')`.
-   With the loose validator, the agent constructs a URL that
-   resolves to a _different_ TestRail operation than
-   `delete_plan_entry`. Combined with finding #4
-   (redirect-follow), the malformed URL could be redirected to
-   an internal endpoint — finding #15-style port hopping but
-   with a path-shape attacker also controls.
-2. **Operator copy-paste from a malicious TestRail UI.** If
-   TestRail's web UI is ever XSS'd (out of scope here), the
-   attacker could plant a malicious entry ID display. An
-   operator who copies-pastes that into `testrail plan
-add-entry … --data '{"entry_id":"…"}'` ships the malicious
-   value back through the API client.
-3. **Query-string injection.** `entryId = 'real-uuid&soft=1'`
-   constructs a URL ending in
-   `…/update_plan_entry/42/real-uuid&soft=1`. TestRail's parser
-   might split on `&`; the second part lands in the next query
-   slot. If `soft=1` (or any other parameter) means something
-   server-side, the call's semantics change. This is the same
-   risk class as finding #4's port-axis-via-redirect, but
-   reached without a redirect — just via a loose validator.
-4. **Cache key shape pollution.** `request<T>` uses
-   `${method}:${endpoint}` as the cache key (per finding #9 /
-   #14 context). For GET endpoints constructed with a malicious
-   entryId, the cache key contains the malicious bytes — every
-   subsequent identical query reuses the same poisoned cache
-   slot until TTL.
+1. **Prompt-injected agent passing a crafted `entryId`:** An agent reads a malicious `entryId` from untrusted input and calls `client.deletePlanEntry(7, entryId)`, altering the target API path.
+2. **Query-parameter injection:** Passing `entryId = 'real-uuid&soft=1'` appends `&soft=1` to the TestRail query string (`index.php?/api/v2/update_plan_entry/42/real-uuid&soft=1`), which can alter server-side parameters.
+3. **Cache key pollution:** If a GET endpoint uses an unvalidated string ID, the cache key includes the injected characters.
 
-The validation is also **structurally inconsistent** with the
-neighbouring numeric-ID gate: `validateId` is strict (positive
-integer); `validateEntryId` is permissive (any non-empty string).
-The "use the right validator for the right field" mental model
-breaks down — `entryId` _looks_ validated, isn't really, and
-flows into the URL the same way `caseId` does.
-
-**Fix sketch (S):** tighten `validateEntryId` to match the
-documented UUID shape, mirroring the strict-by-default contract
-of `validateId`:
+**Fix sketch (S):** Restrict `validateEntryId` to the UUID format:
 
 ```ts
 // src/client-core.ts:421–425
@@ -3875,384 +1982,305 @@ public validateEntryId(entryId: string): void {
 
 Implementation notes:
 
-- Regex anchored at both ends — no leading/trailing slop.
-- Hex character class `[0-9a-f]` (case-insensitive) — no
-  Unicode confusables, no path separators, no query/fragment
-  characters.
-- Length is implicitly enforced by the regex (8+4+4+4+12 = 32
-  hex digits + 4 dashes = 36 chars exactly).
-- If TestRail's actual format diverges from canonical UUID
-  (some integrations use 32 hex no-dashes), the regex
-  alternation is a one-line addition:
-  `/^([0-9a-f]{32}|[0-9a-f]{8}-…)$/i`. Pick the format from
-  TestRail's reference docs; verify against
-  `tests/fixtures/sample-plan.json` shapes.
-- Match the _error wording_ of `validateId` — start with
-  "entryId" / param name, end with "got: …" so finding #16's
-  terminal-sanitisation pass strips control chars from any
-  reflected attacker payload.
-
-**Adjacent gap:** `validateConfig`'s URL parsing accepts
-`baseUrl` containing path components (`https://example.com/foo/`),
-which then become part of every URL. A malicious baseUrl
-`https://example.com/foo/../admin` would similarly route around
-the expected API path. Out of scope for this finding — it's a
-known WHATWG-URL-normalisation edge case — but the underlying
-class (string interpolation into URL paths without URL-encoding
-or shape validation) is the same.
+- Anchor the regular expression at both ends (`^` and `$`).
+- Allow only ASCII hexadecimal digits `[0-9a-f]` (case-insensitive) and hyphens in the `8-4-4-4-12` pattern.
 
 Tests:
 
-- `tests/client-features.test.ts` (or extend
-  `tests/client-endpoints.test.ts`): every entry in the
-  "passes today, should fail" table above is rejected with the
-  new "UUID" error wording. Use `it.each`.
-- `tests/client-features.test.ts`: a real-shape UUID
-  (`'01234567-89ab-cdef-0123-456789abcdef'`) continues to
-  succeed.
-- `tests/client-features.test.ts`: case-insensitive UUID
-  (`'01234567-89AB-CDEF-0123-456789ABCDEF'`) succeeds.
-- `tests/client-endpoints.test.ts`: `updatePlanEntry`,
-  `deletePlanEntry`, `addRunToPlanEntry` each call into the
-  hardened validator and never reach `fetch` for a malicious
-  entryId.
-- `tests/client-edge-cases.test.ts`: an entryId of
-  `'real-uuid&soft=1'` (query-string-injection attempt)
-  exits validation with the strict error — proves the same
-  malicious shape that finding #4 closes for redirects is
-  closed here for path interpolation.
+- `tests/client-features.test.ts`: Verify that all non-UUID inputs in the table above throw `TestRailValidationError`.
+- `tests/client-features.test.ts`: Verify that lowercase (`'01234567-89ab-cdef-0123-456789abcdef'`) and uppercase (`'01234567-89AB-CDEF-0123-456789ABCDEF'`) UUIDs pass validation.
+- `tests/client-endpoints.test.ts`: Verify that `updatePlanEntry`, `deletePlanEntry`, and `addRunToPlanEntry` reject invalid `entryId` values before calling `fetch`.
+- `tests/client-edge-cases.test.ts`: Verify that `'real-uuid&soft=1'` is rejected during validation.
 
 ---
 
 ## Migrated from active BACKLOG (2026-05-18)
 
-> **Agent Rules:** Append completed tasks here. Add Impl: (Implementation details) and Rat: (Rationale/Why).
+> **Agent Rules:** Add completed tasks here. Include `Impl:` (implementation details) and `Rat:` (rationale).
 
 ### Completed (shipped)
 
 - [x] 🔴 🐛 SEC #4: HTTP redirect bypass of SSRF guard (`client-core.ts`)
-  - **Impl:** Shipped in 3.4.0. All four fetch sites set `redirect: 'manual'` and pipe response through `assertNotRedirect()`; 3xx surfaces as `TestRailApiError` with blocked `Location` embedded, never retries, never poisons GET cache.
-  - **Rat:** SSRF guard hole — `Location` header pointing at private/metadata IP bypassed `validateBaseUrl` + DNS pinning.
+  - **Impl:** Shipped in 3.4.0. All four fetch sites set `redirect: 'manual'` and pass the response through `assertNotRedirect()`. Any 3xx response throws `TestRailApiError` with the blocked `Location` header, never retries, and never writes to the GET cache.
+  - **Rat:** Previously, a `Location` header pointing to a private or metadata IP bypassed `validateBaseUrl` and DNS pinning.
 - [x] 🟡 🐛 SEC #9: Schema-invalid response poisons GET cache for full TTL (`client-core.ts`)
-  - **Impl:** Shipped in 3.2.0. New `requestParsed<T>` validates before caching.
-  - **Rat:** Cache served bad data for full TTL until natural expiry.
+  - **Impl:** Shipped in 3.2.0. The new `requestParsed<T>` method validates the response before writing to the cache.
+  - **Rat:** Previously, the cache served invalid response data for the full TTL until it expired.
 - [x] 🟡 🐛 SEC #13: POST retries can duplicate writes (`client-core.ts`)
-  - **Impl:** Shipped in 3.3.0. Non-GET methods retry only on 429; 5xx + network errors surface immediately.
-  - **Rat:** Retry on 5xx / network for writes risked duplicate side-effects.
+  - **Impl:** Shipped in 3.3.0. Non-GET methods retry only on 429 responses. They throw 5xx and network errors immediately.
+  - **Rat:** Retrying write requests on 5xx or network errors can duplicate server-side mutations.
 - [x] 🟢 🐛 SEC #25: `Retry-After` ignored on 503 / other retryable 5xx (`client-core.ts`)
-  - **Impl:** All three retry sites in `TestRailClientCore` (`request<T>`, `requestText`, `requestBinary`) now call `parseRetryAfterMs` on every retryable status, not just 429. The retry-eligibility gate (GET-only for `request`/`requestText` 5xx, GET-by-construction for `requestBinary`) is unchanged, so write-idempotency invariants from SEC #13 still hold. JSDoc on `parseRetryAfterMs` lifted to spell out: header capped at `MAX_RETRY_DELAY_MS`; zero/past/invalid values return `null` so callers fall back to exponential backoff and a buggy server cannot induce a hot loop. Tests in `client-features.test.ts` cover seconds, HTTP-date, cap, missing, zero, unparseable, plus POST-503-with-Retry-After (must NOT retry) and parallel cases for `requestText` and `requestBinary`.
-  - **Rat:** TestRail and front proxies (nginx, Cloudflare) emit `Retry-After` on 502/503/504 during overload or maintenance. Honoring it on retryable paths replaces blind exponential backoff with the server's own hint, avoiding hammering an upstream that already told the client how long to wait. RFC 7231 §7.1.3 names 503 explicitly but the header is well-defined on any retryable response, and treating all retryable 5xx symmetrically keeps the retry matrix in one place.
+  - **Impl:** All three retry sites in `TestRailClientCore` (`request<T>`, `requestText`, and `requestBinary`) now call `parseRetryAfterMs` on every retryable status, not only on 429. The retry-eligibility gate (GET-only for 5xx on `request` and `requestText`, and GET for `requestBinary`) remains unchanged, preserving the write-idempotency rules from SEC #13. The `parseRetryAfterMs` JSDoc documents the `MAX_RETRY_DELAY_MS` limit. Zero, past, and invalid header values return `null`, so callers use exponential backoff. Tests in `client-features.test.ts` cover delay-seconds, HTTP-date, cap enforcement, missing headers, zero values, invalid values, POST 503 with `Retry-After` (no retry), and `requestText` and `requestBinary` paths.
+  - **Rat:** TestRail and reverse proxies (NGINX, Cloudflare) send `Retry-After` on 502, 503, and 504 responses during overload or maintenance. Honoring `Retry-After` on retryable 5xx responses prevents the client from sending rapid retries before the upstream recovery window opens.
 - [x] 🟡 🐛 SEC #8: Library constructor hijacks host SIGINT/SIGTERM via `process.exit()` (`client-core.ts`)
-  - **Impl:** Shipped in 3.5.0. New `registerProcessHandlers?: boolean` on `TestRailConfig` defaults to `false`. The constructor only calls the module-level `registerProcessHandlers()` install when the flag is `true`; the handler implementation, `activeClients` registry, and exit codes (130/143) are untouched. CLI (`src/cli/index.ts`) opts in explicitly when constructing its single client. Tests in `client-edge-cases.test.ts` cover (a) default-off (no `process.on` call for `exit`/`SIGINT`/`SIGTERM` during construction), (b) explicit-false matches default, (c) fresh-module opt-in registers all three events, and (d) opt-in is idempotent across multiple clients. Existing emit-based handler-coverage tests updated to opt in so they still exercise the install path.
-  - **Rat:** Library consumers (Express, NestJS, daemons, Electron) own the process lifecycle — installing global signal listeners + shortcutting them with `process.exit()` from a constructor side effect breaks graceful shutdown chains, masks crash codes, and pollutes test workers for the rest of their lifetime. Default-off is the only safe library default; the CLI keeps the prior behavior under an explicit opt-in. Once installed for the process, handlers must persist (they cannot be safely deregistered without ownership tracking across all clients), which is why the flag gates the *first* install rather than later teardown.
+  - **Impl:** Shipped in 3.5.0. Added `registerProcessHandlers?: boolean` to `TestRailConfig`, defaulting to `false`. The constructor calls `registerProcessHandlers()` only when the flag is `true`. The handler implementation, `activeClients` registry, and exit codes (130 and 143) are unchanged. The CLI (`src/cli/index.ts`) explicitly sets `registerProcessHandlers: true` when constructing its client. Tests in `client-edge-cases.test.ts` verify default-off behavior, explicit `false`, opt-in registration for `exit`, `SIGINT`, and `SIGTERM`, and idempotence across multiple clients.
+  - **Rat:** Host applications (such as Express, NestJS, and Electron) manage their own process lifecycle. Registering global signal listeners and calling `process.exit()` from a library constructor interrupts host shutdown hooks. Making signal handler registration opt-in keeps library usage safe while preserving CLI cleanup behavior.
 - [x] 🟡 🐛 SEC #12 + SEC #21: Unbounded response body reads + slowloris-on-body after timeout cleared (`client-core.ts`)
-  - **Impl:** New `src/body-reader.ts` exposes `readBodyWithLimits(response, {maxBytes, deadlineMs})` — chunk-by-chunk `ReadableStream` consumption with a running byte total and a `setTimeout`-armed reader cancel. All four fetch sites (`request<T>`, `requestText`, `requestMultipart`, `requestBinary`) route through it for both error and success bodies. New `TestRailConfig` knobs: `maxJsonResponseBytes` (default 10 MiB; covers JSON, text, and multipart-error bodies), `maxBinaryResponseBytes` (default 100 MiB; `requestBinary` success only), `bodyTimeout` (default = `timeout`; `0` opts out of the deadline). All three are validated in `validateConfig` against `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) so callers cannot disable the guard with `Number.MAX_SAFE_INTEGER`. Header timeout is still cleared after fetch returns — the body deadline is independent. Non-streaming fallback (`arrayBuffer()` → `text()`) preserves test-mock compatibility; the byte cap still trips post-read on that path. 31 new unit tests in `tests/body-limits.test.ts` cover happy path, exact-cap, accumulated cap, slowloris (never-closing stream), zero-deadline, null body, fallback paths, validation bounds, per-method enforcement (all 4 sites), error-body collapse to `Unknown error`, and the independence of JSON vs binary caps.
-  - **Rat:** Before this fix, `response.text()` / `response.json()` / `response.arrayBuffer()` would read until the upstream closed the socket — a malicious or misconfigured server could OOM the client. The header `timeout` was cleared as soon as fetch resolved, so the body read had no wall-clock bound at all (SEC #21 slowloris-on-body). Combined fix because both vulnerabilities live at the same code site (post-fetch body read) and the streaming reader naturally enforces both caps in one pass. Defaults chosen to cover realistic TestRail payloads (`get_cases` bulk export ~100 KB per 1k cases; typical attachments fit under 100 MiB) while keeping OOM impossible. The error-body cap uses the JSON limit so a 500 with a 4 GiB error payload cannot be more dangerous than a 200 with the same body. Streaming protects against true slowloris; the fallback path is only for legacy mocks where streaming isn't simulated.
+  - **Impl:** Added `readBodyWithLimits(response, {maxBytes, deadlineMs})` in `src/body-reader.ts`. This function reads `ReadableStream` chunks while enforcing a running byte limit and a `setTimeout` deadline that cancels the reader. All four fetch sites (`request<T>`, `requestText`, `requestMultipart`, and `requestBinary`) read both error and success bodies through `readBodyWithLimits`. Added three `TestRailConfig` options. `maxJsonResponseBytes` defaults to 10 MiB for JSON, text, and error bodies. `maxBinaryResponseBytes` defaults to 100 MiB for successful `requestBinary` bodies. `bodyTimeout` defaults to `timeout`; `0` disables its deadline. `validateConfig` validates all three options against `MAX_RESPONSE_BYTES_LIMIT` (1 GiB). A non-streaming fallback (`arrayBuffer()` to `text()`) preserves compatibility with test mocks while still enforcing the byte cap after reading. Added 31 unit tests in `tests/body-limits.test.ts`.
+  - **Rat:** Previously, `response.text()`, `response.json()`, and `response.arrayBuffer()` read without a byte limit, and the client cleared `timeout` as soon as response headers arrived (SEC #21). Streaming the response body with both a byte cap and a wall-clock deadline prevents out-of-memory crashes and slowloris hangs across all four fetch sites.
 
 ### Results read surface — per-test / per-case CLI
 
-- [x] **`result list-for-test`** — Shipped with the "Results read-surface CLI" PR. `result list-for-test <test_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]` exposes `getResults(testId, options?)` → `GET get_results/{test_id}`. The programmatic method already existed; this PR is pure CLI surfacing.
-- [x] **`result list-for-case`** — Shipped with the same PR. `result list-for-case <run_id> <case_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]` exposes `getResultsForCase(runId, caseId, options?)` → `GET get_results_for_case/{run_id}/{case_id}`. Both new commands share a `buildResultOptions()` helper in `src/cli/handlers/result.ts` so flag shape stays uniform across the two per-id reads. A later TestRail 10.7 alignment pass corrected the whole-run surface: `result list` now forwards `--created-after`, `--created-before`, `--created-by`, `--status-id`, and `--defects-filter`, including in `--all` mode. The programmatic API now uses distinct `GetResultsOptions` and `GetResultsForRunOptions` types so creator/date filters cannot be sent to the per-test or per-case endpoints, while `defects_filter` is correctly supported by all three.
-- [x] **SKILL recipe: Results pipeline — choosing per-test vs per-case vs bulk endpoints** — Shipped with the same PR. Recipe explains the 4-option decision tree (per-test / per-case-in-run / whole-run / bulk-write counterparts) and is tagged with `<!-- recipe-for: result:list-for-test -->` and `<!-- recipe-for: result:list-for-case -->` so the mapping generator's gate-C2 check binds it.
+- [x] **`result list-for-test`** — Shipped in the Results read-surface CLI PR. `result list-for-test <test_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]` calls `getResults(testId, options?)` (`GET get_results/{test_id}`).
+- [x] **`result list-for-case`** — Shipped in the same PR. `result list-for-case <run_id> <case_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]` calls `getResultsForCase(runId, caseId, options?)` (`GET get_results_for_case/{run_id}/{case_id}`). Both commands share `buildResultOptions()` in `src/cli/handlers/result.ts`. A subsequent TestRail 10.7 alignment update added `--created-after`, `--created-before`, `--created-by`, `--status-id`, and `--defects-filter` to `result list` (including in `--all` mode). The SDK uses separate `GetResultsOptions` and `GetResultsForRunOptions` types. Creator and date filters apply only to whole-run queries; `defects_filter` applies to all three endpoints.
+- [x] **SKILL recipe: Results pipeline — choosing per-test vs per-case vs bulk endpoints** — Shipped in the same PR. The recipe documents when to use per-test, per-case-in-run, whole-run, or bulk-write endpoints, and includes `<!-- recipe-for: result:list-for-test -->` and `<!-- recipe-for: result:list-for-case -->` tags for Gate C2 verification.
 
 ### 🚫 Decision Log (won't-do)
 
-- 🟢 🚫 CLI: `result delete` — TestRail API does not support deleting individual results.
-- 🟢 🚫 CLI: `run add-bulk` — TestRail API does not expose bulk run creation.
-- 🟢 🚫 CLI: interactive prompts — conflicts with agent/scripting audience.
-- 🟢 🚫 CLI: telemetry / usage analytics — conflicts with zero-dependency ethos.
-- 🟢 🚫 SKILL: symlink install option — Windows permission issues + broken-link edge cases.
-- 🟢 🚫 SKILL: `postinstall` auto-install hook — runs without consent; breaks CI.
+- 🟢 🚫 CLI: `result delete` — The TestRail API does not support deleting individual results.
+- 🟢 🚫 CLI: `run add-bulk` — The TestRail API does not support bulk run creation.
+- 🟢 🚫 CLI: interactive prompts — Conflicts with non-interactive agent and script execution.
+- 🟢 🚫 CLI: telemetry / usage analytics — Conflicts with the single-dependency policy.
+- 🟢 🚫 SKILL: symlink install option — Causes permission issues on Windows and broken-link edge cases.
+- 🟢 🚫 SKILL: `postinstall` auto-install hook — Runs without user consent and breaks CI environments.
 
 - [x] 🔴 📦 CLI: `section get` (GET `get_section/{section_id}`) — PR #TBD
-  - **Impl:** New read handler `src/cli/handlers/section.ts::handleSectionGet` parses `<section_id>` via the existing `parseId()` (which is also tightened in the same PR — see below) and calls the existing `client.getSection(id)` method. Registered in `dispatch.ts` HANDLERS, added to `metadata.ts` ACTIONS with `apiEndpoint: 'GET get_section/{section_id}'` (closes mapping gate C), HELP text extended in `index.ts`. Subprocess coverage in `tests/cli.test.ts` (happy path, table format, 401/403/404 → exit 1, all id boundary rejects); unit coverage in new `tests/cli-read-handlers.test.ts`.
-  - **Rat:** P0 daily-use endpoint flagged in `docs/API-MAPPING.md`. The module method already existed; only the CLI binding was missing.
+  - **Impl:** Added read handler `src/cli/handlers/section.ts::handleSectionGet`, which parses `<section_id>` with `parseId()` and calls `client.getSection(id)`. Registered the action in `dispatch.ts` (`HANDLERS`), `metadata.ts` (`ACTIONS` with `apiEndpoint: 'GET get_section/{section_id}'`), and `index.ts` (`HELP`). Added subprocess tests in `tests/cli.test.ts` and unit tests in `tests/cli-read-handlers.test.ts`.
+  - **Rat:** Exposes the P0 `get_section` endpoint in the CLI.
 - [x] 🔴 📦 CLI: `section list` (GET `get_sections/{project_id}`) — PR #TBD
-  - **Impl:** New read handler `src/cli/handlers/section.ts::handleSectionList` takes `<project_id>` as a positional path param and forwards `--suite-id`, `--limit`, `--offset` into the existing `client.getSections(projectId, options)` options bag. Registered in `dispatch.ts`, added to `metadata.ts` with `apiEndpoint: 'GET get_sections/{project_id}'`. Subprocess coverage in `tests/cli.test.ts` (happy path with and without filters, table format, missing/invalid project_id, invalid `--suite-id`, 401 → exit 1); unit coverage in `tests/cli-read-handlers.test.ts`.
-  - **Rat:** P0 daily-use endpoint paired with `section get`; agents listing sections to pick a target for `case add` need this surface. Positional `<project_id>` (instead of `--project-id`) matches the spec for this PR and is consistent with the way `case history`, `attachment list-for-case`, etc. take their primary resource id as a positional.
-  - **Drive-by:** `parseId()` (`src/cli/ids.ts`) tightened from a `Number.isInteger(Number(raw))` check to a `/^[1-9]\d*$/` regex so `'1e2'`, `'0x1'`, `'01'`, `' 5 '`, and `'+1'` are rejected the same way `'1.5'` and `'-1'` already were. Closes a silent-coercion hole where an LLM agent or pasted URL fragment could smuggle through `Number()`'s permissive parsing. New boundary cases added to `tests/cli-helpers.test.ts`.
+  - **Impl:** Added read handler `src/cli/handlers/section.ts::handleSectionList`, which parses `<project_id>` as a positional path parameter and passes `--suite-id`, `--limit`, and `--offset` to `client.getSections(projectId, options)`. Registered the action in `dispatch.ts` and `metadata.ts` with `apiEndpoint: 'GET get_sections/{project_id}'`. Added subprocess tests in `tests/cli.test.ts` and unit tests in `tests/cli-read-handlers.test.ts`.
+  - **Rat:** Exposes the P0 `get_sections` endpoint in the CLI so agents can list sections before calling `case add`.
+  - **Drive-by:** Updated `parseId()` (`src/cli/ids.ts`) from `Number.isInteger(Number(raw))` to `/^[1-9]\d*$/` so that `'1e2'`, `'0x1'`, `'01'`, `' 5 '`, and `'+1'` are rejected. Added boundary test cases in `tests/cli-helpers.test.ts`.
 - [x] 🟢 🐛 SEC #27: `parseId` accepts hex / binary / scientific forms — PR #85 review
-  - **Impl:** Closed by the `parseId` regex tightening shipped with the `section get/list` PR (see drive-by above). `POSITIVE_INT_RE = /^[1-9]\d*$/` rejects `'0x1'`, `'0b1'`, `'1e2'`, `'01'`, `' 5 '`, `'+1'`, `'1.5'`, `'-1'`. Boundary coverage in `tests/cli-helpers.test.ts` and subprocess-level rejects in `tests/cli.test.ts` (every read action's id-boundary cluster).
-  - **Rat:** `Number()`-based parsing (the prior implementation) silently coerced hex, binary, scientific-notation, leading-zero, signed, padded, and decimal inputs into ids that the API would then have to reject. An LLM agent or copy-pasted URL fragment could smuggle through unexpected values. Closing this on the client side fails fast with a clear error instead of forwarding an ambiguous request.
+  - **Impl:** Fixed by tightening `parseId` with `POSITIVE_INT_RE = /^[1-9]\d*$/` in the `section get/list` PR. This regex rejects `'0x1'`, `'0b1'`, `'1e2'`, `'01'`, `' 5 '`, `'+1'`, `'1.5'`, and `'-1'`. Added unit tests in `tests/cli-helpers.test.ts` and subprocess tests in `tests/cli.test.ts`.
+  - **Rat:** `Number()` silently coerced hexadecimal, binary, scientific-notation, leading-zero, signed, and whitespace-padded strings into integers. Rejecting non-decimal strings on the client fails fast with a clear error message.
 - [x] 🟢 🐛 QA: stricter decimal-only parsing in `parseId` / `optInt` — PR #85 review
-  - **Impl:** `optInt` (`src/cli/ids.ts`) brought into line with the tightened `parseId` regex. New `NON_NEG_INT_RE = /^\d+$/` accepts `'0'`, `'1'`, `'100'`, rejects `'1e2'`, `'0x1'`, `'01'`, `' 5 '`, `'+1'`, `'1.5'`, `'-1'`. `Number.isSafeInteger` replaces `Number.isInteger && n >= 0` so out-of-range values (≥ 2^53) also drop. Semantics intentionally remain "silently return `undefined`" (parseId is the strict throwing variant) — `--limit` / `--offset` are optional, so the caller simply omits the param when the user supplies a bad value rather than failing the whole command. Boundary cases added to `tests/cli-helpers.test.ts` covering `'1e2'`, `'0x1'`, `'01'`, `' 5 '`, `'+1'`, `'1.5'` → `undefined`, plus `'0'` → `0` and `'100'` → `100` as positive controls.
-  - **Rat:** SEC #27 closed the same hole for `parseId` but `optInt` retained the old `Number(raw)` parsing — `'1e2'` silently became `100`, `'0x10'` became `16`. Asymmetric strictness across two helpers that operate on the same CLI arg shape would re-open the smuggling surface for any agent that knew about it. Bringing both helpers under the same digit-only regex makes the parsing contract uniform and obvious.
+  - **Impl:** Updated `optInt` (`src/cli/ids.ts`) to use `NON_NEG_INT_RE = /^\d+$/` and `Number.isSafeInteger`. `optInt` accepts `'0'`, `'1'`, and `'100'`, and returns `undefined` for `'1e2'`, `'0x1'`, `'01'`, `' 5 '`, `'+1'`, `'1.5'`, `'-1'`, and values `>= 2^53`. Added boundary test cases in `tests/cli-helpers.test.ts`.
+  - **Rat:** Aligns `optInt` with the strict decimal-only parsing in `parseId` so that `--limit` and `--offset` do not silently coerce hexadecimal or scientific-notation strings.
 - [x] 🟡 📦 CLI: `report list` (GET `get_reports/{project_id}`) — PR #89
-  - **Impl:** New read handler `src/cli/handlers/report.ts::handleReportList` parses `<project_id>` via `parseId()` and calls the existing `client.getReports(projectId)` method. Registered in `dispatch.ts` HANDLERS, added to `metadata.ts` ACTIONS with `apiEndpoint: 'GET get_reports/{project_id}'` (closes mapping gate C), HELP text extended in `index.ts` under a new "Report" line. Subprocess coverage in `tests/cli.test.ts` (happy path, table format, 401/403/404 → exit 1, network error, all id boundary rejects); unit coverage in `tests/cli-read-handlers.test.ts` (happy + INVALID_IDS sweep + missing-id path).
-  - **Rat:** P1 metadata endpoint flagged on the API-mapping table. The programmatic method already existed; only the CLI binding was missing. Listing available report templates is a precondition for `report run`.
+  - **Impl:** Added read handler `src/cli/handlers/report.ts::handleReportList`, which parses `<project_id>` with `parseId()` and calls `client.getReports(projectId)`. Registered the action in `dispatch.ts`, `metadata.ts` (`apiEndpoint: 'GET get_reports/{project_id}'`), and `index.ts` (`HELP`). Added subprocess tests in `tests/cli.test.ts` and unit tests in `tests/cli-read-handlers.test.ts`.
+  - **Rat:** Exposes the P1 `get_reports` endpoint in the CLI so agents can list report templates before calling `report run`.
 - [x] 🟡 📦 CLI: `report run` (GET `run_report/{report_template_id}`) — PR #89
-  - **Impl:** Sibling read handler `handleReportRun` parses `<report_template_id>` via `parseId()` and calls the existing `client.runReport(reportTemplateId)` method (returns `{ report_url, user_report_url? }`). Same dispatch/metadata/HELP wiring as `report list`. Subprocess and unit coverage mirror `report list` (table format renders `report_url` column; error/network paths covered).
-  - **Rat:** Closes the P1 reports surface alongside `report list`. Agents that need to trigger TestRail-server-side report generation (e.g. release coverage summaries) now have a stable CLI seam without needing to drop down to the programmatic client.
+  - **Impl:** Added read handler `handleReportRun`, which parses `<report_template_id>` with `parseId()` and calls `client.runReport(reportTemplateId)`. Registered the action in `dispatch.ts`, `metadata.ts`, and `index.ts`, with unit and subprocess test coverage.
+  - **Rat:** Completes the P1 reports CLI surface alongside `report list`.
 - [x] 🟡 📦 CLI: `variable list/add/update/delete` (P1) — Shipped
-  - **Impl:** Four new actions exposed via `src/cli/handlers/variable.ts` (read) and `src/cli/handlers/variable-write.ts` (writes including destructive delete). `getVariables` / `addVariable` / `updateVariable` / `deleteVariable` already existed on `TestRailClient`; this PR added the CLI binding only. New Zod schemas `AddVariablePayloadSchema` (`name: string`) and `UpdateVariablePayloadSchema` (`name?: string`) in `src/schemas.ts` with passthrough so `custom_*` fields survive. `Variable` / `AddVariablePayload` / `UpdateVariablePayload` interfaces migrated from `src/types.ts` to `src/schemas.ts` (matches the milestone/section/suite precedent — Zod is now the single source of truth). Registered in `dispatch.ts` (4 entries) and `metadata.ts` (4 ActionSpecs, `destructive: true` on delete with `apiEndpoint` strings matching the `@testrail` JSDoc tags). HELP text extended in `cli/index.ts` under Read actions, Write actions, the `--yes` destructive set, the `--soft`-rejected set, and the no-body writes list. Schema-name binding added to `scripts/skill-renderer.mjs` so `skill/SKILL.md` renders both payload schemas in the generated section.
-  - **Rat:** P1 data-driven-testing endpoints. Variables underpin TestRail datasets; without the CLI surface, agents could read/write them only via the programmatic API. `variable delete` follows the locked-in destructive pattern: `--yes` required, `--dry-run` wins for preview-without-API, and `--soft` is rejected (TestRail's `delete_variable` does not support soft preview — mirrors `milestone delete` / `project delete`). Unit coverage in `tests/cli-write-handlers.test.ts` (happy, dry-run, body reject, path-param reject, `--soft` reject for delete) and `tests/cli-read-handlers.test.ts` (happy + every id boundary); subprocess coverage in `tests/cli.test.ts` (URL/method assertion, dry-run, all id boundaries including `1e2`/`0x1`, 400/401/403/404, network error, table format, `--yes` gate, dry-run-wins). Drift gates A/B/C/C2 and the metadata↔dispatch consistency suite all pass.
+  - **Impl:** Added four actions in `src/cli/handlers/variable.ts` (read) and `src/cli/handlers/variable-write.ts` (write and destructive delete), calling `getVariables`, `addVariable`, `updateVariable`, and `deleteVariable`. Added `AddVariablePayloadSchema` (`name: string`) and `UpdateVariablePayloadSchema` (`name?: string`) with `.passthrough()` in `src/schemas.ts`, and migrated `Variable`, `AddVariablePayload`, and `UpdateVariablePayload` from `src/types.ts` to `src/schemas.ts`. Registered the four actions in `dispatch.ts`, `metadata.ts`, `cli/index.ts`, and `scripts/skill-renderer.mjs`.
+  - **Rat:** Exposes the P1 data-driven testing variable endpoints in the CLI. `variable delete` requires `--yes`, allows `--dry-run` preview without calling the API, and rejects `--soft` because TestRail `delete_variable` does not support soft preview. Added unit tests in `tests/cli-write-handlers.test.ts` and `tests/cli-read-handlers.test.ts`, and subprocess tests in `tests/cli.test.ts`.
 - [x] 🟢 📦 CLI: `dataset get/list/add/update/delete` (P2) — Shipped
-  - **Impl:** Five new actions across two handler files: `src/cli/handlers/dataset.ts` (read: `handleDatasetGet`, `handleDatasetList`) and `src/cli/handlers/dataset-write.ts` (writes: `handleDatasetAdd`, `handleDatasetUpdate`, destructive `handleDatasetDelete`). `getDataset` / `getDatasets` / `addDataset` / `updateDataset` / `deleteDataset` already existed on `TestRailClient` via `DatasetModule`; this PR added the CLI binding only. The initial payload schemas exposed only `name`; the 10.7 audit added the documented optional `variables: Record<string, string>` to both add and update. `Dataset` / payload types remain Zod-derived and exported through the schema barrel.
-  - **Rat:** P2 data-driven-testing endpoints. Datasets are the value-bearing half of the variables-and-datasets pair: agents can now create or update a dataset's variable-name-to-string-value map directly through the CLI. Non-string values fail before the network call. `dataset delete` follows the locked-in destructive pattern: `--yes` required, `--dry-run` wins for preview-without-API, and `--soft` is rejected.
+  - **Impl:** Added five actions in `src/cli/handlers/dataset.ts` (`handleDatasetGet`, `handleDatasetList`) and `src/cli/handlers/dataset-write.ts` (`handleDatasetAdd`, `handleDatasetUpdate`, `handleDatasetDelete`), calling `DatasetModule` methods. The TestRail 10.7 audit added the optional `variables: Record<string, string>` field to both add and update payload schemas.
+  - **Rat:** Exposes the P2 dataset endpoints in the CLI so agents can manage variable-name-to-value mappings for data-driven testing. `dataset delete` requires `--yes`, supports `--dry-run`, and rejects `--soft`.
 - [x] 🟢 📦 SKILL recipe: Data-driven runs via Variables + Datasets (P2) — Shipped
-  - **Impl:** Recipe #28 in `skill/SKILL.md` is tagged for dataset add/update/delete and walks variable creation, dataset values, placeholder use, inspection, update, and deletion. The 10.7 audit replaced the former metadata-only caveat with CLI examples that send the documented `variables` string map.
-  - **Rat:** Closes the data-driven-testing skill surface alongside dataset CRUD and makes the variable-then-dataset workflow directly usable by agents without an unnecessary web-UI detour.
+  - **Impl:** Added Recipe #28 in `skill/SKILL.md` for variable creation, dataset values, placeholders, inspection, updates, and deletion. The CLI examples pass the `variables` string map.
+  - **Rat:** Documents the end-to-end variable and dataset workflow for agents.
 
 - [x] 🟢 📦 CLI: binary stdin upload — PR3a (feat/cli-binary-stdio)
-  - **Impl:** `--file -` sentinel in `src/cli/file-input.ts` resolves the binary upload payload from `process.stdin` instead of a filesystem path. The async resolver (`resolveFile` was promoted from sync to `Promise<FileResolution>`) drains stdin under two guards: a 100 MiB byte cap (`MAX_STDIN_UPLOAD_BYTES` in `src/constants.ts`) checked **before** each chunk is buffered, and a 30 s wall-clock deadline (`STDIN_READ_TIMEOUT_MS`) enforced via `stream.destroy(error)` propagated through the `for await (chunk of process.stdin)` async iterator. `readStdinBinary()` (exported for unit tests) normalizes Buffer / string / Uint8Array chunk shapes so byte accounting stays consistent across stream encodings. Default filename is `stdin`; callers should pass `--filename` for a meaningful value. Wired into `handleAttachmentAddToCase` / `add-to-result` / `add-to-run` / `add-to-plan` / `add-to-plan-entry` via the shared async `setupUpload()` helper, plus `handleBddAdd`. Mutex gates in `src/cli/index.ts` reject `--file -` for non-upload actions, alongside `--data` / `--data-file`, alongside `--api-key-stdin` (both want fd 0), and when `process.stdin.isTTY` is true. Dry-run does **not** drain stdin (a pipe cannot be rewound) — the preview reports `size: 0` and `source: 'stdin'`. Unit coverage in `tests/cli-file-input.test.ts` (TTY reject, stat-only-no-drain, happy path, filename override, byte-cap, wall-clock timeout, chunk-shape normalization, timer-clear on happy path) and `tests/cli-attachment-handlers.test.ts` (happy + dry-run-no-drain + TTY reject + filename override); subprocess coverage in `tests/cli.test.ts` (piped Readable into runCli, dry-run, TTY reject, --data mutex, non-upload-action reject).
-  - **Rat:** Removes the temp-file requirement for binary-upload pipelines. Closes the discoverability gap where agents wanting to pipe `curl …` or `hexdump …` output into TestRail had to first `mktemp` and clean up. The wall-clock deadline is a **partial mitigation of SEC #24** for the binary-upload path: `readBoundedStdin` (text JSON body / `--api-key-stdin`) still has no deadline because that read is synchronous via `readSync` and the larger refactor to make it async would propagate through `BodyInput.readStdin`'s signature; tracked as the open half of SEC #24 in BACKLOG. The 100 MiB cap matches `DEFAULT_MAX_BINARY_RESPONSE_BYTES` (symmetric upload/download ceilings) and is an order of magnitude below `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) — large enough for realistic crash dumps and short video captures, small enough to OOM-proof a 512 MB CI runner.
+  - **Impl:** Added the `--file -` sentinel in `src/cli/file-input.ts` to read binary upload payloads from `process.stdin`. `resolveFile` now returns `Promise<FileResolution>` and reads stdin under two limits. Before buffering each chunk, it checks `MAX_STDIN_UPLOAD_BYTES` (100 MiB) from `src/constants.ts`. `STDIN_READ_TIMEOUT_MS` imposes a 30 s deadline through `stream.destroy(error)`. `readStdinBinary()` normalizes `Buffer`, `string`, and `Uint8Array` chunks and defaults the filename to `stdin` unless `--filename` is provided. Wired into `handleAttachmentAddToCase`, `add-to-result`, `add-to-run`, `add-to-plan`, `add-to-plan-entry`, and `handleBddAdd`. `src/cli/index.ts` rejects `--file -` on non-upload actions, when combined with `--data`, `--data-file`, or `--api-key-stdin`, or when `process.stdin.isTTY` is `true`. In `--dry-run` mode, the CLI does not read `stdin` and reports `size: 0` and `source: 'stdin'`. Added unit and subprocess tests in `tests/cli-file-input.test.ts`, `tests/cli-attachment-handlers.test.ts`, and `tests/cli.test.ts`.
+  - **Rat:** Allows binary uploads from Unix pipes without temporary files. The 30 s wall-clock timeout and 100 MiB byte cap also mitigate SEC #24 for the binary upload path.
 - [x] 🟢 📦 CLI: binary stdout download — PR3a (feat/cli-binary-stdio)
-  - **Impl:** `--out -` sentinel in `src/cli/file-output.ts` (`STDOUT_SENTINEL`) routes the download to `process.stdout.write(bytes)` instead of a file path. `resolveOut` returns `target: 'stdout' | 'file'` so callers can branch; the stdout target bypasses the symlink/clobber/force checks entirely (no path to inspect). `handleAttachmentGet` and `handleBddGet` route the JSON ack to **stderr** via the new quiet-aware `HandlerContext.errRaw` writer (added to `Output` in `src/cli/output.ts`, plumbed through `src/cli/index.ts` to the handler context). `--format table` is rejected at the dispatch gate (`src/cli/index.ts`) when `--out -` is active — binary is binary, the format hint is meaningless. A TTY warning is emitted to stderr (non-blocking) when `process.stdout.isTTY` is true so intentional pipelines to `xxd` / `hexdump` still work. Unit coverage in `tests/cli-file-output.test.ts` (sentinel recognition, bypass of force/clobber/symlink checks, dry-run) and `tests/cli-attachment-handlers.test.ts` (happy stdout-write + stderr-ack, TTY warning, dry-run preview); subprocess coverage in `tests/cli.test.ts` (binary bytes captured on stdout, JSON ack on stderr, --format table reject).
-  - **Rat:** Symmetric with the upload path — agents can now chain attachment downloads through Unix pipelines without temp files (`testrail attachment get 17 --out - | xxd`). The stdout/stderr split is the load-bearing safety property: a downstream tool consuming stdout receives **only** the binary payload, never a JSON envelope mixed in. `bdd get --out -` reuses the same mechanism for UTF-8 Gherkin output.
+  - **Impl:** Added the `--out -` sentinel (`STDOUT_SENTINEL`) in `src/cli/file-output.ts` to write downloaded bytes to `process.stdout.write(bytes)`. `resolveOut` returns `target: 'stdout' | 'file'` and skips filesystem checks when `target === 'stdout'`. `handleAttachmentGet` and `handleBddGet` write the JSON acknowledgement to `stderr` via `HandlerContext.errRaw`. `src/cli/index.ts` rejects `--format table` when `--out -` is set and logs a warning to `stderr` if `process.stdout.isTTY` is `true`. Added unit and subprocess tests in `tests/cli-file-output.test.ts`, `tests/cli-attachment-handlers.test.ts`, and `tests/cli.test.ts`.
+  - **Rat:** Allows agents to pipe downloaded attachments and BDD files directly to downstream commands (`testrail attachment get 17 --out - | xxd`) while keeping `stdout` free of JSON metadata.
 - [x] 🟡 ♻️ CLI: streaming upload for large files — Shipped
-  - **Impl:** Rewrote `requestMultipart` (`src/client-core.ts`) to accept a `{ path: string; type?: string }` descriptor alongside the existing `Blob | Uint8Array | File` inputs. The descriptor is resolved via Node's `fs.openAsBlob`, which returns a file-backed `Blob` whose `.stream()` reads bytes on demand; `fetch` consumes the multipart `FormData` through that stream. The CLI handler chain (`src/cli/handlers/attachment-write.ts`, `src/cli/handlers/bdd.ts`) now passes the descriptor instead of pre-reading the file with `readFileSync`, which was the OOM source for large uploads. `src/cli/file-input.ts::resolveFile` no longer returns `contents` (the `read` option is preserved for source-compat but is a no-op). New regression suite `tests/streaming-upload.test.ts` (12 cases) covers: path descriptor → openAsBlob, filename override, content-type forwarding, ENOENT → `TestRailApiError` with no unhandled rejection, 50 MB upload with bounded heap growth (<20 MB tolerance), no-retry invariants on 5xx/429/network error, 3xx rejected by `assertNotRedirect`, in-memory variants still work, timeout aborts the upload mid-stream. Existing tests in `tests/cli-attachment-handlers.test.ts`, `tests/cli-bdd-handlers.test.ts`, and `tests/cli-file-input.test.ts` updated to expect the new descriptor shape. CHANGELOG, README, `docs/ARCHITECTURE.md` updated with the streaming semantics and the preserved upload invariants.
-  - **Rat:** The CLI previously buffered the entire file in process heap (`readFileSync` → `Uint8Array` → `Blob` → `FormData`). A 200 MB+ TestRail attachment OOM'd Node on default heap (~1.5 GiB). Benchmark on a 100 MB file: OLD path heap +2.30 MB / RSS +175.61 MB; NEW path heap +0.00 MB / RSS +0.02 MB. Zero runtime deps preserved — Node's native `fetch` + `FormData` + `openAsBlob` covers the streaming path. Upload invariants kept intact (no retry on 5xx/429/network; `AbortSignal` honored through body upload; DNS-pin/SSRF guard still applied before fetch; 3xx still rejected before any cache write or retry). File-open errors (ENOENT, EACCES, EISDIR) are now caught by the same try/catch as `fetch` and re-emitted as `TestRailApiError(0, 'Network error: …')`, making the failure mode symmetric with a transport error and eliminating the previous TOCTOU window between the CLI's `readFileSync` and the HTTP send.
+  - **Impl:** Updated `requestMultipart` (`src/client-core.ts`) to accept a `{ path: string; type?: string }` descriptor in addition to `Blob | Uint8Array | File`. The client resolves the descriptor with `fs.openAsBlob`, which streams file bytes on demand into `FormData`. Updated `src/cli/handlers/attachment-write.ts`, `src/cli/handlers/bdd.ts`, and `src/cli/file-input.ts::resolveFile` to pass the descriptor instead of reading the entire file into memory with `readFileSync`. Added 12 regression tests in `tests/streaming-upload.test.ts`.
+  - **Rat:** Pre-reading large attachments with `readFileSync` caused out-of-memory crashes on files over 200 MB. Streaming via `fs.openAsBlob` keeps heap growth near zero while preserving all upload security invariants (no retry on 5xx/429/network errors, `AbortSignal` support, DNS pinning, and `assertNotRedirect`).
 
 ## CLI/Skill BACKLOG initiative — 2026-05-20 wave summary
 
-This block archives the items completed during the CLI/Skill BACKLOG initiative (PRs #110–#125 + followup, May 20 2026). The initiative shipped: 3 new CLI commands, 1 streaming-upload behavior change already in main, 69 curated SKILL recipes, plus three infra cleanups. Three items (localization 🔴, multi-version skill 🟡, marketplace publish 🟡) remain in the active backlog as deferred per planning Q2.
+This section archives the items completed during the CLI/Skill BACKLOG initiative (PRs #110–#125 and follow-up PR, May 20, 2026). The initiative shipped 3 new CLI commands, verified streaming uploads in `main`, added 69 curated SKILL recipes, and completed 3 infrastructure cleanups. Three deferred items (localization 🔴, multi-version skill 🟡, and marketplace publish 🟡) remain in the active backlog.
 
-**Footnote — followup scope correction.** Initial Wave 2 scoping covered 64 of 69 SKILL recipe items in BACKLOG.md; the 5 missed tags (`project:add`, `project:update`, `project:delete`, `test:get`, `test:list`) were discovered via post-merge audit of `docs/API-MAPPING.md` (the 5 `command-table` fallback rows) and filled by a followup PR adding 2 consolidated recipes (#56 project lifecycle, #57 test fetch/list). Final state: 117 recipe-for bindings across 57 numbered recipes — every CLI command now has a curated recipe.
+**Follow-up scope note:** Initial Wave 2 scoping covered 64 of the 69 SKILL recipe items in `BACKLOG.md`. A post-merge audit of `docs/API-MAPPING.md` identified 5 `command-table` fallback rows (`project:add`, `project:update`, `project:delete`, `test:get`, and `test:list`). A follow-up PR added recipe #56 for the project lifecycle and recipe #57 for test fetch/list. The 57 numbered recipes then contained 117 `recipe-for` bindings, covering all 117 CLI commands.
 
-- [x] **CLI: expose `POST add_result/{test_id}` in CLI** — Shipped as PR #113 (`feat: CLI result add-by-test`, SHA `9734a0d`). `testrail result add-by-test <test_id>` wraps the lightest per-test write path; reuses existing `AddResultPayloadSchema` (shared with `add_result_for_case`) and the existing `addResult(testId, payload)` method already in `src/modules/results.ts:84`. No new module method needed; only CLI surface added (handler + dispatch + metadata + HELP + tests). Recipe #34 in `skill/SKILL.md` documents the per-test vs per-case vs bulk decision tree with the canonical status_id mapping table. Sub-agent self-review verified all 10 checklist items PASS; orchestrator completed push/PR/merge after sub-agent stopped at "Ready for PR" stage. Recipe #34 was silently dropped during PR #114's rebase and restored by recovery PR #115.
-- [x] **CLI: `user add` (`POST add_user`)** — Originally shipped as PR #114 (`feat: CLI user add + user update`, SHA `8b90c9d`) alongside `user update`. The 10.7 audit subsequently corrected `UserAddPayloadSchema`: `name` and `email` are the only required fields; documented optional fields cover activation/admin/SSO/MFA flags, notifications, role, groups, and assigned projects. Password and language were removed from the advertised typed contract. `.passthrough()` remains for forward compatibility.
-- [x] **CLI: `user update` (`POST update_user/{user_id}`)** — Shipped with PR #114 (same SHA `8b90c9d`). `testrail user update <user_id>` mirrors the add path with `UserUpdatePayloadSchema` (all documented fields optional, PATCH semantics). Path-param validation via `parseId(ctx.args.pathParams[0], 'user_id')` rejects non-numeric, negative, and zero values before any API call.
-- [x] **CLI: streaming upload for large files** — Shipped earlier in PR #109 (`security: TOCTOU symlink hardening, fd-based uploads & devDependencies cleanup`, SHA `452d3e4`). The BACKLOG item was stale: `requestMultipart` already accepts an `UploadFilePathInput` (path descriptor) and uses `openAsBlob` from `node:fs` for memory-bounded streaming-from-disk. Preserves all pipeline invariants (no retry on requestUpload, DNS pinning, redirect: manual, body-size caps). Verified during discovery phase; PR #3 of the initiative was therefore not spawned.
-- [x] **SKILL recipes: 69 curated recipe items** — Shipped across six Wave 2 cluster PRs, two recovery PRs, and one scope-correction followup PR. Final coverage: 117 `recipe-for:` bindings on main (up from 48 pre-initiative) across 57 numbered recipes — full parity with the 117 CLI commands. Cluster breakdown:
-  - **C1 Cases & Case Meta (10 tags)** — PR #123 (reland of closed #121, SHA `91343b1`). Recipes #44 (case lifecycle: get/history/copy-to-section/move-to-section/update-bulk), #45 (case-field list/add), #46 (case-type:list + case-status:list metadata lookups), #47 (case delete with 3-tier safety gates: client-side `--dry-run`, server-side `--soft` preview, hard `--yes`).
-  - **C2 Test Repository Structure (15 tags)** — PR #124 (reland of closed #119, SHA `636f999`). Recipes #48 (section CRUD: 6 tags), #49 (suite CRUD: 4 tags), #50 (shared-step get/list), #51 (bdd get/add), #52 (template list).
-  - **C3 Execution: Plans/Runs/Milestones (11 tags)** — PR #116 (`f1e687c`). Recipes #60→#38 (plan entry extensions: 3 tags), #61→#39 (run lifecycle: list/update/delete), #62→#40 (milestone full lifecycle: 5 tags). Recipe numbers shifted to #38-#40 by recovery PR #122 after PR #118's rebase wiped them.
-  - **C4 Results & Reporting (6 tags)** — PR #125 (reland of closed #120, SHA `d8e52db`). Recipes #53 (result:add-bulk-by-test), #54 (consolidated reference lookups: result-field/status/priority), #55 (report:list + report:run).
-  - **C5 Identity: Users/Groups/Roles (9 tags)** — PR #117 (`0946811`). Recipes #77→#41 (user lookups: 3 tags), #78→#42 (group CRUD: 5 tags), #79→#43 (role list). user:add and user:update intentionally not duplicated (already #32, #33 from PR #114). Recipe numbers shifted to #41-#43 by recovery PR #122.
-  - **C6 Attachments/Variables/Configurations (13 tags)** — PR #118 (`d213225`). Recipes #35 (attachment entry-type lifecycle: 4 list + 3 add tags), #36 (variable CRUD: 4 tags), #37 (configuration + configuration-group update). PR #118's rebase used `-Xtheirs` which **silently overwrote sibling recipes from C3 (#116) and C5 (#117)** — root cause of recovery PR #122.
+- [x] **CLI: expose `POST add_result/{test_id}` in CLI** — Shipped in PR #113 (`feat: CLI result add-by-test`, SHA `9734a0d`). `testrail result add-by-test <test_id>` reuses `AddResultPayloadSchema` and `addResult(testId, payload)` in `src/modules/results.ts:84`. Added the CLI handler, dispatch entry, metadata, HELP text, tests, and Recipe #34 in `skill/SKILL.md`. Recipe #34 was accidentally dropped during PR #114's rebase and restored in PR #115.
+- [x] **CLI: `user add` (`POST add_user`)** — Shipped in PR #114 (`feat: CLI user add + user update`, SHA `8b90c9d`). The TestRail 10.7 audit changed `UserAddPayloadSchema` to require only `name` and `email`. Activation, admin, SSO, MFA, notifications, role, groups, and assigned projects are optional. The schema retains `.passthrough()`.
+- [x] **CLI: `user update` (`POST update_user/{user_id}`)** — Shipped in PR #114 (SHA `8b90c9d`). `testrail user update <user_id>` uses `UserUpdatePayloadSchema` (all fields optional) and validates `<user_id>` with `parseId(ctx.args.pathParams[0], 'user_id')`.
+- [x] **CLI: streaming upload for large files** — Shipped earlier in PR #109 (`security: TOCTOU symlink hardening, fd-based uploads & devDependencies cleanup`, SHA `452d3e4`). `requestMultipart` already accepts `UploadFilePathInput` and uses `openAsBlob` from `node:fs` for memory-bounded streaming while preserving all pipeline invariants.
+- [x] **SKILL recipes: 69 curated recipe items** — Shipped across six Wave 2 cluster PRs, two recovery PRs, and one follow-up PR. Final coverage is 117 `recipe-for:` bindings across 57 numbered recipes:
+  - **C1 Cases & Case Meta (10 tags)** — PR #123 (reland of closed #121, SHA `91343b1`). Added Recipes #44 (case lifecycle: `get`, `history`, `copy-to-section`, `move-to-section`, `update-bulk`), #45 (`case-field list/add`), #46 (`case-type:list` and `case-status:list`), and #47 (`case delete` with `--dry-run`, `--soft`, and `--yes`).
+  - **C2 Test Repository Structure (15 tags)** — PR #124 (reland of closed #119, SHA `636f999`). Added Recipes #48 (section CRUD: 6 tags), #49 (suite CRUD: 4 tags), #50 (`shared-step get/list`), #51 (`bdd get/add`), and #52 (`template list`).
+  - **C3 Execution: Plans/Runs/Milestones (11 tags)** — PR #116 (`f1e687c`). Added Recipes #38 (plan entry extensions: 3 tags), #39 (run lifecycle: `list/update/delete`), and #40 (milestone lifecycle: 5 tags), renumbered in recovery PR #122. Their original numbers were #60, #61, and #62.
+  - **C4 Results & Reporting (6 tags)** — PR #125 (reland of closed #120, SHA `d8e52db`). Added Recipes #53 (`result:add-bulk-by-test`), #54 (`result-field`, `status`, and `priority` lookups), and #55 (`report:list` and `report:run`).
+  - **C5 Identity: Users/Groups/Roles (9 tags)** — PR #117 (`0946811`). Added Recipes #41 (user lookups: 3 tags), #42 (group CRUD: 5 tags), and #43 (`role list`), renumbered in recovery PR #122. Their original numbers were #77, #78, and #79.
+  - **C6 Attachments/Variables/Configurations (13 tags)** — PR #118 (`d213225`). Added Recipes #35 (attachment lifecycle: 4 list + 3 add tags), #36 (variable CRUD: 4 tags), and #37 (`configuration` and `configuration-group` update).
 
 ### Initiative meta-events
 
-- **PR #110** (`bda75e0`) — Cursor IDE-rules support removed entirely per user de-scoping; 4 stale BACKLOG entries also stripped (cursor, Continue rules, generic AGENTS.md, testrail uninstall-skill — last three already shipped in earlier PRs). Cursor reviewer left 2 clarity comments after merge; addressed in PR #112 (`132c686`).
-- **PR #111** (`80c3a06`) — BACKLOG sync. User's local BACKLOG.md edits adding 75+ tracked items were committed to main between Wave 0 and Wave 1 so the consolidation PR (this one) would have correct items to archive.
-- **PR #115** (`1ad066f`) — Restored recipe #34 (result:add-by-test) silently dropped by PR #114's rebase. Root cause: mapping gate C2 is one-way (recipes→actions); a missing recipe for an existing action passes silently. **New BACKLOG QA item filed:** bidirectional Gate C2.
-- **PR #122** (`36c90f6`) — Restored 20 recipe-for bindings (61→81) lost when PR #118 (C6) used `-Xtheirs` rebase strategy that overwrote C3 (#116) and C5 (#117) recipe content. Triggered serialization of remaining clusters (C1, C2, C4 closed as #119/#120/#121, relanded clean as #123/#124/#125).
+- **PR #110** (`bda75e0`) — Removed Cursor IDE rules support. Removed 4 completed or excluded backlog entries: Cursor rules, Continue rules, generic `AGENTS.md`, and `testrail uninstall-skill`. Addressed follow-up review comments in PR #112 (`132c686`).
+- **PR #111** (`80c3a06`) — Synchronized `BACKLOG.md` on `main` with 75+ tracked items between Wave 0 and Wave 1.
+- **PR #115** (`1ad066f`) — Restored Recipe #34 (`result:add-by-test`), which was dropped during PR #114's rebase. Filed a new QA backlog item to make Gate C2 bidirectional.
+- **PR #122** (`36c90f6`) — Restored 20 `recipe-for` bindings. PR #118 (C6) had overwritten them during a `-Xtheirs` rebase over PR #116 (C3) and PR #117 (C5). Remaining cluster PRs were serialized and merged as PRs #123, #124, and #125.
 
 ### Lessons learned
 
-- **Parallel rebase agents are unsafe for shared-file edits.** Six Wave 2 Haiku sub-agents fanned out concurrently on `skill/SKILL.md` produced two silent regressions (PR #114 dropping recipe #34, PR #118 dropping ~20 C3+C5 bindings). The `-Xtheirs` strategy compounds the risk. Future multi-PR work on a shared narrative file should either (a) serialize merges, (b) use disjoint append-only sections per PR with strict numbering ranges, or (c) tighten Gate C2 to bidirectional binding so silent drops fail CI.
-- **Self-review caught issues but not regressions outside the diff.** Sub-agent self-reviews validated each PR's own checklist but couldn't detect that a sibling's content had been clobbered during rebase. Bidirectional Gate C2 would close this.
-- **Copilot weekly limit waiver.** The hard "wait for Copilot review before merging" rule was waived mid-initiative when the limit was hit. CI-only gating proved sufficient for catching code-level issues; the regressions above were content-level, which neither CI nor Copilot would catch.
-- **Cluster-sum vs BACKLOG-section-count cross-check.** Initial Wave 2 cluster scoping summed to 64 tags but the BACKLOG section actually listed 69. The 5-tag gap (projects + tests) shipped only when a post-merge audit of `docs/API-MAPPING.md` exposed `command-table` fallback rows. Future fan-out planning should reconcile cluster totals against the source list before spawning sub-agents — a single `grep -c` would have caught the oversight upfront.
+- **Do not run parallel rebase agents on the same file.** Concurrent `skill/SKILL.md` edits with `-Xtheirs` caused silent regressions in PR #114 and PR #118. Serialize merges to shared files or enforce bidirectional CI checks.
+- **Make Gate C2 bidirectional:** Subagent reviews checked only their own PR diffs and missed content dropped during rebases. A bidirectional Gate C2 check catches missing recipes in CI.
+- **CI checks vs. code review limits:** When the Copilot review quota was reached, CI checks caught code errors, while content drops required stronger automated drift gates.
+- **Verify cluster totals against source counts:** Initial Wave 2 scoping totaled 64 tags instead of the 69 items in `BACKLOG.md`. Count and reconcile all target items before launching parallel tasks.
 
 ## BACKLOG sync — 2026-05-22 (Spec Parity + Security audit)
 
-This sync closes items verified shipped during the multi-agent BACKLOG audit on
-2026-05-22. Each `[x]` entry below was confirmed against current source
-(`src/schemas.ts`, `src/client-core.ts`, `src/cli/dispatch.ts`,
-`src/cli/file-input.ts`, `tests/skill-recipes.test.ts`) before being removed
-from `BACKLOG.md`. The partially-shipped items (SEC #5, #26, #28, SPEC #2.1.9,
-SPEC #2.1.14) were left open in `BACKLOG.md` with refined notes capturing
-exactly which slice is still pending — rather than archiving prematurely or
-leaving the original imprecise descriptions in place.
+This sync archives items verified as shipped during the `BACKLOG.md` audit on 2026-05-22 against `src/schemas.ts`, `src/client-core.ts`, `src/cli/dispatch.ts`, `src/cli/file-input.ts`, and `tests/skill-recipes.test.ts`. Partially shipped items (`SEC #5`, `SEC #26`, `SEC #28`, `SPEC #2.1.9`, and `SPEC #2.1.14`) remain open in `BACKLOG.md` with updated descriptions of the remaining work.
 
 ### Spec Parity — schema audit
 
-- [x] **SPEC #1.1: `ResultSchema.id` and `ResultSchema.test_id` required** — Shipped. Both fields are required (non-nullish) at `src/schemas.ts:323-325`. The initial defensive `.nullish()` flip applied during the broader nullability sweep was reverted for these two response-required identifiers; spec parity restored.
+- [x] **SPEC #1.1: `ResultSchema.id` and `ResultSchema.test_id` required** — Shipped. Both fields are required (non-nullish) at `src/schemas.ts:323-325`, restoring parity with the TestRail specification.
 
-- [x] **SPEC #1.2: defensive `.nullish()` on `is_completed`** — Shipped in commit `9a565bc` ("Accept nullable TestRail response fields with nullish schemas", PR #130). The field accepts undefined/null where the documented-required boolean may be absent on legacy TestRail server versions or partial-fetch responses. Reverting to required is tracked under remaining SPEC #1.5 (module list-wrapper nullability) once the per-field evidence pass concludes.
+- [x] **SPEC #1.2: defensive `.nullish()` on `is_completed`** — Shipped in commit `9a565bc` (PR #130). The field accepts `undefined` or `null` for compatibility with older TestRail server versions and partial responses.
 
-- [x] **SPEC #1.3: defensive `.nullish()` on `is_master`** — Shipped in `9a565bc`. Same defensive rationale as #1.2; field-level reversal blocked on evidence pass.
+- [x] **SPEC #1.3: defensive `.nullish()` on `is_master`** — Shipped in commit `9a565bc` (PR #130) with the same rationale as `SPEC #1.2`.
 
-- [x] **SPEC #1.4: defensive `.nullish()` on `show_announcement`** — Shipped in `9a565bc`. Same defensive rationale as #1.2; field-level reversal blocked on evidence pass.
+- [x] **SPEC #1.4: defensive `.nullish()` on `show_announcement`** — Shipped in commit `9a565bc` (PR #130) with the same rationale as `SPEC #1.2`.
 
-- [x] **SPEC #A.2: spec+wire nullability audit closure** — Closed. Commit `9a565bc` (PR #130) flipped fields across `src/schemas.ts` to `.nullish()` where TestRail returns null/undefined from real-world traffic — including booleans (`is_completed`, `is_master`, `show_announcement`), optional timestamps, refs, and module list-wrappers. The flips are defensive: they accept TestRail's looser-than-documented behavior without rejecting valid responses, trading strict-spec-rejection for compatibility with legacy servers and partial responses. Per-field reasoning for the flipped fields is captured in PR #130's description and commit body. **Audit closure status:** the nullability work is complete; the remaining narrowing work (returning a flipped field to required when both TestRail's docs and the wire confirm presence) is tracked under remaining SPEC items (`#1.5`, `#2.1.15`, `#2.1.16`) and is no longer blocked on "missing audit closure". The two `ResultSchema` exceptions (#1.1) were reverted to required during the same audit pass.
+- [x] **SPEC #A.2: spec+wire nullability audit closure** — Closed in commit `9a565bc` (PR #130). Updated fields across `src/schemas.ts` to `.nullish()` where TestRail servers can return `null` or `undefined` (including `is_completed`, `is_master`, `show_announcement`, optional timestamps, `refs`, and list wrappers). Follow-up narrowing is tracked under `SPEC #1.5`, `SPEC #2.1.15`, and `SPEC #2.1.16`.
 
 ### QA — recipe drift coverage
 
-- [x] **QA: snapshot test for recipe code blocks** — Shipped. `tests/skill-recipes.test.ts:51-69` pins three inline snapshot assertions (`toContain()`) covering per-test, per-case-in-run, and whole-run recipe examples. Detects drift in command names and flags. Sufficient for the immediate command-shape drift concern. The broader structural counterpart (every `ActionSpec` must have at least one `recipe-for:` binding) remains open under `QA: Gate C2 bidirectional` — that is a structural binding check, not a snapshot.
+- [x] **QA: snapshot test for recipe code blocks** — Shipped. `tests/skill-recipes.test.ts:51-69` asserts the command shapes and flags for per-test, per-case-in-run, and whole-run recipe examples. Structural binding coverage is tracked separately under `QA: Gate C2 bidirectional`.
 
 ### Security — verified shipped
 
-- [x] **SEC #7: TOCTOU symlink-follow on attachment upload** — Shipped. `src/cli/file-input.ts:98` opens filesystem paths with the `O_NOFOLLOW` flag; `fstatSync` at line 100 validates `isFile()` post-open. Symlink follow attacks are blocked at open-time, not via a separate `lstat` check. No TOCTOU window remains for the upload path. The sibling item SEC #5 (TOCTOU symlink-clobber on install target) is a distinct vector and stays open with a refined note.
+- [x] **SEC #7: TOCTOU symlink-follow on attachment upload** — Shipped. `src/cli/file-input.ts:98` opens filesystem paths with `O_NOFOLLOW` and calls `fstatSync` at line 100 to verify `isFile()` on the open descriptor. This eliminates the TOCTOU window on attachment uploads. `SEC #5` (symlink clobber on the skill installation target) remains tracked separately.
 
-- [x] **SEC #22: Prototype-chain property access in dispatch** — Shipped. `src/cli/dispatch.ts:339` accesses handlers via bracket notation on a plain object literal whose keys are explicitly enumerated (line 109+). No prototype walk; `__proto__` or `constructor` in user-controllable resource/action strings cannot reach a handler. `Object.keys()` iteration paths confirmed safe at lines 232 and 253. Originally raised speculatively; verified safe by construction.
+- [x] **SEC #22: Prototype-chain property access in dispatch** — Shipped. `src/cli/dispatch.ts:339` looks up handlers and resources without prototype traversal, and `Object.keys()` at lines 232 and 253 enumerates only own properties.
 
-- [x] **SEC #24: stdin wall-clock deadline (binary upload path)** — Shipped for the binary upload reader. `src/cli/file-input.ts:73-81` documents the wall-clock deadline; `resolveFromStdin` (line 146) enforces `STDIN_READ_TIMEOUT_MS` (30 s). Byte cap (`MAX_STDIN_UPLOAD_BYTES`, 100 MiB) + 30 s timeout are both active on the binary path. **Note:** the text-body / `--api-key-stdin` reader (`readBoundedStdin`) still has no wall-clock deadline; that gap is tracked elsewhere rather than under #24, which was scoped to the binary upload path.
+- [x] **SEC #24: stdin wall-clock deadline (binary upload path)** — Shipped for binary uploads. `src/cli/file-input.ts:73-81` and `resolveFromStdin` (line 146) enforce both `STDIN_READ_TIMEOUT_MS` (30 s) and `MAX_STDIN_UPLOAD_BYTES` (100 MiB). The synchronous text reader (`readBoundedStdin`) is tracked separately.
 
 ## BACKLOG sync — 2026-05-24 (Architecture + SPEC #A.1 full closure)
 
-This sync closes items verified shipped during the multi-agent BACKLOG audit on
-2026-05-24. Each `[x]` entry below was confirmed against current source
-(`src/cli/safe-write.ts`, `src/cli/handlers/attachment.ts`, `src/cli/handlers/bdd.ts`,
-`scripts/generate-mapping.js`, `docs/API-MAPPING.md`, PR #148 + #149 bodies) before
-being removed from `BACKLOG.md`. Note: SPEC #A.1 closed in full via PR #149
-during the reconcile window — what this sync originally planned as a phase-1
-split is now archived as a single full-closure entry.
+This sync archives items verified as shipped during the `BACKLOG.md` audit on 2026-05-24 against `src/cli/safe-write.ts`, `src/cli/handlers/attachment.ts`, `src/cli/handlers/bdd.ts`, `scripts/generate-mapping.js`, `docs/API-MAPPING.md`, and PRs #148 and #149.
 
-Audit methodology: 4 read-only Explore subagents in parallel, criterion C
-(shipped + stale-citation + scope-drift), structured YAML output with quoted
-source evidence. Findings without quotes were rejected during synthesis. One
-finding (SEC #28 classified `shipped`) was rejected because the agent's quote
-covered the per-instance `destroy()` but the BACKLOG concern is about the
-iteration site `cleanupAllClients` (`client-core.ts:176-180`), which still has
-no try/finally — SEC #28 remains open. Two scope-drift findings (ARCH #2 and
-ARCH #3, where file/line counts have roughly doubled since the bullets were
-written) are surfaced in the reconcile PR body for per-item review rather than
-auto-applied.
+Audit methodology: Four read-only subagents audited the codebase in parallel and required quoted source evidence for every finding. `SEC #28` remained open because `cleanupAllClients` (`client-core.ts:176-180`) still lacked a per-client `try/catch` block at the time of this audit.
 
 ### Architecture — verified shipped
 
-- [x] **ARCH #8: `scripts/generate-mapping.js` Phase 1 parser fix** — Shipped. `docs/API-MAPPING.md` now contains zero `—` cells (verified `grep -c "| — " docs/API-MAPPING.md → 0`). The fix landed via the alternative path documented in the original BACKLOG bullet's caveat: `@testrail` JSDoc tags on every module method + `apiEndpoint` field on every `ActionSpec`, cross-referenced by mapping-generator Gate C. All four gates (A, B, C, C2) now run in `pretest` and CI per CLAUDE.md §"API Coverage Matrix". CI drift gate is operational. The `buildEndpoint()` call-site detection mentioned in the bullet's primary clause was superseded by the tag-based approach and was not needed.
+- [x] **ARCH #8: `scripts/generate-mapping.js` Phase 1 parser fix** — Shipped. `docs/API-MAPPING.md` contains zero `—` cells (`grep -c "| — " docs/API-MAPPING.md` returns `0`). Every module method has a `@testrail` JSDoc tag and every `ActionSpec` has an `apiEndpoint` field, verified by Gate C in `generate-mapping.js`. All four gates (A, B, C, and C2) run in `pretest` and CI.
 
-- [x] **ARCH #11: Unify file-output writes across download handlers** — Shipped. `src/cli/safe-write.ts` exports both `safeWriteBinary(path, bytes, force)` and `safeWriteText(path, text, force)`. The only two download handlers in the codebase, `src/cli/handlers/attachment.ts` (`safeWriteBinary` import + call) and `src/cli/handlers/bdd.ts` (`safeWriteText` import + call), both consume these helpers — no raw `writeFileSync` remains in handlers. TOCTOU + symlink protection is inherited centrally; future download-style handlers adopt the same protection automatically by importing from `safe-write.js`.
+- [x] **ARCH #11: Unify file-output writes across download handlers** — Shipped. `src/cli/safe-write.ts` exports `safeWriteBinary(path, bytes, force)` and `safeWriteText(path, text, force)`. Both download handlers (`src/cli/handlers/attachment.ts` and `src/cli/handlers/bdd.ts`) use these helpers, centralizing TOCTOU and symlink protection.
 
 ### Spec Parity — full closure
 
-- [x] **SPEC #A.1: Split request/response schemas (full wave)** — Closed across PR #148 + PR #149. Phase 0 (PR #148, merged 2026-05-23): new `docs/SCHEMA-CONVENTIONS.md` (5-point convention reference) + JSDoc annotations on `ResultSchema`, `AddResultPayloadSchema`, and the bulk-results cluster. Phases 1–3 (PR #149, merged 2026-05-25): cross-domain audit across 9 domains reported **zero conflation violations** — codebase already compliant with the conventions, so no fix PRs were needed; regression guard landed as `tests/schema-conventions.test.ts` (3 static-analysis checks: no `.extend()` between payload/response, payload schemas don't reference response base schemas, payload schemas don't reference response sub-schemas). PR #149's audit surfaced one unrelated LOW finding (`TestSchema.labels` uses an inline duplicate of `LabelEmbeddedSchema` at `src/schemas.ts` — pure code dedup, not direction conflation) which is tracked separately.
+- [x] **SPEC #A.1: Split request/response schemas (full wave)** — Closed across PR #148 and PR #149. Phase 0 (PR #148, merged 2026-05-23) added `docs/SCHEMA-CONVENTIONS.md` and JSDoc annotations on `ResultSchema`, `AddResultPayloadSchema`, and bulk-result schemas. Phases 1–3 (PR #149, merged 2026-05-25) audited all 9 domains, confirmed zero request/response conflation violations, and added `tests/schema-conventions.test.ts` to enforce the separation statically.
 
 ## BACKLOG sync — 2026-05-26 (QA / Verification cluster — PRs #152–#156)
 
-This sync archives the full `## 🧪 QA / Verification` section from `BACKLOG.md`.
-All five items were confirmed shipped during the audit on 2026-05-26 by matching
-each bullet to its corresponding PR and commit. No items in the section were left
-open; the section heading was removed from `BACKLOG.md`.
+This sync archives all five items from the `## 🧪 QA / Verification` section of `BACKLOG.md`, verified against PRs #152–#156 on 2026-05-26.
 
 ### QA — verified shipped
 
-- [x] **QA: separate CI job for skill-generation drift** — Shipped in PR #152 (`ci: add gen-drift job for codemap/skill/mapping checks`). A dedicated `gen-drift` CI job now runs `npm run codemap:check`, `npm run skill:check`, and `npm run mapping:check` in a separate workflow step so drift in generated files (CODEMAP.md, skill/SKILL.md, docs/API-MAPPING.md) is caught immediately on every PR rather than only in the local `pretest` hook.
+- [x] **QA: separate CI job for skill-generation drift** — Shipped in PR #152 (`ci: add gen-drift job for codemap/skill/mapping checks`). A dedicated `gen-drift` CI job runs `npm run codemap:check`, `npm run skill:check`, and `npm run mapping:check` on every pull request.
 
-- [x] **QA: Gate C2 should be bidirectional (every ActionSpec must have at least one recipe-for binding); current one-way check allowed PR #114 to silently drop recipe #34 and PR #118 to drop C3+C5 recipes during rebase — both regressions only caught by ad-hoc audit** — Shipped in PR #153 (`test: make Gate C2 bidirectional (ACTIONS → recipe-for)`). Gate C2 in `scripts/generate-mapping.js` previously only verified that every `recipe-for:` tag in `skill/SKILL.md` referenced an existing `ACTIONS` entry (one-way: recipe → action). The bidirectional check now also verifies that every `ActionSpec` entry in `ACTIONS` has at least one `recipe-for:` tag, so a future PR that removes or renames an `ActionSpec` without updating the skill file fails the drift gate immediately.
+- [x] **QA: Make Gate C2 bidirectional.** The previous check missed recipe #34 lost in PR #114 and C3+C5 recipes lost in PR #118. Manual audits found both regressions. Shipped in PR #153 (`test: make Gate C2 bidirectional (ACTIONS → recipe-for)`). Gate C2 in `scripts/generate-mapping.js` now checks both directions. Every `recipe-for:` tag in `skill/SKILL.md` must reference a valid `ACTIONS` entry. Every `ActionSpec` in `ACTIONS` must have at least one `recipe-for:` tag.
 
-- [x] **QA: Add unit tests in `streaming-upload.test.ts` for mid-stream file descriptor errors (e.g., simulated `EBADF`) to verify upload cleanup** — Shipped in PR #154 (`test: add FD-error tests to streaming-upload (EBADF cleanup)`). New test cases in `tests/streaming-upload.test.ts` simulate `EBADF`-style file descriptor errors occurring mid-stream during multipart upload and assert that the upload cleanup path runs correctly (readable stream destroyed, no resource leaks). Verifies the existing cleanup logic rather than adding new production code.
+- [x] **QA: Test upload cleanup after file descriptor errors.** Shipped in PR #154 (`test: add FD-error tests to streaming-upload (EBADF cleanup)`). Tests in `tests/streaming-upload.test.ts` simulate mid-stream `EBADF` errors. They verify stream destruction and cleanup without resource leaks.
 
-- [x] **QA: CLI fuzz tests** — Shipped in PR #155 (`test: add fast-check fuzz tests for CLI arg parsing`). Property-based fuzz tests using `fast-check` added to the CLI test suite. The fuzzer generates arbitrary strings, numeric edge cases, and pathological inputs (empty strings, Unicode surrogates, deeply nested JSON, `__proto__` keys, excessively long values) for `parseId`, `optInt`, `resolveAuth`, and the dispatch path. Every fuzzer run confirms that invalid inputs consistently produce the expected error shape rather than panicking, corrupting state, or bypassing validation silently.
+- [x] **QA: CLI fuzz tests** — Shipped in PR #155 (`test: add fast-check fuzz tests for CLI arg parsing`). Added property-based fuzz tests using `fast-check` for `parseId`, `optInt`, `resolveAuth`, and `dispatch`. The tests cover arbitrary strings, numeric edge cases, Unicode surrogates, deeply nested JSON, and `__proto__` keys. They require structured errors without unhandled exceptions or validation bypasses.
 
-- [x] **QA: coverage delta enforcement (98% floor)** — Shipped in PR #156 (`test: enforce per-metric coverage floor (99/99/99/98)`). Vitest coverage thresholds in `vitest.config.ts` updated to enforce per-metric floors: lines 99%, statements 99%, functions 99%, branches 98%. CI fails the build if any metric drops below the floor, preventing coverage regressions from landing undetected. Previously the project tracked coverage in CLAUDE.md as a narrative "98%+" without a machine-checked enforcement gate.
-
+- [x] **QA: coverage delta enforcement (98% floor)** — Shipped in PR #156 (`test: enforce per-metric coverage floor (99/99/99/98)`). Configured `vitest.config.ts` to enforce minimum coverage thresholds of 99% lines, 99% statements, 99% functions, and 98% branches in CI.
 
 ## BACKLOG sync — 2026-05-27 (Architecture cluster — PRs #161–#164)
 
-This sync archives five Architecture items shipped during the 2026-05-27
-autonomous orchestrator session. Each item is confirmed against the corresponding
-PR merge commit on `main`.
+This sync archives five Architecture items shipped on 2026-05-27 in PRs #161–#164.
 
 ### Architecture — verified shipped
 
-- [x] **ARCH #9: Harmonize `--soft`/`--dry-run` check order across destructive handlers** — Shipped in PR #162 (`refactor(cli): extract runDestructive helper + Pattern B ordering (ARCH #9+#10)`). All destructive handlers now follow canonical Pattern B ordering: `parseId → dryRun (wins, emits preview) → softUnsupported-reject (opt-in via `opts.softUnsupported`) → yes-gate → execute`. The spread ordering fix (`ctx.out({ ...preview, dryRun: true, destructive: true })`) ensures dryRun/destructive flags cannot be overridden by preview keys. `attachment delete` gained `{ softUnsupported: true }` to complete the harmonisation.
+- [x] **ARCH #9: Harmonize `--soft`/`--dry-run` check order across destructive handlers** — Shipped in PR #162 (`refactor(cli): extract runDestructive helper + Pattern B ordering (ARCH #9+#10)`). All destructive handlers now execute checks in Pattern B order: `parseId` -> `dryRun` (emits preview) -> `softUnsupported` check (via `opts.softUnsupported`) -> `--yes` gate -> `execute`. Placed `dryRun: true, destructive: true` after `...preview` in `ctx.out({ ...preview, dryRun: true, destructive: true })` so preview keys cannot overwrite those flags, and enabled `{ softUnsupported: true }` on `attachment delete`.
 
-- [x] **ARCH #10: Extract `runDestructive` helper** — Shipped in PR #162 (same PR as ARCH #9). `src/cli/run-destructive.ts` is the single source of truth for the dry-run → `--yes` guard protocol. All 8+ destructive handlers now delegate to `runDestructive(ctx, preview, execute, opts?)`. 11 unit tests in `tests/run-destructive.test.ts` cover all branches including `softUnsupported`, the dryRun-wins-over-yes path, and the missing-yes-gate throw.
+- [x] **ARCH #10: Extract `runDestructive` helper** — Shipped in PR #162. Extracted `src/cli/run-destructive.ts` as the single implementation for the `--dry-run` and `--yes` guard sequence across all destructive handlers, with 11 unit tests in `tests/run-destructive.test.ts`.
 
-- [x] **ARCH #12: Type `HandlerArgs` path-param contracts (count check)** — Shipped in PR #163 (`fix(dispatch): validate path-param count before handler invocation (ARCH #12)`). `checkPathParamCount(spec, pathParams)` in `src/cli/dispatch.ts` is now hoisted before `--api-key-stdin` and `resolveAuth()` in `src/cli/index.ts`, so a wrong arg count fails immediately without reading stdin or checking credentials. The function returns `{ ok: false, error }` with a human-readable usage hint; `undefined` spec (unknown action) returns `ok: true` as a defensive no-op (the caller handles the unknown-action case).
+- [x] **ARCH #12: Type `HandlerArgs` path-param contracts (count check)** — Shipped in PR #163 (`fix(dispatch): validate path-param count before handler invocation (ARCH #12)`). `checkPathParamCount(spec, pathParams)` in `src/cli/dispatch.ts` runs before `--api-key-stdin` and `resolveAuth()` in `src/cli/index.ts`, rejecting invalid argument counts before reading `stdin` or checking credentials.
 
-- [x] **ARCH #13: Specialized Error Subclasses** — Shipped in PR #161 (`feat(errors): introduce specialized error subclasses (ARCH #13)`). `src/errors.ts` exports `TestRailRateLimitError` (429), `TestRailAuthError` (401/403), `TestRailNotFoundError` (404), and `TestRailTimeoutError` (408 + AbortError). Each extends `TestRailApiError` and is thrown from the matching status-code branch in `client-core.ts`. Body-read deadline timeouts surface as plain `TestRailApiError(0, 'Body read timeout')`, not `TestRailTimeoutError`. 25 tests in `tests/error-subclasses.test.ts` cover construction, instanceof chain, and dispatch across all four fetch sites.
+- [x] **ARCH #13: Specialized Error Subclasses** — Shipped in PR #161 (`feat(errors): introduce specialized error subclasses (ARCH #13)`). `src/errors.ts` exports `TestRailRateLimitError` (429), `TestRailAuthError` (401 and 403), `TestRailNotFoundError` (404), and `TestRailTimeoutError` (408 and `AbortError`), all extending `TestRailApiError`. Added 25 unit tests in `tests/error-subclasses.test.ts`.
 
-- [x] **ARCH #14: Injectable Fetch Adapter** — Shipped in PR #164 (`feat(config): injectable fetch adapter (ARCH #14)`). `TestRailConfig.fetch?: typeof globalThis.fetch` stores the override; `validateConfig()` rejects non-function values with `TestRailValidationError`. All four fetch sites in `client-core.ts` resolve at call time via `(this.fetchOverride ?? globalThis.fetch)(url, init)` — NOT at construction — preserving backward compatibility with tests that assign `global.fetch` after construction. 10 tests in `tests/injectable-fetch.test.ts` cover GET/POST/binary/requestText/requestMultipart paths, the globalThis fallback, error propagation, and the validation guard.
-
+- [x] **ARCH #14: Injectable Fetch Adapter** — Shipped in PR #164 (`feat(config): injectable fetch adapter (ARCH #14)`). Added `TestRailConfig.fetch?: typeof globalThis.fetch` and validated it in `validateConfig()`. All four fetch sites in `client-core.ts` call `(this.fetchOverride ?? globalThis.fetch)(url, init)` at request time. Added 10 unit tests in `tests/injectable-fetch.test.ts`.
 
 ## BACKLOG sync — 2026-05-27 (Security cluster — PRs #169–#171)
 
-This sync archives three Security items shipped during the 2026-05-27
-autonomous orchestrator session. Each item is confirmed against the corresponding
-PR merge commit on `main`.
+This sync archives two Security items shipped on 2026-05-27 in PRs #170 and #171.
 
 ### Security — verified shipped
 
-- [x] **SEC #29: `validateEntryId` accepts any non-empty string** — Shipped in PR #170 (`fix(security): enforce UUID format for plan entry IDs (SEC #29)`). `ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i` added to `src/client-core.ts` and `src/cli/ids.ts`. `validateEntryId` rejects non-UUID strings (including path-traversal sequences like `../../etc/passwd`); `parseEntryId` trims then validates. Three new endpoint regression tests cover `updatePlanEntry`, `deletePlanEntry`, and `addRunToPlanEntry`.
+- [x] **SEC #29: `validateEntryId` accepts any non-empty string** — Shipped in PR #170 (`fix(security): enforce UUID format for plan entry IDs (SEC #29)`). Added `ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i` to `src/client-core.ts` and `src/cli/ids.ts`. `validateEntryId` rejects non-UUID strings (such as `../../etc/passwd`), and `parseEntryId` trims and validates the input. Added regression tests for `updatePlanEntry`, `deletePlanEntry`, and `addRunToPlanEntry`.
 
-- [x] **SEC #30: Fortify `requestMultipart` against fd mutation and resource leaks** — Shipped in PR #171 (`fix(security): fortify requestMultipart against fd mutation and resource leaks (SEC #30)`). `file.fd = undefined` mutation replaced by `let fdToClose: number | undefined` local variable. On POSIX, original fd released early after `openAsBlob` obtains its own independent file description via `/dev/fd/<N>` or `/proc/self/fd/<N>` kernel-resolved symlinks. On non-POSIX, fd closed before `openAsBlob`; `finally` only closes if neither early-path ran. Immutability regression test added: verifies `descriptor.fd` unchanged after upload and that `closeSync` was called with the original fd on POSIX.
+- [x] **SEC #30: Fortify `requestMultipart` against fd mutation and resource leaks** — Shipped in PR #171 (`fix(security): fortify requestMultipart against fd mutation and resource leaks (SEC #30)`). Replaced `file.fd = undefined` mutation with a local `let fdToClose: number | undefined` variable. On POSIX systems, the client closes the original file descriptor immediately after `openAsBlob` opens `/dev/fd/<N>` or `/proc/self/fd/<N>`. On non-POSIX systems, the client closes the file descriptor before calling `openAsBlob`. Added an immutability regression test verifying that `descriptor.fd` is not mutated.
 
 ## BACKLOG sync — 2026-05-27 (Security cluster — PRs #166–#169, #173)
 
-This sync archives nine Security items confirmed shipped in earlier PRs during
-the 2026-05-27 orchestrator session. Items were verified against merge commits on
-`main` before removal from `BACKLOG.md`.
+This sync archives eleven Security items shipped in PRs #166–#169 and #173.
 
 ### Security — verified shipped
 
-- [x] **SEC #5: TOCTOU symlink-clobber on install target** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). `cli/install-skill.ts` now uses an atomic temp-then-rename flow: writes to a `.tmp` sibling, validates the symlink state, then renames atomically. The pre-rename `unlinkSync` path that allowed a symlink swap between the `targetExists` check and the unlink is eliminated.
+- [x] **SEC #5: TOCTOU symlink-clobber on install target** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). `cli/install-skill.ts` now writes to a temporary sibling file, verifies the symlink state, and renames the file atomically instead of calling `unlinkSync` before writing.
 
-- [x] **SEC #14: Mutable cached references let callers poison future reads** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `getCachedData()` now returns a deep-cloned copy; `setCachedData()` stores a clone. External mutations to the returned/stored reference can no longer poison subsequent cache reads.
+- [x] **SEC #14: Mutable cached references let callers poison future reads** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `getCachedData()` returns a deep clone and `setCachedData()` stores a deep clone, preventing callers from mutating cached entries.
 
-- [x] **SEC #15: IPv6 SSRF allowlist gaps** — Shipped in PR #167 (`fix(security): add missing IPv6 SSRF ranges (SEC #15)`). SSRF allowlist expanded to cover `fec0::/10` (deprecated site-local), `2002::/16` (6to4), and `64:ff9b::/96` (NAT64 well-known prefix). All three ranges added to `validatePublicHost` in `src/client-core.ts`.
+- [x] **SEC #15: IPv6 SSRF allowlist gaps** — Shipped in PR #166 / PR #167 (`fix(security): add missing IPv6 SSRF ranges (SEC #15)`). Added `fec0::/10` (deprecated site-local), `2002::/16` (6to4), and `64:ff9b::/96` (NAT64 well-known prefix) to `validatePublicHost` in `src/client-core.ts`.
 
-- [x] **SEC #17: `--data-file` follows symlinks with no size cap** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). `cli/file-input.ts` `resolveFromPath` now opens data-file paths with `O_NOFOLLOW`, fstat-validates `isFile()` post-open, and enforces `MAX_DATA_FILE_BYTES` (10 MiB) byte cap. Symlink-follow attacks and unbounded reads both blocked.
+- [x] **SEC #17: `--data-file` follows symlinks with no size cap** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). `resolveFromPath` in `cli/file-input.ts` opens `--data-file` paths with `O_NOFOLLOW`, validates `isFile()` with `fstatSync`, and enforces the `MAX_DATA_FILE_BYTES` (10 MiB) limit.
 
-- [x] **SEC #19: `mkdirSync` omits explicit mode under permissive umask** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). All `mkdirSync` calls in `cli/install-skill.ts` now pass `{ mode: 0o700 }` so directory permissions are pinned independent of the caller's umask.
+- [x] **SEC #19: `mkdirSync` omits explicit mode under permissive umask** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). All `mkdirSync` calls in `cli/install-skill.ts` pass `{ mode: 0o700 }` so directory permissions do not depend on the caller's `umask`.
 
-- [x] **SEC #20: `baseUrl` accepts embedded userinfo** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `validateConfig()` now rejects `baseUrl` values where `new URL(baseUrl).username` or `.password` is non-empty, throwing `TestRailValidationError`. Credential injection via `https://user:pass@host/` is blocked at construction.
+- [x] **SEC #20: `baseUrl` accepts embedded userinfo** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `validateConfig()` throws `TestRailValidationError` when `new URL(baseUrl).username` or `.password` is non-empty.
 
-- [x] **SEC #23: Identical GETs stampede into parallel upstream calls** — Shipped in PR #168 (`fix(security): coalesce concurrent identical GET requests (SEC #23)`). `request<T>()` now de-duplicates in-flight GET requests by endpoint key: a second call with the same cache-key while the first is pending receives the same Promise instead of issuing a parallel upstream call.
+- [x] **SEC #23: Identical GETs stampede into parallel upstream calls** — Shipped in PR #168 (`fix(security): coalesce concurrent identical GET requests (SEC #23)`). `request<T>()` coalesces concurrent in-flight GET requests by endpoint cache key so waiting callers share the pending promise.
 
-- [x] **SEC #26: `allowInsecure: true` opts out of HTTPS enforcement silently** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `console.warn('[testrail-api-client] WARNING: allowInsecure is enabled. HTTP transmits credentials in cleartext. Use HTTPS in production.')` emitted at construction time when `allowInsecure: true` and the baseUrl protocol is `http:`.
+- [x] **SEC #26: `allowInsecure: true` opts out of HTTPS enforcement silently** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). The constructor logs `console.warn('[testrail-api-client] WARNING: allowInsecure is enabled. HTTP transmits credentials in cleartext. Use HTTPS in production.')` when `allowInsecure: true` is used with an `http:` URL.
 
-- [x] **SEC #28: `destroy()` stale `activeClients` entries** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `destroy()` now wraps `stopCacheCleanup`/`clearCache` in `try` with `finally { this.auth = ''; activeClients.delete(this); }`. `cleanupAllClients()` wraps each `client.destroy()` in a per-client `try/catch` so a throwing client cannot abort the sweep.
+- [x] **SEC #28: `destroy()` stale `activeClients` entries** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `destroy()` wraps `stopCacheCleanup` and `clearCache` in a `try` block with `finally { this.auth = ''; activeClients.delete(this); }`, and `cleanupAllClients()` wraps each `client.destroy()` call in a `try/catch` block.
 
-- [x] **SEC #32: Safe-by-default root `.npmrc` configuration** — Shipped in PR #173 (`chore(security): supply-chain hardening — .npmrc + lockfile-lint (SEC #32, #33)`). Root `.npmrc` sets `ignore-scripts=true` (blocks install-time lifecycle hooks of sub-dependencies) and `registry=https://registry.npmjs.org/` (pins to official registry). Note: `allow-git=none` is not a real npm config option; git-URL protection is provided by `lockfile-lint` instead.
+- [x] **SEC #32: Safe-by-default root `.npmrc` configuration** — Shipped in PR #173 (`chore(security): supply-chain hardening — .npmrc + lockfile-lint (SEC #32, #33)`). The root `.npmrc` sets `ignore-scripts=true` and `registry=https://registry.npmjs.org/`.
 
-- [x] **SEC #33: Integrate `lockfile-lint` verification** — Shipped in PR #173 (`chore(security): supply-chain hardening — .npmrc + lockfile-lint (SEC #32, #33)`). `lockfile-lint` added as a devDependency. `.lockfile-lintrc` validates `package-lock.json` entries resolve through `https://registry.npmjs.org/` (HTTPS-only, npm registry only). `npm run lockfile-lint` wired into `pretest` and CI.
+- [x] **SEC #33: Integrate `lockfile-lint` verification** — Shipped in PR #173 (`chore(security): supply-chain hardening — .npmrc + lockfile-lint (SEC #32, #33)`). Added `lockfile-lint` as a devDependency with `.lockfile-lintrc` to verify that all `package-lock.json` entries use HTTPS URLs from `https://registry.npmjs.org/`. Wired `npm run lockfile-lint` into `pretest` and CI.
 
 ## BACKLOG sync — 2026-05-27 (continue.dev removal)
 
-- [x] **USER: continue.dev option should be fully removed from repo** — Shipped in this PR (`chore: remove continue.dev integration`). Deleted `.continue/rules/testrail.md` and the `.continue/` directory tree, `scripts/generate-continue-rules.js`, and `scripts/rules-content.d.mts`. Removed `renderContinueRules` from `scripts/rules-content.mjs`, the `continue-rules` and `continue-rules:check` npm scripts from `package.json`, the `continue-rules:check` step from `pretest`, the `.continue/rules/testrail.md` entry from `.prettierignore`, the "### Continue (continue.dev)" section from `README.md`, and the `renderContinueRules` describe block from `tests/generate-rules.test.ts`. `AGENTS.md` regenerated without the `npm run continue-rules` command listing.
+- [x] **USER: continue.dev option should be fully removed from repo** — Shipped in `chore: remove continue.dev integration`. Deleted `.continue/rules/testrail.md`, the `.continue/` directory, `scripts/generate-continue-rules.js`, and `scripts/rules-content.d.mts`. Removed `renderContinueRules` from `scripts/rules-content.mjs` and its test block from `tests/generate-rules.test.ts`. Removed `continue-rules` and `continue-rules:check` from `package.json` and `pretest`. Removed the rule path from `.prettierignore` and the Continue section from `README.md`. Regenerated `AGENTS.md`.
 
 ## BACKLOG sync — 2026-05-27 (scripts/ TypeScript conversion)
 
-- [x] **USER: all scripts from `./scripts/` folder should be written in TypeScript** — Shipped in this PR (`refactor(scripts): convert scripts/ from JavaScript to TypeScript`). Converted all 7 generator scripts from JavaScript (`.js`/`.mjs`) to TypeScript (`.ts`) with `tsx` as the runner. New files: `generate-agents-md.ts`, `generate-codemap.ts`, `generate-mapping.ts`, `generate-skill.ts`, `mapping-renderer.ts`, `rules-content.ts`, `skill-renderer.ts`. Old JS files deleted. `package.json` scripts updated to use `tsx`. `tsconfig.json` extended to include `scripts/**/*`. All ESLint constraints honored (`no-unsafe-assignment`, `no-explicit-any`, `strict-boolean-expressions`, `exactOptionalPropertyTypes`, etc.). All 2945 tests pass; 0 type errors; 0 lint errors.
+- [x] **USER: all scripts from `./scripts/` folder should be written in TypeScript** — Shipped in `refactor(scripts): convert scripts/ from JavaScript to TypeScript`. Converted all 7 generator scripts in `scripts/` from JavaScript (`.js`/`.mjs`) to TypeScript (`.ts`) executed via `tsx`: `generate-agents-md.ts`, `generate-codemap.ts`, `generate-mapping.ts`, `generate-skill.ts`, `mapping-renderer.ts`, `rules-content.ts`, and `skill-renderer.ts`. Deleted the old JavaScript files, updated `package.json` scripts to use `tsx`, and added `scripts/**/*` to `tsconfig.json`.
 
 ## BACKLOG sync — 2026-05-29 (Architecture cluster — PRs #188–#190)
 
-This sync archives three Architecture items shipped in the PR-C/D/E refactor
-batch. Each is confirmed against the current state of `main`.
+This sync archives three Architecture items shipped in PRs #188–#190.
 
 ### Architecture — verified shipped
 
-- [x] **ARCH #1: Extract `HttpPipeline` seam** — Shipped in PR-E (#188, `refactor(arch): unify HTTP pipeline behind single request(spec)`). The five historical entry points (`request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed`) collapsed into one `request<T>(spec: RequestSpec<T>)` that builds a `PipelineSpec` and drives a shared `executePipeline()` (`src/client-core.ts`). `RequestSpec` (`src/http-pipeline-types.ts`) carries method, endpoint, optional body (`json` / `multipart`), optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`), and a named `retry` policy (`src/retry-policy.ts`). Cache namespaces, the GET/write retry asymmetry, and upload no-retry are preserved exactly. ARCH #1 phases 3–4 landed earlier (PRs #181, #182); this PR completed the unification.
+- [x] **ARCH #1: Extract `HttpPipeline` seam** — Shipped in PR #188 (`refactor(arch): unify HTTP pipeline behind single request(spec)`). Consolidated `request`, `requestText`, `requestMultipart`, `requestBinary`, and `requestParsed` into a single `request<T>(spec: RequestSpec<T>)` method backed by `executePipeline()` in `src/client-core.ts`. `RequestSpec` (`src/http-pipeline-types.ts`) defines the HTTP method, endpoint, optional `json` or `multipart` body, optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`), and named `retry` policy (`src/retry-policy.ts`). Earlier phases shipped in PRs #181 and #182.
 
-- [x] **ARCH #2: Write-handler factory** — Shipped in PR-D (#190, `refactor(cli): collapse write handlers into createWriteHandler factory`). `src/cli/write-handler-factory.ts` exposes `createWriteHandler` and `createDestructiveHandler`; the per-file `*-write.ts` handlers are now small specs over the shared skeleton (parse path params, resolve+validate body, branch on `--dry-run`, call the client, emit). `run-destructive.ts` was removed (its protocol is now inside `createDestructiveHandler`). Genuinely irregular handlers (`case delete-bulk`, attachment uploads, `group add`) stay hand-written.
+- [x] **ARCH #2: Write-handler factory** — Shipped in PR #190 (`refactor(cli): collapse write handlers into createWriteHandler factory`). `src/cli/write-handler-factory.ts` exports `createWriteHandler` and `createDestructiveHandler` to handle path parameter parsing, body validation, `--dry-run` previews, client invocation, and output formatting. Removed `run-destructive.ts` after moving its logic into `createDestructiveHandler`. Specialized handlers (`case delete-bulk`, attachment uploads, and `group add`) remain custom functions.
 
-- [x] **ARCH #3: Promote `ACTIONS` to single source of truth** — Shipped in PR-C (#189, `refactor(cli): derive HANDLERS and HELP from ACTIONS`). Each `ActionSpec` now carries its `handler`; `dispatch.ts` derives the `HANDLERS` map and `RESOURCES` buckets from `ACTIONS`, and `src/cli/help.ts` generates the `--help` text from `ACTIONS`. Adding an action is a one-line metadata edit, enforced by the TypeScript compiler rather than a drift test. Related: PR-B (#184) split `schemas.ts` and `cli/metadata.ts` by domain into `src/schemas/*.ts` and `src/cli/metadata/*.ts` (barrels preserve import paths); PR-A (#183) removed dead error subclasses; PR #191 removed all rule suppressions from `src/`.
+- [x] **ARCH #3: Promote `ACTIONS` to single source of truth** — Shipped in PR #189 (`refactor(cli): derive HANDLERS and HELP from ACTIONS`). Each `ActionSpec` now includes its `handler`. `dispatch.ts` derives `HANDLERS` and `RESOURCES` from `ACTIONS`, and `src/cli/help.ts` generates the `--help` output from `ACTIONS`. Related PR #184 split `schemas.ts` and `cli/metadata.ts` into domain files under `src/schemas/*.ts` and `src/cli/metadata/*.ts`. PR #183 removed unused error subclasses. PR #191 removed lint rule suppressions in `src/`.
 
 ## BACKLOG sync — 2026-05-30 (stale-item cleanup — verified-shipped sweep)
 
-This sync removes four items from `BACKLOG.md` that were already shipped on
-`main` before today's orchestrator session opened. Each was carried in the
-active backlog because the closure sweep that should have happened with the
-merging PR was skipped. Evidence for each closure is the merge commit on
-`main` and (where applicable) the GitHub PR record. No new code shipped; this
-is a metadata reconcile only.
+This sync archives four items from `BACKLOG.md` that were already merged into `main`.
 
 ### From User — verified shipped
 
-- [x] **USER: merge `tsconfig.eslint.json` into `tsconfig.json` and remove `tsconfig.eslint.json`. all dev scripts should use `tsconfig.json`** — Shipped in PR #178 (`chore: merge tsconfig.eslint.json into tsconfig.json`, merged 2026-05-27, commit `d72f48b`). `tsconfig.eslint.json` no longer exists in the tree; the only remaining tsconfigs are `tsconfig.json` (used by `typecheck`, `lint`, `test`, and the `codemap`/`mapping`/`agents-md`/`skill` generators via `tsx`) and `tsconfig.prod.json` (extends the base, flips `noEmit: false` + sets `outDir: ./dist` + `rootDir: ./src`, used only by `npm run build`). Every dev script in `package.json` now resolves through `tsconfig.json`.
+- [x] **USER: merge `tsconfig.eslint.json` into `tsconfig.json` and remove `tsconfig.eslint.json`. all dev scripts should use `tsconfig.json`** — Shipped in PR #178 (`chore: merge tsconfig.eslint.json into tsconfig.json`, merged 2026-05-27, commit `d72f48b`). Deleted `tsconfig.eslint.json`. All development scripts (`typecheck`, `lint`, `test`, and the `tsx` generators) now use `tsconfig.json`, while `npm run build` uses `tsconfig.prod.json`.
 
 ### Security — verified shipped
 
-- [x] **SEC #31: Custom DNS Server / Host Mappings in Config** — Shipped in PR #172 (`feat(security): injectable dnsLookup for SSRF validation in restricted DNS environments`, merged 2026-05-27). `TestRailConfig` now accepts an injectable DNS resolver so callers in restricted DNS environments can run the SSRF guard against their own resolver mapping without giving up the public-IP check. Closes the carve-out that originally listed this as "PR #172 open" in BACKLOG.
+- [x] **SEC #31: Custom DNS Server / Host Mappings in Config** — Shipped in PR #172 (`feat(security): injectable dnsLookup for SSRF validation in restricted DNS environments`, merged 2026-05-27). `TestRailConfig` accepts a custom `dnsLookup` function so callers in restricted DNS environments can use custom DNS resolution while still enforcing SSRF public-IP validation.
 
-- [x] **SEC #34: Automated Trusted Publishing (OIDC) & Provenance Attestations** — Shipped in PR #174 (`ci(security): OIDC trusted publishing + provenance attestations`, merged 2026-05-27). `.github/workflows/publish.yml` uses GitHub OIDC (`id-token: write`) to mint a Trusted Publisher token against npm and publishes with `--provenance`. The persistent `NPM_TOKEN` secret is no longer required for releases; each published tarball carries a cryptographic build attestation linked to the originating GitHub Actions runner.
+- [x] **SEC #34: Automated Trusted Publishing (OIDC) & Provenance Attestations** — Shipped in PR #174 (`ci(security): OIDC trusted publishing + provenance attestations`, merged 2026-05-27). `.github/workflows/publish.yml` uses GitHub OIDC (`id-token: write`) and `npm publish --provenance` instead of a static `NPM_TOKEN` secret.
 
 ### Architecture — verified shipped
 
-- [x] **ARCH #7: Eliminate hand-written 1517-line facade (`client.ts`)** — Shipped in PR-F (#193, `refactor(client)!: collapse flat facade; namespaced modules are the only access path`, merged 2026-05-29, commit `21fc48f`). The 131 flat `async` wrapper methods on `TestRailClient` are gone — `src/client.ts` is now **76 LOC** of module composition only (18 `public readonly` namespaced fields, zero `async` methods). Callers reach every endpoint through the namespaced surface (`client.projects.getProject(id)`, `client.cases.addCase(...)`, etc.). The ARCHITECTURE.md §3.2 contradiction that motivated re-opening this item is resolved: the flat facade is no longer the load-bearing surface, so the JSDoc/types argument is moot. Confirmed by `wc -l src/client.ts → 76` and `grep -c '^\s*\(public\s\+\)\?async\s' src/client.ts → 0`.
+- [x] **ARCH #7: Eliminate hand-written 1517-line facade (`client.ts`)** — Shipped in PR #193 (`refactor(client)!: collapse flat facade; namespaced modules are the only access path`, merged 2026-05-29, commit `21fc48f`). Removed all 131 flat wrapper methods from `TestRailClient`. `src/client.ts` is now 76 lines and exposes 18 `public readonly` domain modules (such as `client.projects.getProject(id)` and `client.cases.addCase(...)`).
 
 ## BACKLOG sync — 2026-05-30 (ARCH #6 full closure — PRs #197, #198)
 
-ARCH #6 shipped in two phases per the orchestrator's "isolate risky
-migrations" rule. Phase 1 was a non-breaking 5.1.0 internal refactor;
-phase 2 is a BREAKING 6.0.0 removal. Both halves merged on 2026-05-30.
+ARCH #6 shipped in two phases on 2026-05-30: Phase 1 was a backward-compatible refactor in v5.1.0, and Phase 2 removed the deprecated delegates in v6.0.0.
 
 ### Architecture — verified shipped
 
-- [x] **ARCH #6: Extract pure helpers (`validateId` / `validateEntryId` / `validatePaginationParams` / `buildEndpoint`) from `TestRailClientCore` into standalone modules** —
-  Shipped in PR #197 (`refactor: extract validation/URL helpers to leaf modules (ARCH #6 phase 1)`, merged 2026-05-30, squash commit `6c80b9e`, version `5.1.0`) + PR #198 (`refactor!: remove validation/URL delegate methods (ARCH #6 phase 2)`, version `6.0.0`).
-  Phase 1 created two leaf modules — `src/validation.ts` (exports `validateId`, `validateEntryId`, `validatePaginationParams`, and the shared `ENTRY_ID_RE` UUID regex from SEC #29) and `src/url.ts` (exports `buildEndpoint`) — and migrated all 158 internal call sites across 18 `src/modules/*.ts` files from `this.client.<helper>(...)` to direct leaf-module imports. The 4 original public methods on `TestRailClientCore` became `@deprecated` one-line delegates so 5.x callers kept working. `src/cli/ids.ts` switched its duplicated `ENTRY_ID_RE` const to importing the exported one; the apologetic "kept in sync to avoid pulling the HTTP layer into the CLI layer" comment is gone because `validation.ts` is a leaf module that only imports `errors.ts` (and `url.ts` has zero imports). Phase 2 removes the 4 delegates and the supporting `tests/client-delegates.test.ts` (a coverage pin added in 5.1.0). Two independent Opus reviewers verified phase 1 (code-quality + architecture/security angles); both APPROVE_WITH_NITS, zero blocking. The closure here resolves the BACKLOG bullet's two stated pains in one go: (a) "helpers don't read `this`" — they're now pure functions in leaf modules; (b) "would also let `cli/ids.ts:parseId` reuse the rule instead of duplicating it" — the regex is the same exported constant in both call paths.
+- [x] **ARCH #6: Move pure helpers out of `TestRailClientCore`.** The helpers are `validateId`, `validateEntryId`, `validatePaginationParams`, and `buildEndpoint`. Phase 1 shipped in PR #197 (`refactor: extract validation/URL helpers to leaf modules (ARCH #6 phase 1)`). It merged on 2026-05-30 as commit `6c80b9e` for v5.1.0. Phase 2 shipped in PR #198 (`refactor!: remove validation/URL delegate methods (ARCH #6 phase 2)`) for v6.0.0.
+  Phase 1 created `src/validation.ts` with `validateId`, `validateEntryId`, `validatePaginationParams`, and `ENTRY_ID_RE`. It created `src/url.ts` with `buildEndpoint`. All 158 internal call sites across 18 `src/modules/*.ts` files now import those functions directly. `src/cli/ids.ts` also imports `ENTRY_ID_RE` from `src/validation.ts`. Phase 2 removed the four deprecated delegate methods from `TestRailClientCore` and deleted `tests/client-delegates.test.ts`.
 
 - [x] **ARCH #8: Derive the retry policy from the request's shape** —
-  First of the seven-item deepening slate from the 2026-09-18 architecture review. `RequestSpec.retry` and `RequestSpec.bypassCache` are gone; `deriveRetryPolicy()` in `src/retry-policy.ts` selects the policy from `body.kind` + `responseKind` + `intent`, and a new `RequestIntent` (`'side-effecting-read' | 'fresh-read'`) carries the two cases the request's shape cannot express. Closes a latent duplicate-write hazard: a multipart POST that omitted `retry` inherited `'full'` and retried 429, storing the attachment twice. That combination is no longer spellable, and a new upload endpoint inherits the guarantee without its author knowing the rule exists. Deletes six hand-typed `retry: 'none'` declarations (`attachments.ts` ×5, `bdd.ts`), one `retry: 'binaryGet'`, and the verbatim-duplicated `retry: 'rateLimitOnly'` + `bypassCache: true` pair with its duplicated four-line comment in `reports.ts` ×2. Proved red→green before implementing: the `request()`-level multipart case was written first — without the `deriveRetryPolicy` import the committed file now carries — and run against unmodified `main`, where it failed with `promise resolved "{ id: 7 }" instead of rejecting`, i.e. the 429 was retried and the upload repeated. The derivation, the pure-function tests and the identity assertions were added after. Multipart is checked before `intent` in the derivation so a body carrying both cannot resolve to a retrying policy. `getRetryPolicy` and its exhaustive `tests/retry-policy.test.ts` are unchanged and now guard something a caller cannot bypass. `CONTEXT.md` created here, seeded with *request intent*, *side-effecting read* and *fresh read*.
+  Removed `RequestSpec.retry` and `RequestSpec.bypassCache`. `deriveRetryPolicy()` in `src/retry-policy.ts` now selects the retry policy from `body.kind`, `responseKind`, and `intent` (`RequestIntent`: `'side-effecting-read' | 'fresh-read'`). Multipart uploads are checked before `intent` so they never retry, preventing duplicate attachment uploads on 429 responses. Removed six manual `retry: 'none'` declarations (`attachments.ts` and `bdd.ts`), one `retry: 'binaryGet'` declaration, and the duplicate `retry: 'rateLimitOnly'` and `bypassCache: true` declarations in `reports.ts`. Created `CONTEXT.md` to document *request intent*, *side-effecting read*, and *fresh read*.
 
-- [x] **ARCH #9: One module owns the upload source** —
-  Second of the seven-item deepening slate. `src/upload-lifetime.ts` became `src/upload-source.ts` (renamed via `git mv`, history preserved) and absorbed `isFilePathInput`, the platform path mapping, `openAsBlob`, the FormData append, and all three descriptor close sites from `client-core.ts` — 108 lines out of the biggest file in the repo, which now delegates in one line from `buildPipelineBody`. `MULTIPART_FIELD_NAME` stops being a cross-module agreement because the same module appends and wraps that part; it stays exported only because two tests drive `ownUploadStreams` with a hand-built FormData. The three close sites collapse to one idempotent `releaseDescriptor()` that clears the latch before closing, so a double release cannot close a descriptor number the process has since reused. `build()` is now single-use and a second call throws. That last part was proved against the old builder with a real TOCTOU repro: open an fd, build once (reads `ORIGINAL` through `/dev/fd/<N>`), cleanup, rename an attacker file over the path, build again — the old code silently fell back to `file.path` and read `SWAPPED-BY-ATTACKER`, forfeiting the exact protection the descriptor exists to provide. Unreachable in production because a multipart body never retries, which ARCH #8 made structural rather than conventional — the throw pins the constraint instead of relying on that. New `tests/upload-source.test.ts` (7 cases) tests the platform branch, release, double-release, build failure and in-memory inputs directly, with no fetch mock and no `process.platform` patching.
+- [x] **ARCH #9: One module owns the upload source.** Renamed `src/upload-lifetime.ts` to `src/upload-source.ts`. Moved `isFilePathInput`, platform path mapping, `openAsBlob`, `FormData` construction, and descriptor cleanup out of `client-core.ts`. `releaseDescriptor()` is idempotent and clears the descriptor reference before closing so it cannot close a reused file descriptor number. `build()` is single-use and throws on a second call, preventing TOCTOU fallback to `file.path`. Added 7 unit tests in `tests/upload-source.test.ts`.
 
-- [x] **ARCH #10: Give the request budget a module** —
-  Third of the seven-item deepening slate. "How long may this take" was four `RequestSpec` fields (`timeout`, `bodyTimeout`, `deadlineAt`, `remainingTimeMs`) plus ~36 inline arithmetic sites in `client-core.ts`, the same `408` constructed six times, the header allowance re-derived in both the happy path and the catch, and two independent `clipBodyTimeout` calls for one request. `src/request-budget.ts` now owns absolute time, phase clipping, promise racing, retry delays, and the single 408 — created once in `request()` and shared by every retry, so time spent is never refunded. `PipelineSpec` carries one `budget` instead of `deadlineAt`, and `remainingDeadlineMs` / `clipBodyTimeout` / `withDeadline` / `waitForRetryDelay` are gone from the core. An unbounded budget (no aggregate deadline — every ordinary call) answers with the caller's configured values and never raises. **`remainingTimeMs` deleted**: pagination always passed `deadlineAt` alongside it, so the absolute value won at every production call site and the relative path was reachable only from its own tests; it is gone from `RequestSpec`, `PaginationRequest`, and the `paginated-list` transport, while `pagination.ts` keeps its local for the `max_duration` check. **Also closed the upload-descriptor leak** found reviewing ARCH #9: the formdata `BodyShape` gained an idempotent `release()`, and `executePipeline` now wraps `attemptPipeline` so a failure in the preamble — destroyed client, DNS/SSRF rejection, spent budget, all of which throw outside the inner `try/finally` — releases a source that was never built. Verified with the reviewer's own repro, which flipped from `descriptor still open after failure? true` to `false`. New `tests/request-budget.test.ts` (16 cases) drives every rule through an injected clock with no fetch mock; the deadline regression suite keeps its behavioural tests, converted to the absolute deadline production actually uses, and drops the three that existed only to pin relative-vs-absolute precedence.
+- [x] **ARCH #10: Give the request budget a module.** Created `src/request-budget.ts` to manage deadlines, phase timeout limits, promise racing, retry delays, and 408 errors across retries. `PipelineSpec` now carries a single `budget` object instead of `deadlineAt`, and `remainingTimeMs` was removed from `RequestSpec`, `PaginationRequest`, and the paginated-list transport. Added idempotent `BodyShape.release()` and wrapped `attemptPipeline` in `executePipeline`. Open upload descriptors now close after preamble failures: destroyed clients, DNS/SSRF rejection, or expired budgets. Added 16 unit tests in `tests/request-budget.test.ts`.
 
-- [x] **ARCH #11: Give `main()` an interface** —
-  Fourth of the seven-item deepening slate. `main()` was not exported and ran at module scope, so the CLI's only interface was importing a module for its side effect. Every recently-fixed CLI bug lived in that wiring — stdin detection (#221/#230) and a client-constructor argument (#281/#283) — because a handler unit test injects a pre-built client and never reaches it. `runCli(runtime)` is now exported and takes a `CliRuntime`: argv, env, stdout/stderr writers, an stdin reader with its own `isTTY`, and a `createClient` factory. `src/cli.ts` grew from a 2-line side-effect import into the binary entrypoint that builds the real runtime, assigns `process.exitCode`, and — critically — sets `registerProcessHandlers: true` in its `createClient`, so a test calling `runCli` never installs `exit`/`SIGINT`/`SIGTERM` listeners that ARCHITECTURE.md §2.6 documents as unremovable. Run-on-import is preserved for the `bin` and the `./cli` subpath export. Sixteen hand-written `err(...); return 1;` pairs — including one `return 2` that read no differently from its neighbours — collapse into `return fail(message, exitCode?)` against named `EXIT_SUCCESS`/`EXIT_FAILURE`/`EXIT_ARGV_INVALID` constants, so the exit code is a property of the failure. The `tests/cli.test.ts` harness drops `vi.resetModules()`, the `await import('../src/cli.js')`, the 15-second `vi.waitFor` poll of `process.exitCode`, and the module-level `vi.mock('../src/cli/stdin.js')` with its fd-sniffing delegation (`body.ts` only ever reads real file descriptors, so the real reader is fine there). **The full suite went from ~25s to ~8s**, and `tests/cli.test.ts` alone from a 15s-per-entrypoint-test poll to 7.7s for all 781. Deliberately not closed here: `emitStdoutAck` and the install/uninstall-skill meta-commands still write to `process.stdout` directly, so `runCli` cannot yet claim every byte goes through the runtime — the JSDoc says so plainly and the harness captures both sources until ARCH #13 routes them. `process.platform` and the diagnostic exit listener also still touch `process`; ARCH #12 owns both.
+- [x] **ARCH #11: Give `main()` an interface.** Exported `runCli(runtime)`, which accepts `CliRuntime`. Earlier stdin defects (#221 and #230) and client-constructor defects (#281 and #283) occurred in untested entrypoint code. The object supplies `argv`, `env`, output writers, a stdin reader with `isTTY`, and a `createClient` factory. `src/cli.ts` builds the production runtime, sets `process.exitCode`, and passes `registerProcessHandlers: true` in `createClient` so tests calling `runCli` never register global `exit`, `SIGINT`, or `SIGTERM` listeners. Consolidated error returns into `fail(message, exitCode?)` using `EXIT_SUCCESS`, `EXIT_FAILURE`, and `EXIT_ARGV_INVALID`. Simplified `tests/cli.test.ts` to call `runCli` directly without module resets or polling, reducing full test suite execution from ~25 s to ~8 s.
 
 - [x] **ARCH #12: Let diagnostics own its own lifecycle** —
-  Fifth of the seven-item deepening slate. `src/cli/diagnostics.ts` was already deep inside — mkdtemp → `O_DIRECTORY|O_NOFOLLOW` → fchmod → ACL strip → `O_EXCL` → hard-link publish, with inode identity re-checked at every step — but exposed two free functions plus a six-step protocol the caller had to execute in the right order: reject the platform, skip under `--dry-run`, reserve only after auth, register an `exit` listener and remember to remove it inside the handler, write on failure while swallowing any throw, then finish in a `finally` and pick one of two warning strings. Getting any step wrong was a security or a hang bug, and the ordering lived only in prose plus ~50 lines of comments in `runCli`. `withDiagnostics(request, deps, work)` now owns all of it; `runCli` sheds its three mutable flags (`diagnostic`, `succeeded`, `handlerStarted`) and hands over a request and a thunk. `markDispatched()` replaces the `handlerStarted` flag, so the record's `operationOutcome` is set by the one place that knows. The byte-identical Windows refusal sentence — previously duplicated between `diagnostics.ts` and the CLI's early gate — is now the single `DIAGNOSTIC_UNSUPPORTED_PLATFORM` constant, surfaced through `diagnosticSupportError(platform)` so the CLI can still refuse *early*, before stdin or credentials, without owning the reason. `CliRuntime` gained `platform` and a `lifetime` port; `src/cli.ts` supplies the real ones, and tests supply fakes, so no test registers an `exit` listener that nothing can remove. Two regressions were caught and fixed during the restructure: errors thrown before the scope (timeout parsing) and by the reservation itself stopped being reported, because only the scope's catch reported. Timeout parsing moved to the same `fail()` idiom as every other argv refusal — preserving its original position ahead of any reservation — and reservation failures moved inside the scope's `try`. New `tests/cli-diagnostic-scope.test.ts` (10 cases) asserts ordering, outcome classification, dry-run/no-flag suppression, reservation refusal and the write-failure warning directly in 344ms, where all of it previously needed a full CLI invocation; four mutants (dropped listener removal, dropped failure reporting, always-dispatched, reserve-during-dry-run) all die.
-- [x] **ARCH #13: Output ownership** —
-  Sixth of the seven-item deepening slate. `runCli` took a `CliRuntime` in ARCH #11 but could not claim to own its output: four collaborators wrote straight to the process streams — `emitStdoutAck` (the `--out -` download ack), the `install-skill` / `uninstall-skill` meta-commands, the schema-mismatch reporter, and `run watch`'s status line. A caller embedding the CLI got some output through the writers it supplied and the rest on the terminal, and `tests/cli.test.ts` had to spy **both** process streams to see everything, which meant `expect(stderr).toBe('')` could pass for a path that wrote straight to the terminal. `createOutput` now owns every byte: its writers are required rather than defaulting to `process.stdout`/`process.stderr`, and the interface grew `outRaw` (verbatim quiet-aware stdout) and `outPayload(payload, ack)` (payload to stdout, JSON ack to stderr, TTY warning). `HandlerContext`'s writers became non-optional, so no handler has to cope with not being handed one. `install-skill`, `uninstall-skill` and the mismatch reporter each shed a private copy of the `--quiet` rule — `createOutput` is the only place it is decided now. Two bugs fell out of the restructure: **`run watch` read `--quiet` from `process.argv`**, not the argv `runCli` was handed, so an embedded caller passing `--quiet` still got status lines and under test the runner's own argv decided the behaviour (its two `--quiet` tests had been pushing `--quiet` onto the test process's argv to compensate); and the `--out -` TTY warning is now **derived from the payload type** rather than declared at the call site, so `attachment get` cannot forget it and `bdd get --out -` cannot emit one about its own Gherkin. One rule bends on purpose: `outPayload` does not quiet-gate the payload (`--out -` is an explicit request for those bytes) but does gate its ack. ESLint's `no-restricted-properties` now rejects `process.stdout`, `process.stderr` and `process.argv` anywhere in `src/` except `src/cli.ts` — a tripwire that catches the direct form, `process['stdout']` and destructuring, but not aliasing or `globalThis.process`, which is why `tests/cli-output-ownership.test.ts` is the behavioural backstop: it drives the four formerly-bypassing paths and asserts both that content arrived through the injected writers **and** that the process streams stayed untouched. `tests/cli.test.ts` dropped its dual-stream spies as a result. `HandlerContext.actionSpec` also widened from `Pick<ActionSpec, 'resource' | 'action' | 'softMode'>` to the full `ActionSpec` — `runCli` always passed the whole object and only the type narrowed it. Four mutants (TTY check disabled, ack routed to stdout, `outRaw` ignoring `--quiet`, `run watch` writing to `process.stderr` directly) all die.
-- [x] **ARCH #4: Endpoint registry — shipped reduced, charter recorded as unreachable** —
-  Last of the seven-item deepening slate, and the one that did not ship as chartered. The charter read "one runtime declaration per endpoint read by the SDK method, `ActionSpec` and the pagination descriptor; gates D/E become type constraints." A nine-agent design study (five readers over the binding channels, three independent interface designs, one judge that verified type-level claims against the real source) concluded the charter is unreachable and that two thirds of it should not be built. **Unreachable because** `docs/testrail-endpoints.json` must stay hand-curated — it records what TestRail *documents*, independent of what this client implements — so a registry in `src/` would be a second hand-maintained copy still needing a runtime comparison: one channel swapped for another, not eliminated. **Gate D deliberately not typed:** its value is catching the author who added an SDK method and forgot the CLI layer, and a type-level version gives that author no error at all — it only fires for someone who remembered the registry and forgot the CLI. Two candidate designs had load-bearing claims falsified by running them: a proposal to delete `snapshotPreparedRequest`'s `allowedOperations` runtime check on the grounds that a type replaced it compiles clean when `prepare()` returns a wrong-but-real operation (inference takes candidates from the callback return position too), and an `sdk:` back-reference mapped type admitted `'destroy.name'` and `'request.bind'` because functions extend `object`. **What did ship:** (1) the 29 `.slice(a, b)` calls composing `ACTIONS` are gone — each carried a comment naming the entries it covered, nothing checked the comment against the bounds, and nothing could, since `.slice()` on a tuple returns the union of every element regardless of the numbers; each resource now exports its reads and writes separately, verified byte-neutral by comparing the 134-entry order element-by-element against a pre-change snapshot; (2) `ActionSpec.pagination` and `PaginationSpec` are deleted — 24 specs each restated a contract copied from the JSON, and gate E re-read both files every run to confirm the copies matched; `src/cli/metadata/paginated-endpoints.ts` now holds it keyed by `apiEndpoint` and the CLI looks it up, so the disagreement is not spellable and gate E retires (six drift gates become five). Replaced by `_PaginatedEndpointsAreSurfaced` (compile-time) **plus** a runtime test asserting the same fact — not redundant, because the type assertion passes vacuously if `ActionEndpoint` widens to `string`; mutation-verified that widening an array silences the type check while the runtime test still fails. `_ActionEndpointsAreLiterals` guards the widening and carries a comment saying not to delete it. **Three silent-drop paths closed in `scripts/action-metadata-parser.ts`,** all found during the work rather than predicted: it unwrapped `as` but not `satisfies`, so the new array shape made `collectActionsFromSource` return `[]` and gates C, C2-reverse and D would have passed while checking nothing (only gate E failed loudly, by luck of iterating endpoints rather than actions); an unreadable initializer and a non-literal `resource`/`action`/`apiEndpoint` were dropped with no signal; and an array spread element was skipped. All four now throw — a shrinking input set is strictly worse than a parse error, because every gate downstream reports success on it. **`defineActions()` over `as const satisfies`:** the latter preserved every field's literal type, which made the compiler spell all 134 entries' full shapes into the emitted declarations (+203 KB, +54%, shipped in every tarball) for a projection that only needed the endpoint strings; the helper pins `apiEndpoint` alone, needs no consumer narrowing, and costs +19 KB. Excess-property checking verified preserved.
+  Encapsulated the six-step CLI diagnostic lifecycle inside `withDiagnostics(request, deps, work)` in `src/cli/diagnostics.ts`. Removed the mutable `diagnostic`, `succeeded`, and `handlerStarted` flags from `runCli`, and added `markDispatched()` to record `operationOutcome`. Consolidated the Windows platform check into `DIAGNOSTIC_UNSUPPORTED_PLATFORM` and `diagnosticSupportError(platform)`. Added `platform` and `lifetime` to `CliRuntime` so tests can use fakes without registering process `exit` listeners. Added 10 unit tests in `tests/cli-diagnostic-scope.test.ts`.
+
+- [x] **ARCH #13: Output ownership.** `createOutput` now requires explicit `stdout` and `stderr` writers. Added `outRaw`, a stdout writer that honors quiet mode. Added `outPayload(payload, ack)` to write payloads to stdout, JSON acknowledgements to stderr, and applicable TTY warnings. Routed `emitStdoutAck`, `install-skill`, `uninstall-skill`, the schema-mismatch reporter, and `run watch` through `createOutput`. Fixed `run watch` to read `--quiet` from the `argv` passed to `runCli` rather than `process.argv`, and derived the `--out -` TTY warning from the payload type. Added an ESLint `no-restricted-properties` rule forbidding `process.stdout`, `process.stderr`, and `process.argv` in `src/` outside `src/cli.ts`, backed by `tests/cli-output-ownership.test.ts`.
+
+- [x] **ARCH #4: Reduced endpoint registry scope.** A nine-agent design review found that one TypeScript registry could not replace `docs/testrail-endpoints.json` and Gate D. That inventory tracks external TestRail documentation independently of the SDK. The original charter remains recorded as unreachable. Shipped two targeted simplifications instead:
+  1. Replaced 29 `.slice(a, b)` calls with separate read and write exports per resource. `defineActions()` preserves literal `apiEndpoint` types. The `.d.ts` bundle grew by 19 KB instead of the proposed 203 KB.
+  2. Removed `ActionSpec.pagination`, `PaginationSpec`, and drift Gate E by moving pagination metadata into `src/cli/metadata/paginated-endpoints.ts` keyed by `apiEndpoint`, verified by `_PaginatedEndpointsAreSurfaced`, `_ActionEndpointsAreLiterals`, and a runtime test.
+  Also hardened `scripts/action-metadata-parser.ts` to unwrap `satisfies` expressions and throw on unreadable initializers, non-literal `resource`/`action`/`apiEndpoint` fields, or array spread elements.

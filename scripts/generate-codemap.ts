@@ -859,9 +859,9 @@ function renderMarkdown(data: CodemapData): string {
     const preamble = [
         '# CODEMAP',
         '',
-        'Machine-readable symbol index for coding agents. Run `npm run codemap` to regenerate.',
+        'This file is the machine-readable symbol index for coding agents. Run `npm run codemap` to regenerate it.',
         '',
-        'Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sourceHash`.',
+        'Schema: `codemap.v2`. This file contains no timestamps. The generator detects stale output with `sourceHash`.',
         '',
     ].join('\n');
     return `${preamble}\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n`;

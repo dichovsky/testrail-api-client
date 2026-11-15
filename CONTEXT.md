@@ -1,50 +1,34 @@
 # CONTEXT
 
-Domain glossary for `@dichovsky/testrail-api-client`. One entry per term that
-names a concept in the code. Terms are added as they are introduced — this file
-is grown deliberately, not filled in up front.
+This document is the domain glossary for `@dichovsky/testrail-api-client`. Each entry defines one term from the code. Add new terms when you introduce new concepts.
 
-Structural documentation lives elsewhere and is not repeated here:
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the layers fit together,
-[`CODEMAP.md`](CODEMAP.md) for the symbol index, [`CLAUDE.md`](CLAUDE.md) for
-working conventions.
+Other documents describe the repository structure:
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains the system layers.
+- [`CODEMAP.md`](CODEMAP.md) contains the symbol index.
+- [`CLAUDE.md`](CLAUDE.md) defines the repository rules.
 
 ---
 
 ## Request intent
 
-The declared purpose of a request, for the two endpoint classes whose handling
-cannot be derived from the request's shape. Lives on `RequestSpec.intent`
-(`src/http-pipeline-types.ts`); omitted for every ordinary request.
+The request intent defines the purpose of a request when the request structure does not show its behavior. Set this value on `RequestSpec.intent` (`src/http-pipeline-types.ts`). Omit this field for standard requests.
 
-It exists because a request's shape answers most questions on its own — a
-multipart body is non-idempotent, a binary GET is safe to repeat — but it cannot
-express what an _endpoint_ does. Two things only it can say:
+The request structure usually defines the required behavior. For example, a multipart body is not idempotent, and a binary GET request is safe to repeat. However, the request structure cannot show the server-side effect of an endpoint. Use `RequestSpec.intent` for two cases:
 
-- **Side-effecting read** — a GET that mutates server state. TestRail's
-  `run_report` builds a report and the template may email it.
-- **Fresh read** — a GET that must execute rather than be served from or
-  published to the cache.
+- **Side-effecting read**: A GET request that modifies server state. For example, the TestRail `run_report` endpoint generates a report and can send an email.
+- **Fresh read**: A GET request that must bypass the cache for both reads and writes.
 
-Both replace the former `retry` + `bypassCache` field pair, whose legal
-combinations were documented rather than enforced.
+These two values replace the older `retry` and `bypassCache` fields.
 
 ## Side-effecting read
 
-A GET that changes something. Retries `429` only — the rate limiter rejects
-before execution, so nothing was generated and no mail was sent — and never
-retries `5xx` or a network error, because those leave an ambiguous outcome. Never
-served from the cache: a cached response would hide a generation the caller
-explicitly asked for.
+A side-effecting read is a GET request that changes server state. The client retries this request only on HTTP `429` responses. The rate limiter rejects `429` requests before execution, so the server does not generate a report or send an email. The client never retries `5xx` or network errors because the server state is unknown. The client never reads this response from the cache because a cached response hides the new report generation.
 
-Used by `runReport` and `runCrossProjectReport` (`src/modules/reports.ts`).
+The `runReport` and `runCrossProjectReport` methods (`src/modules/reports.ts`) use this intent.
 
 ## Fresh read
 
-A GET that must reach TestRail rather than be answered from the cache, and whose
-response must not be published to it either. Distinct from a _side-effecting
-read_: a fresh read changes nothing on the server, it just must not be stale.
+A fresh read is a GET request that must go directly to the TestRail server. The client does not read the response from the cache and does not write the response to the cache. Unlike a side-effecting read, a fresh read does not modify server state. It only requires current data.
 
-Used by bounded `getAll*()` aggregation (`src/pagination.ts`), where combining
-differently aged cached pages would produce a snapshot that never existed, and
-where publishing every page would evict unrelated entries.
+Bounded `getAll*()` pagination (`src/pagination.ts`) uses this intent. Caching individual pages can mix data from different times and evict unrelated cache entries.

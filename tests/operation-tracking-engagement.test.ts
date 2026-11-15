@@ -13,8 +13,8 @@ import { BASE_CONFIG } from './helpers.js';
  * deliberate and load-bearing.
  *
  * Why the latch exists: entering an `AsyncLocalStorage` installs context
- * propagation for the whole process and can never be undone. On Node 24 — the
- * only line this package supports — that is `AsyncContextFrame`, ~1% overhead
+ * propagation for the whole process and can never be undone. Measurements on
+ * Node 24 found that `AsyncContextFrame` adds ~1% overhead
  * on promise traffic that has nothing to do with this client. Embedders who
  * never call `trackOperation` must not pay it.
  */

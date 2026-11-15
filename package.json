@@ -72,26 +72,29 @@
         "verify": "npm run build && npm run typecheck && npm run typecheck:ts6 && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run agents-md:check && npm run skill:check && npm run published:check && npm run lockfile-lint && npm run test:coverage && npm run package:smoke -- --prepared"
     },
     "dependencies": {
-        "zod": "^4.6.5"
+        "zod": "^4.6.7"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/node": "^26.6.4",
-        "@typescript-eslint/eslint-plugin": "^8.71.0",
-        "@typescript-eslint/parser": "^8.71.0",
+        "@types/node": "^26.6.6",
+        "@typescript-eslint/eslint-plugin": "^8.72.2",
+        "@typescript-eslint/parser": "^8.72.2",
         "@typescript/native": "npm:typescript@~7.0.2",
-        "@vitest/coverage-v8": "^5.0.3",
+        "@vitest/coverage-v8": "^5.1.0",
         "audit-ci": "7.1.0",
-        "eslint": "^10.12.0",
+        "eslint": "^10.15.0",
         "fast-check": "^4.10.2",
-        "lockfile-lint": "^5.0.1",
-        "prettier": "~3.9.9",
+        "lockfile-lint": "^5.1.0",
+        "prettier": "~3.10.1",
         "tsx": "^4.23.15",
         "typescript": "npm:@typescript/typescript6@6.0.2",
-        "vitest": "^5.0.3"
+        "vitest": "^5.1.0"
+    },
+    "overrides": {
+        "minimatch": "^11.0.8"
     },
     "engines": {
-        "node": ">=24"
+        "node": ">=26"
     },
     "publishConfig": {
         "access": "public"

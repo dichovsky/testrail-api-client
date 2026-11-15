@@ -1,133 +1,120 @@
 # Contributing
 
-Thanks for taking the time. This repo is opinionated in ways that are not
-obvious from the outside, so this file covers the parts that will otherwise
-cost you a review round.
+This document explains the repository rules, verification checks, and code conventions for contributors.
 
-Security reports go through [SECURITY.md](SECURITY.md), never a public issue.
+Report security vulnerabilities through [SECURITY.md](SECURITY.md). Do not open a public issue for security reports.
 
 ## Setup
 
-Node 24 (see `.nvmrc`); the package declares `engines: >=24`.
+Use Node 26 for local development (see `.nvmrc`). The package requires Node 26 or newer (`engines: >=26`).
 
 ```bash
 npm ci
 npm run verify
 ```
 
-`.npmrc` sets `ignore-scripts=true`, so nothing runs lifecycle hooks on install.
-Build and codegen are always explicit `npm run` invocations.
+`.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run lifecycle scripts automatically. Run build and code generation commands explicitly with `npm run`.
 
-## The gate you have to pass
+## Verification checks
 
-`npm run verify` explicitly builds before running the local gate chain. CI
-invokes the same checks in separate steps:
+Run `npm run verify` to build the project and execute all local verification checks. CI runs these same checks in separate steps:
 
 ```bash
-npm run build           # required before AGENTS introspection and package smoke
-npm run typecheck        # TypeScript 7
-npm run typecheck:ts6    # TypeScript 6 compatibility — both must pass
+npm run build           # Required before AGENTS.md check and package smoke test
+npm run typecheck        # TypeScript 7 check
+npm run typecheck:ts6    # TypeScript 6 compatibility check
 npm run lint
 npm run format:check
-npm run codemap:check    # generated-artifact drift
-npm run mapping:check
-npm run agents-md:check
-npm run skill:check
-npm run published:check
+npm run codemap:check    # Check CODEMAP.md for drift
+npm run mapping:check    # Check docs/API-MAPPING.md for drift
+npm run agents-md:check  # Check AGENTS.md for drift
+npm run skill:check      # Check skill files for drift
+npm run published:check  # Check published version list in CHANGELOG.md
 npm run lockfile-lint
 npm run test:coverage
 npm run package:smoke -- --prepared
 ```
 
-`npm test` runs only Vitest. The repository disables implicit pre/post hooks,
-so use `npm run verify` before pushing. CI additionally runs the explicit fuzz
-suite and dependency audits.
+`npm test` runs only the Vitest test suite. Because `.npmrc` disables implicit `pre` and `post` hooks, always run `npm run verify` before you push changes. CI also runs the fuzz test suite and dependency security audits.
 
-## Generated files — never hand-edit
+## Generated files
 
-| File                                                                                                                              | Regenerate with     |
+Do not edit generated files manually. Use the corresponding `npm run` command to update them:
+
+| File                                                                                                                              | Command             |
 | --------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
 | `CODEMAP.md`                                                                                                                      | `npm run codemap`   |
 | `docs/API-MAPPING.md`                                                                                                             | `npm run mapping`   |
 | `AGENTS.md`                                                                                                                       | `npm run agents-md` |
 | `skill/SKILL.md` (generated sections), `skill/reference/commands.md` (generated sections), `skill/reference/payload-schemas.yaml` | `npm run skill`     |
 
-Each has a `:check` gate that fails the build on drift. Editing one by hand
-produces a red CI run and a confusing diff. The hand-written parts of the skill
-— the rest of `skill/SKILL.md`, `skill/reference/recipes.md` and
-`skill/reference/typescript-api.md` — are edited directly; `npm run skill`
-preserves them.
+Each generated file has a `:check` script that fails the build if the committed file does not match the generator output. You can directly edit the manual sections of `skill/SKILL.md`, `skill/reference/recipes.md`, and `skill/reference/typescript-api.md`. `npm run skill` keeps those manual sections unchanged.
 
-## Adding an endpoint
+## Add an endpoint
 
-The repo holds an absolute **layer-coverage invariant**: every `@testrail`-tagged
-SDK method must be surfaced as at least one CLI command, and every CLI command
-must be reachable through at least one skill recipe. Gates D and C2 enforce both
-halves, and there is no sanctioned exemption — an endpoint is not done until its
-CLI command and skill recipe land in the same change.
+This repository enforces a strict layer-coverage rule:
 
-`CLAUDE.md` has the step-by-step recipes ("Add API endpoint", "Add CLI write
-action", "Add CLI attachment-style action"). Follow them; they exist because
-each step has been forgotten at least once.
+1. Every SDK method with a `@testrail` tag must have at least one CLI command.
+2. Every CLI command must have at least one skill recipe.
 
-## Conventions that will come up in review
+Gates D and C2 check both parts of this rule automatically. Do not add an endpoint without its CLI command and skill recipe in the same change.
 
-- **One runtime dependency.** Zod. Do not add a second; that constraint is the
-  product, not an accident.
-- **No `any`.** Use `unknown` and narrow. The codebase currently has zero in
-  real code.
-- **Return new objects, never mutate in place.**
-- **No hardcoded numbers.** Add a named export to `src/constants.ts`.
-- **Validate IDs before any network call** — `validateId(id, 'name')` from
-  `src/validation.ts` (`validateEntryId` for UUID plan-entry IDs).
-- **Never swallow an error silently.** A `catch {}` must either convert the
-  failure into something the caller can act on — rethrow, a structured error,
-  a failure flag the caller checks — or carry a comment saying why ignoring it
-  is safe. Most already do; add the comment to anything you touch that does
-  not.
+Follow the step-by-step instructions in `CLAUDE.md` ("Add API endpoint", "Add CLI write action", and "Add CLI attachment-style action").
 
-### Response schemas are widened, not narrowed
+## Code conventions
 
-Response validation is **advisory** (see `CLAUDE.md`). TestRail's documentation
-disagrees with its wire behavior often enough that every schema correction
-shipped so far has widened a schema to admit a real response, never narrowed one
-to reject an invalid one.
+- **Keep Zod as the only runtime dependency.** Do not add other runtime dependencies.
+- **Do not use `any`.** Use `unknown` and narrow the type.
+- **Do not mutate objects in place.** Always return new objects.
+- **Do not hardcode numbers.** Export named constants from `src/constants.ts`.
+- **Validate all IDs before network requests.** Call `validateId(id, 'name')` from `src/validation.ts` for numeric IDs, or `validateEntryId` for UUID plan-entry IDs.
+- **Do not ignore errors silently.** Handle each error: rethrow it, return a structured error, or set a status flag that the caller checks.
+  If you safely ignore an error, add a comment that explains why.
 
-So: do not "fix" a response schema against the published docs. Back the change
-with an observed response. `CLAUDE.md` states five numbered schema-authoring
-conventions; `tests/schema-conventions.test.ts` statically enforces three of
-them — §2 (responses use `.nullish()`, never `.optional()`; no format
-validators), §3 (no `.extend()` across directions), §4 (payloads don't
-reference response schemas). §1 (naming) and §5 (endpoint-level divergence)
-are review-only: §5 turns on observed wire behavior, which no syntactic gate
-can check.
+### Widen response schemas instead of narrowing them
+
+Response validation is advisory (see `CLAUDE.md`). Live TestRail responses can differ from the published TestRail documentation. Widen response schemas when live responses include additional shapes or types. Do not make response schemas stricter based only on documentation.
+
+`CLAUDE.md` defines five schema rules. `tests/schema-conventions.test.ts` checks three of these rules automatically:
+
+- Rule 2: Response schemas must use `.nullish()` instead of `.optional()` and must not use format validators.
+- Rule 3: Schemas must not call `.extend()` across request and response directions.
+- Rule 4: Request payload schemas must not reference response schemas.
+
+Reviewers check Rule 1 (naming) and Rule 5 (separate response schemas for divergent endpoints).
+
+## Documentation style
+
+Use [ASD-STE100 Issue 9](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf) writing rules for repository documentation.
+
+- Limit instructions to 20 words per sentence.
+- Limit descriptions to 25 words per sentence.
+- Use active voice and one instruction per procedural step.
+- Use consistent technical terms and explain unfamiliar terms.
+- Preserve API identifiers, command syntax, code literals, links, and historical facts.
+- Edit generator sources before you regenerate generated documentation.
+
+Sentence-length checks support review but do not certify compliance with the full standard.
 
 ## Tests
 
-Tests come first — write the failing test, watch it fail, then fix. A test that
-has never been seen red proves nothing about the code.
+1. Write a test for the failure.
+2. Run the test to verify that it fails.
+3. Implement the fix.
 
-Coverage is high and the suite runs in seconds, so there is no reason to skip
-it. `vitest.config.ts` enforces per-metric floors; dropping below one fails
-CI, and an unreachable defensive branch needs a documented entry there rather
-than silent headroom.
+`vitest.config.ts` enforces minimum coverage thresholds for lines, statements, functions, and branches. If you add an unreachable defensive branch, document it in `vitest.config.ts`.
 
-Put new tests in the existing file that owns the behavior rather than creating
-a new one — `tests/` is large and the matching file almost always exists.
+Add new tests to the existing test file for that module instead of creating a new test file, when possible.
 
-## Commits and PRs
+## Commits and pull requests
 
-Conventional commits: `type: description`, where type is one of
-`feat`/`fix`/`refactor`/`docs`/`test`/`chore`/`perf`/`ci`. The body explains
-**why**, not what — the diff already says what.
+Use conventional commit messages in the format `type: description`. Valid types are `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, and `ci`. Explain the reason for the change in the commit body.
 
-Keep refactors and features in separate commits.
+Keep refactoring changes and feature changes in separate commits.
 
-A PR description should say what broke (or what was missing), what you changed,
-and how you verified it. If you found a defect, quote the failing output.
+In your pull request description, state the problem, the changes you made, and how you verified the result.
+For defect fixes, include the failing output.
 
-## Releasing
+## Releases
 
-Maintainer-only; see [docs/RELEASING.md](docs/RELEASING.md), which is
-authoritative over any general npm-release advice. Publishing is triggered by a
-published GitHub Release, not by a tag push.
+Only the maintainer runs releases. Follow [docs/RELEASING.md](docs/RELEASING.md); its instructions take precedence over general npm release advice. Publishing starts when a GitHub Release is published, not when a git tag is pushed.

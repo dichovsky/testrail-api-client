@@ -2,8 +2,7 @@
 
 ## Supported versions
 
-Security fixes land on the latest published major only. There are no
-long-term support branches.
+Only the latest published major version receives security fixes. This project does not maintain long-term support branches.
 
 | Version | Supported |
 | ------- | --------- |
@@ -12,70 +11,49 @@ long-term support branches.
 
 ## Reporting a vulnerability
 
-**Do not open a public issue for a security report.**
+**Do not open a public issue to report a security vulnerability.**
 
-Use GitHub's private vulnerability reporting:
+Use GitHub private vulnerability reporting:
 [Report a vulnerability](https://github.com/dichovsky/testrail-api-client/security/advisories/new).
 
-A useful report names the affected version, the configuration required to reach
-the code, and what an attacker gains. A runnable reproduction is worth more than
-a description — this package ships injectable `fetch` and `dnsLookup` hooks
-(`TestRailConfig.fetch`, `TestRailConfig.dnsLookup`) precisely so transport
-behavior can be reproduced offline, without a TestRail instance.
+Include the following information in your report:
 
-Expect an acknowledgement within a week. Because this is a single-maintainer
-project, please allow reasonable time for a fix before public disclosure.
+- The affected package version.
+- The configuration required to trigger the issue.
+- The impact of the vulnerability.
+- A runnable reproduction script, if possible.
 
-## What is in scope
+You can use the `TestRailConfig.fetch` and `TestRailConfig.dnsLookup` hooks to reproduce transport behavior offline without a live TestRail server.
 
-This is a client library and CLI. It holds credentials, talks to a
-caller-supplied host, and writes files. The surfaces worth probing:
+The maintainer will acknowledge your report within 7 days. Please allow reasonable time to fix the issue before public disclosure.
 
-- **SSRF.** Every request carries an `Authorization` header, which makes the
-  client a credentialed probe for internal services when `baseUrl` is
-  attacker-influenced. Address classification lives in
-  `src/config-validation.ts` (one shared `net.BlockList`); hostnames are
-  re-resolved before **every** distinct upstream fetch, not cached from
-  construction, so a DNS-rebinding authority cannot pin a public answer and
-  then flip. Redirects are never followed (`redirect: 'manual'`), because a
-  `Location` pointing at a link-local or metadata address would otherwise
-  bypass the guard entirely.
-- **Credential disclosure.** The API key is accepted from the environment or
-  `--api-key-stdin` and deliberately **not** from argv, which is world-readable
-  on Linux. Error messages, logs, and CLI diagnostic files must not carry it.
-- **CLI diagnostic files** (`--diagnostic-file`). Bounded, redacted, `0600`,
-  and refused outright on Windows where this implementation cannot establish
-  private-file permissions.
-- **Resource exhaustion.** Response bodies are capped by byte ceiling _and_
-  wall-clock deadline (`src/body-reader.ts`); aggregate pagination is bounded
-  on pages, items, duration, and bytes.
-- **Path handling** in `--file` / `--out` / `--data-file` resolution.
-- **Supply chain.** `.npmrc` sets `ignore-scripts=true` and pins the registry;
-  `lockfile-lint` rejects any dependency not resolving through
-  `registry.npmjs.org`; releases publish via OIDC Trusted Publishing with
-  provenance attestation, and the workflow verifies the published tarball
-  against the tested one.
+## Scope
 
-## What is out of scope
+This package is a client library and CLI. It stores credentials, connects to a user-configured host, and writes files. The security scope includes these areas:
 
-- Vulnerabilities in TestRail itself. Report those to Gurock/Idera.
-- Anything requiring `allowPrivateHosts: true` or `allowInsecure: true`. Both
-  are explicit, documented opt-outs that exist for on-premise and development
-  use; enabling them is a deliberate choice to disable a guard.
-- Advisories in `devDependencies` that cannot reach a consumer. The published
-  package has exactly one runtime dependency (Zod). CI audits both trees
-  regardless.
-- Denial of service achievable only by the operator against their own process
-  (for example configuring `maxCacheSize: 0`, which warns at construction).
+- **SSRF protection.** Every request sends an `Authorization` header. If an attacker controls `baseUrl`, the client could send credentials to internal services. `src/config-validation.ts` classifies IP addresses with one shared `net.BlockList`. The client resolves hostnames before every upstream network request instead of caching DNS results at construction. This behavior prevents DNS rebinding attacks. The client sets `redirect: 'manual'` and rejects all HTTP redirects so a `Location` header cannot redirect requests to private or metadata IP addresses.
+- **Credential protection.** The CLI reads the API key from an environment variable or `--api-key-stdin`. The CLI does not accept the API key on `argv` because operating systems expose command-line arguments to other local processes. Error messages, logs, and CLI diagnostic files must never contain credentials.
+- **CLI diagnostic files (`--diagnostic-file`).** The CLI limits the file size, redacts sensitive data, and sets file permissions to `0600`. Windows rejects this flag because the client cannot establish equivalent private file permissions.
+- **Resource limits.** `src/body-reader.ts` enforces a maximum byte limit and a time limit on every response body. Aggregate pagination enforces maximum limits on pages, items, duration, and bytes.
+- **File path validation.** The CLI validates paths for `--file`, `--out`, and `--data-file`.
+- **Supply chain security.** `.npmrc` sets `ignore-scripts=true` and pins the npm registry URL. `lockfile-lint` rejects dependencies from other registries. The release workflow publishes packages through OIDC Trusted Publishing with provenance attestations and verifies the published tarball against the tested build.
 
-## Response validation is advisory by design
+## Out of scope
 
-Since 6.0.0 a response failing its Zod schema is returned raw and reported to
-`TestRailConfig.onSchemaMismatch` rather than throwing. This is deliberate and
-documented: TestRail's published contract disagrees with its wire behavior often
-enough that failing closed converted working responses into outages. **It is not
-a validation bypass**, because caller-supplied _input_ still fails closed —
-client configuration in the constructor, CLI write payloads in `resolveBody()`.
+The following items are out of scope:
 
-A report that response validation is advisory is not a vulnerability. A report
-that _input_ validation can be bypassed is.
+- Vulnerabilities in the TestRail server software. Report those issues to Gurock or Idera.
+- Issues that require `allowPrivateHosts: true` or `allowInsecure: true`. These options intentionally disable default security checks for local development or private networks.
+- Advisories in `devDependencies` that do not affect the published package. The published package has only one runtime dependency (Zod). CI still audits both dependency trees.
+- Denial-of-service conditions that require the caller to supply unsafe configuration values (for example, `maxCacheSize: 0`).
+
+## Advisory response validation
+
+Starting in version 6.0.0, response validation is advisory.
+If a response does not match its Zod schema, the client returns the raw response and calls `TestRailConfig.onSchemaMismatch`, if configured. The client does not throw an error by default. TestRail responses often differ from the official TestRail documentation. Strict response validation caused runtime failures on valid server responses.
+
+**This behavior is not a validation bypass.** The constructor validates `TestRailConfig`, and `resolveBody()` validates all CLI write payloads.
+SDK methods validate IDs and parameters but use payload schemas only for compile-time types.
+For dynamic SDK payloads, call `.parse(input)` on the exported schema before the write.
+
+Reports about advisory response validation are not valid security vulnerabilities. Reports about bypassing input validation are valid security vulnerabilities.

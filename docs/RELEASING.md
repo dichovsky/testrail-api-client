@@ -1,65 +1,73 @@
 # Releasing
 
-Stable releases use `release/<version>` tags and the
-[`Publish` workflow](../.github/workflows/publish.yml). Publishing a GitHub
-Release starts verification; a separate job then publishes the tested artifact
-through npm Trusted Publishing with provenance. No persistent npm token is
-required.
+Stable releases use `release/<version>` tags and the [`Publish` workflow](../.github/workflows/publish.yml).
+Publishing a GitHub Release starts verification. A second job publishes the tested artifact through npm Trusted Publishing with provenance.
+The workflow does not require a persistent npm token.
 
-> **Creating the GitHub Release starts the publish; an approval gate stops it.**
-> The publish job declares `environment: npm-publish`, and that environment DOES
-> have a required reviewer configured (`dichovsky`, observed on the 8.0.0
-> release — this guide previously said it did not, citing issue #278). So the
-> run reaches `publish` and waits for a human to approve the deployment.
+The `.nvmrc` file selects Node `26`. The publish workflow uses Node `26.13.1`.
+The package requires Node 26 or newer (`engines.node: >=26`). CI tests Node 26 on Linux, Windows, and macOS.
+Other major versions satisfy the engine range but are outside the CI matrix.
+
+> **Creating the GitHub Release starts publication. An approval gate stops the workflow before the publish job.**
 >
-> Do not rely on that gate as your safety net: it is environment configuration
-> that can be removed without touching this repository, and the check below is
-> the only way to know its current state. Verify before you publish the Release,
-> not after.
+> The `publish` job declares `environment: npm-publish`.
+> During the 8.0.0 release, this environment required approval from `dichovsky`.
+> Earlier versions of this guide incorrectly stated that no reviewer was configured, citing issue #278.
+>
+> Administrators can remove the environment rule outside this repository.
+> Verify the current rule before you publish the GitHub Release. Do not rely on the historical configuration alone.
 
 ## Prepare
 
-1. Fetch `origin/main` and tags, inspect open pull requests and changes since
-   the last published tag, and compare npm versions and `dist-tags.latest`.
-   Choose a stable semantic version newer than every published stable version:
-   fixes take a patch, additive features a minor, and breaking API changes a major.
-2. Create a release branch from current `origin/main`. Update `package.json`
-   and both root version fields in `package-lock.json` with
-   `npm version <version> --no-git-tag-version --ignore-scripts`.
-3. Move completed changes from `Unreleased` to a dated changelog entry, leaving
-   an empty `Unreleased` section. Include compatibility notes, security fixes,
-   and operational changes. Keep the npm release-history list aligned with
-   the release being prepared and confirm publication before considering it final.
-   The 9.0.0 DNS-pinning release must explicitly list its global proxy/custom
-   agent bypass, strict `dnsLookup` address-family contract, and regular-file-only
-   forced output destinations as breaking changes. Link the
-   [proxy and CA migration](../README.md#proxies-and-custom-certificate-authorities),
-   [DNS resolver migration](../README.md#custom-dns-resolvers), and CLI stdout
-   discard example rather than suggesting that users disable the host guard.
-4. Audit README, architecture and agent guidance, examples, CLI help, and the
-   manual sections of the bundled skill against the release changes. Preserve
-   dated audits and archived plans as historical records. Every SDK endpoint
-   must have CLI coverage and every CLI action a skill recipe.
-5. Install the locked dependencies without lifecycle scripts, then regenerate
-   every derived artifact. Do not hand-edit generated content.
+1. Fetch `origin/main` and all tags.
+2. Inspect open pull requests and commits since the last release tag.
+3. Compare published npm versions and `dist-tags.latest`.
+4. Select a stable semantic version higher than every published stable version.
+   Use a patch version for fixes, a minor version for new features, and a major version for breaking API changes.
+5. Create a release branch from `origin/main`.
+6. Run `npm version <version> --no-git-tag-version --ignore-scripts`.
+   This updates `package.json` and both root version fields in `package-lock.json`.
+7. Move completed items from `Unreleased` to a dated changelog section.
+8. Leave an empty `Unreleased` section.
+9. Include compatibility notes, security fixes, and operational changes in the release notes.
+10. Add the new version to the npm release-history list.
+    Publication must succeed before this list becomes final.
+11. Check `README.md`, architecture docs, agent instructions, examples, CLI help, and manual skill sections against the release changes.
+    Dated audits and archived plans remain historical records.
+12. Verify that every SDK endpoint has a CLI action and every CLI action has a skill recipe.
+13. Install the locked dependencies without lifecycle scripts:
 
 ```bash
 npm ci --ignore-scripts --registry=https://registry.npmjs.org/
+```
+
+14. Regenerate all derived artifacts:
+
+```bash
 npm run agents-md
 npm run skill
 npm run mapping
 npm run codemap
 ```
 
-`agents-md` builds the client first. `skill` also regenerates the payload-schema
-reference; `mapping` then uses the current skill recipe anchors. The CLI reads
-its version from the package manifest, while skill and codemap versions are
-generated.
+Do not edit generated files manually.
+The `agents-md` script builds the client first. The `skill` script also updates the payload-schema reference.
+The `mapping` script validates the current skill recipe anchors.
+The CLI reads its version from `package.json`. Generators write the version into the skill and codemap files.
+
+For the 9.0.0 DNS-pinning release, the required breaking-change notes covered these changes:
+
+- Global proxy and custom agent bypass.
+- The strict `dnsLookup` address-family contract.
+- Forced output paths that accept only regular files.
+
+Keep links to the [proxy and CA migration](../README.md#proxies-and-custom-certificate-authorities), [DNS resolver migration](../README.md#custom-dns-resolvers), and CLI stdout discard example.
+Do not tell users to disable the host guard.
 
 ## Validate and merge
 
-Run all release gates explicitly; `.npmrc` disables implicit lifecycle scripts.
-Format any edited files before checking them.
+`.npmrc` disables automatic lifecycle scripts.
+Format modified files before verification. Run every release check explicitly:
 
 ```bash
 npm run typecheck
@@ -80,79 +88,82 @@ npm run published:check
 npm run package:smoke -- --prepared
 ```
 
-Open a release PR with the version, release scope, compatibility notes, and
-validation results. Wait for all CI jobs, including package smoke and transport
-tests on Node 24 and 26 across Linux, Windows, and macOS. The `>=24` engine range
-also permits other majors, which are not currently in the CI matrix. Merge
-the PR, fetch `main`, and verify its resulting commit and CI before tagging.
-If other changes land before the merge, reassess the release contents and gates.
+1. Open a release pull request with the version, scope, compatibility notes, and validation results.
+2. Wait for all CI jobs to pass.
+   CI runs package smoke and transport tests on Node 26 across Linux, Windows, and macOS.
+3. Merge the pull request.
+4. Fetch `main`.
+5. Verify the merge commit and CI status before you create the tag.
+
+If other commits merge first, review the release scope again. Then run the checks again.
 
 ## Publish
 
-1. Tag the verified merge commit as `release/<version>` and push that tag.
+1. Tag the verified merge commit on `main` as `release/<version>`.
+2. Push the tag to `origin`.
    Never move an existing release tag.
-2. Publish a stable GitHub Release for that existing tag using the changelog
-   entry as release notes. Mark it as latest. Use `--verify-tag` with
-   `gh release create` so a typo cannot create a tag at an unintended commit.
-3. Follow the `Publish` run. Verification checks the tag, event SHA, checkout,
-   manifest, lockfile, and ancestry on `main`, then runs the release gates and
-   archives the tested build. Registry checks require the new version to
-   advance `latest` and all published stable versions.
-4. Once verification passes, the publish job verifies the archived build's
-   digest, rechecks registry state, and publishes with isolated npm
-   configuration, OIDC authentication, and SLSA provenance.
+3. Create a stable GitHub Release for that tag with the changelog section as its release notes.
+   Pass `--verify-tag` to `gh release create` to prevent accidental tag creation on the wrong commit.
+4. Mark the release as latest.
+5. Monitor the `Publish` workflow run.
+   The `verify` job checks the tag, event SHA, checkout, `package.json`, `package-lock.json`, and ancestry on `main`.
+   It runs the release checks and uploads the tested build artifact.
+   Registry checks require a version higher than `latest` and all published stable versions.
+6. Check the live deployment approval status after verification:
 
-    It waits for a deployment approval first. Confirm the gate's current state
-    rather than assuming it — this command is the authority, not this guide:
+```bash
+gh api "repos/<owner>/<repo>/actions/runs/<run-id>/pending_deployments"
+```
 
-    ```bash
-    gh api "repos/<owner>/<repo>/actions/runs/<run-id>/pending_deployments"
-    ```
+A non-empty JSON array lists the environment and its required reviewers.
+The job stays in the `waiting` state until a reviewer approves it.
+An empty array means that no deployment currently waits for approval.
+Verification might still be running, approval might already exist, or the workflow might have failed.
+Check the workflow jobs and npm registry before you conclude that publication succeeded.
 
-    A non-empty array names the environment and its reviewers; the job stays
-    `waiting` until one of them approves. An empty array only means no deployment
-    is currently awaiting approval: verification may still be running, the gate
-    may already be approved, or the run may have failed. Check the job status
-    and registry state before concluding that publication happened. On the 8.0.0 release this returned
-    `[{"environment":{"name":"npm-publish"},"reviewers":["dichovsky"]}]` and the
-    run held until approved in the GitHub UI.
+During the 8.0.0 release, this command returned `[{"environment":{"name":"npm-publish"},"reviewers":["dichovsky"]}]`.
+The job waited until the reviewer approved it in the GitHub UI.
 
-    Read the environment itself for what the gate is actually worth:
+To inspect the environment protection rules, run:
 
-    ```bash
-    gh api "repos/<owner>/<repo>/environments/npm-publish" --jq '.protection_rules'
-    ```
+```bash
+gh api "repos/<owner>/<repo>/environments/npm-publish" --jq '.protection_rules'
+```
 
-    As of 2026-09-20 it carries one `required_reviewers` rule naming a single
-    reviewer, with `prevent_self_review: false` — so the release author can
-    approve their own deployment. It is a deliberate pause, not a second pair of
-    eyes. Treat it as a chance to stop, not as review.
+On 2026-09-20, the environment had one `required_reviewers` rule with one reviewer and `prevent_self_review: false`.
+This configuration permits the release author to approve their own deployment. It does not require independent peer review.
+
+After approval, the `publish` job checks the artifact digest and rechecks npm registry state.
+It publishes with isolated npm configuration, OIDC authentication, and SLSA provenance.
 
 ## Verify after publication
 
-- Require the complete `Publish` run to succeed. It checks npm version,
-  `gitHead`, `latest`, SLSA provenance, and equality of every packed file with
-  the tested build. After npm accepts publication, metadata verification polls
-  for up to five minutes, bounding each lookup by the remaining deadline.
-  Tarball lookups retry briefly for propagation; a content mismatch fails immediately.
-- Independently read the exact version from the official npm registry and
-  confirm `latest`, `gitHead`, and `dist.attestations` agree with the release.
-- Install that exact registry version into an isolated temporary consumer with
-  lifecycle scripts disabled. Check the SDK import, CLI version/help, a
-  no-network write preview, and the bundled skill version and new CLI options.
-  Do not use live TestRail writes for package smoke checks.
-- Confirm the GitHub Release is public, stable, latest, and points to the
-  verified commit. Keep `Unreleased` empty and remove the merged remote release
-  branch. Record the release, npm package, and successful workflow links in the
-  release handoff.
+1. Wait for the entire `Publish` workflow to succeed.
+   It verifies the npm version, `gitHead`, `latest` tag, SLSA provenance, and every packed file against the tested build.
+   Metadata checks poll for up to five minutes after npm accepts the package.
+   Each request uses the remaining deadline as its time limit.
+   Tarball downloads retry briefly during registry propagation. Content mismatches fail immediately.
+2. Query the official npm registry directly for the new version.
+3. Confirm that `latest`, `gitHead`, and `dist.attestations` match the release commit.
+4. Install the exact npm version into an isolated temporary directory with `--ignore-scripts`.
+5. Verify the SDK import.
+6. Check the CLI `--version` and `--help` output.
+7. Test a `--dry-run` write preview.
+8. Check the bundled skill version and new CLI flags.
+   Do not run live TestRail write commands during smoke tests.
+9. Verify that the GitHub Release is public, stable, latest, and linked to the verified merge commit.
+10. Keep the `Unreleased` changelog section empty.
+11. Delete the merged release branch from the remote repository.
+12. Record the GitHub Release URL, npm package URL, and workflow run URL in the release notes or handoff.
 
-If publication or post-publication verification fails, inspect the exact npm
-version before retrying. npm may accept an upload while the exact version still
-returns 404 during processing; wait for the registry to expose it rather than
-publishing again. npm versions are immutable: never republish different
-contents under the same version. Rerun the entire workflow, including `verify`,
-after publication succeeds but verification fails. Retrying only `publish`
-reuses its earlier unpublished decision and fails the version-absence check.
-The verification job recognizes an already published release only when its
-identity, provenance, current `latest` tag, and packed contents all match.
-A published artifact needing a code correction requires a new version.
+## Recover from publication failures
+
+If publication or verification fails, check the exact npm version before you retry.
+The registry can return HTTP 404 briefly after it accepts an upload.
+Wait for processing to finish before another publication attempt.
+Published npm versions are immutable. Never publish different files under an existing version number.
+
+If publication succeeds but verification fails, run the entire workflow again, including `verify`.
+A retry of only `publish` reuses the earlier pre-publish decision and fails because the version now exists.
+The `verify` job accepts an existing version only when its identity, provenance, `latest` tag, and packed files match the current commit.
+If a published package needs a code fix, prepare a new version.
