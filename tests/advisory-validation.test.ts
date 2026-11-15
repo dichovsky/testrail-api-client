@@ -581,6 +581,42 @@ describe('advisory response validation (6.0.0)', () => {
             },
         );
 
+        describe.each(['subclass', 'instance'] as const)('%s parse override', (overrideKind) => {
+            it.each(writes)(
+                '$name uses the mismatch hook while direct parse calls keep the override',
+                async ({ call, endpoint, raw }) => {
+                    const customFailure = new Error('custom parse override');
+                    class CustomParseClient extends TestRailClient {
+                        public override parse<T>(): T {
+                            throw customFailure;
+                        }
+                    }
+                    const hook = vi.fn();
+                    const config = { ...BASE_CONFIG, onSchemaMismatch: hook };
+                    const target: TestRailClient =
+                        overrideKind === 'subclass' ? new CustomParseClient(config) : new TestRailClient(config);
+                    if (overrideKind === 'instance') {
+                        target.parse = (): never => {
+                            throw customFailure;
+                        };
+                    }
+                    mockFetch.mockResolvedValueOnce(mockOk(raw));
+                    try {
+                        await expect(call(target)).resolves.toEqual(raw);
+                        expect(hook).toHaveBeenCalledExactlyOnceWith(
+                            expect.objectContaining({ method: 'POST', endpoint, data: raw }),
+                        );
+                        expect(() => target.parse(z.unknown(), raw, { method: 'POST', endpoint })).toThrow(
+                            customFailure,
+                        );
+                        expect(mockFetch).toHaveBeenCalledTimes(1);
+                    } finally {
+                        target.destroy();
+                    }
+                },
+            );
+        });
+
         it.each(writes)(
             '$name clears cached data before a hook starts another read, without replaying the write',
             async ({ call, endpoint, raw }) => {
