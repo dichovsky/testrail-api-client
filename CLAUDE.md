@@ -47,7 +47,8 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `src/cli/index.ts`                                                   | `runCli(runtime)`: parses arguments, dispatches commands, resolves auth, and runs handlers                                                                                         |
 | `src/cli/output.ts`                                                  | CLI output module: `createOutput({quiet, format, stdout, stderr, stdoutIsTTY})` for formatting, sanitization, `--quiet`, and `--out -`                                             |
 | `src/cli/{auth,ids,dispatch,handler-context,response-validation}.ts` | CLI core helpers: environment and flag resolution, ID parsing, handler routing, and schema mismatch handling                                                                       |
-| `src/cli/{file-input,file-output}.ts`                                | Upload input resolution (`--file`) and shared attachment/BDD download workflow (`--out`)                                                                                           |
+| `src/cli/{file-input,file-output}.ts`                                | Upload source resolver (`--file`) and download destination resolver (`--out`)                                                                                                      |
+| `src/cli/{upload,download}.ts`                                       | Shared upload and attachment/BDD download workflows: dry-run previews, lazy transfer, and safe output                                                                              |
 | `src/cli/diagnostics.ts`                                             | Redacted CLI error records and private diagnostic file creation, writing, and cleanup                                                                                              |
 | `src/cli/handlers/*.ts`                                              | Async command handlers for each resource and action                                                                                                                                |
 | `src/index.ts`                                                       | Public package exports                                                                                                                                                             |
@@ -344,7 +345,7 @@ Dispatch and help read `ACTIONS`; they do not need separate command lists.
 1. Confirm that the SDK method exists in `src/modules/attachments.ts`.
 2. Add the handler to `src/cli/handlers/attachment.ts` or `src/cli/handlers/attachment-write.ts`.
 3. For uploads, use `setupUpload()` for dry-run previews and file-descriptor streaming.
-4. For downloads, call `outputDownload()` from `src/cli/file-output.ts` with a lazy SDK callback.
+4. For downloads, call `outputDownload()` from `src/cli/download.ts` with a lazy SDK callback.
 5. Add the `ActionSpec` entry, including its handler, in `src/cli/metadata/attachments.ts`.
 6. Select `fileInput: true` for uploads, `fileOutput: true` for downloads, or `destructive: true` for deletion.
 7. For deletion, check `ctx.confirmDestructive` after the dry-run branch.

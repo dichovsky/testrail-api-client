@@ -462,7 +462,8 @@ Tests provide independent input streams without replacing process globals.
 | `pagination.ts`                          | Validate modes/controls before client construction and select item, page, or aggregate output             |
 | `body.ts`, `stdin.ts`                    | Select JSON input, bound explicit text and binary readers, and validate write payloads                    |
 | `file-input.ts`                          | Require regular upload files and select file or injected binary stdin input                               |
-| `file-output.ts`, `safe-write.ts`        | Own download previews, destination checks, fetching, output routing, and safe file writes                 |
+| `file-output.ts`, `safe-write.ts`        | Validate download destinations and write through a held descriptor                                        |
+| `upload.ts`, `download.ts`               | Own the upload and download workflows: dry-run previews, lazy transfer, and output routing                |
 | `response-validation.ts`                 | Build redacted, deduplicated schema-mismatch warnings or strict errors                                    |
 | `diagnostics.ts`                         | Reserve private files, redact failure records, and own finalization                                       |
 | `output.ts`, `sanitize.ts`               | Format output and strip terminal control characters                                                       |

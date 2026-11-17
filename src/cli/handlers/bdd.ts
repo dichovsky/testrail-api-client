@@ -1,6 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
-import { outputDownload } from '../file-output.js';
+import { outputDownload } from '../download.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 import { parseOptionalId, parseOptionalIdList, parseOptionalRefs } from '../filters.js';
 import { setupUpload, uploadPayload } from '../upload.js';

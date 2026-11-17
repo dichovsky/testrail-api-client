@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "a5a8fba076c130e772d0b4059b61564298082bfffa10a7125491622f3734a6a5",
+  "sourceHash": "a871b9ccb86ee815caa07793fd972022121dc9829ff828549b8954865e4ed3ca",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2628,6 +2628,31 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       ]
     },
     {
+      "path": "src/cli/download.ts",
+      "imports": [
+        "./file-output.js",
+        "./handler-context.js",
+        "./safe-write.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "DownloadSpec",
+          "kind": "interface",
+          "line": 6,
+          "exported": true,
+          "signature": "export interface DownloadSpec { readonly action: string; readonly idFields: Readonly<Record<string, number | string>>; readonly load: () => Promise<string | ArrayBuffer>; }"
+        },
+        {
+          "name": "outputDownload",
+          "kind": "function",
+          "line": 14,
+          "exported": true,
+          "signature": "export async function outputDownload( ctx: Pick<HandlerContext, 'args' | 'dryRun' | 'force' | 'out' | 'outPayload'>, download: DownloadSpec, ): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/file-input.ts",
       "imports": [
         "../constants.js",
@@ -2684,58 +2709,42 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/file-output.ts",
       "imports": [
-        "./handler-context.js",
-        "./safe-write.js",
         "node:fs"
       ],
       "reExports": [],
       "symbols": [
         {
-          "name": "DownloadSpec",
-          "kind": "interface",
-          "line": 6,
-          "exported": true,
-          "signature": "export interface DownloadSpec { readonly action: string; readonly idFields: Readonly<Record<string, number | string>>; readonly load: () => Promise<string | ArrayBuffer>; }"
-        },
-        {
-          "name": "outputDownload",
-          "kind": "function",
-          "line": 14,
-          "exported": true,
-          "signature": "export async function outputDownload( ctx: Pick<HandlerContext, 'args' | 'dryRun' | 'force' | 'out' | 'outPayload'>, download: DownloadSpec, ): Promise<void>"
-        },
-        {
           "name": "STDOUT_SENTINEL",
           "kind": "const",
-          "line": 63,
+          "line": 11,
           "exported": true,
           "signature": "export const STDOUT_SENTINEL = '-'"
         },
         {
           "name": "FileOutput",
           "kind": "interface",
-          "line": 69,
+          "line": 17,
           "exported": true,
           "signature": "export interface FileOutput { outFlag?: string; }"
         },
         {
           "name": "OutputResolution",
           "kind": "type",
-          "line": 73,
+          "line": 21,
           "exported": true,
           "signature": "export type OutputResolution = { ok: true; path: string; target: 'file' | 'stdout' } | { ok: false; error: string }"
         },
         {
           "name": "ResolveOutOptions",
           "kind": "interface",
-          "line": 75,
+          "line": 23,
           "exported": true,
           "signature": "export interface ResolveOutOptions { force: boolean; dryRun: boolean; }"
         },
         {
           "name": "resolveOut",
           "kind": "function",
-          "line": 99,
+          "line": 47,
           "exported": true,
           "signature": "export function resolveOut(input: FileOutput, opts: ResolveOutOptions): OutputResolution"
         }
@@ -3103,7 +3112,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/handlers/attachment.ts",
       "imports": [
-        "../file-output.js",
+        "../download.js",
         "../handler-context.js",
         "../ids.js",
         "../pagination.js"
@@ -3164,7 +3173,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/handlers/bdd.ts",
       "imports": [
-        "../file-output.js",
+        "../download.js",
         "../filters.js",
         "../handler-context.js",
         "../ids.js",

@@ -1,6 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, parseEntryId, parseAttachmentId } from '../ids.js';
-import { outputDownload } from '../file-output.js';
+import { outputDownload } from '../download.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 /**
