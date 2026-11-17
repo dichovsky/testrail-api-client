@@ -35,6 +35,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Security
 
 - The updated production dependency tree reports zero vulnerabilities in `npm audit --omit=dev`.
+- Allowlisted GHSA-fc5q-39xc-vjpf (picomatch ReDoS) in `audit-ci.jsonc` until 2026-12-18. GitHub widened the advisory to every release, including the latest 4.0.7, so no fix exists yet. Only dev tooling reaches picomatch, and the published package ships only Zod.
 
 ## [9.0.0] — 2026-10-04 — pinned connections, comment-only results, and a split skill
 

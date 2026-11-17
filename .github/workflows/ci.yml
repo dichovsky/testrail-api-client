@@ -196,6 +196,7 @@ jobs:
             - name: Run security audit (production deps)
               run: npm audit --omit=dev --audit-level=moderate
 
-            # Full-tree audit including dev dependencies; no advisories are allowlisted.
+            # Full-tree audit including dev dependencies. Exceptions live only in
+            # audit-ci.jsonc, each with a note and an expiry date.
             - name: Run dependency vulnerability check
               run: npm run audit:dependencies
