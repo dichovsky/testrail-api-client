@@ -1,4 +1,56 @@
 import { lstatSync } from 'node:fs';
+import type { HandlerContext } from './handler-context.js';
+import { safeWriteBinary, safeWriteText } from './safe-write.js';
+
+/** Command-specific facts; destination handling and output belong to this module. */
+export interface DownloadSpec {
+    readonly action: string;
+    readonly idFields: Readonly<Record<string, number | string>>;
+    /** Called only after destination checks and the dry-run branch. */
+    readonly load: () => Promise<string | ArrayBuffer>;
+}
+
+/** Validate, preview, fetch, and emit a CLI download without changing its payload kind. */
+export async function outputDownload(
+    ctx: Pick<HandlerContext, 'args' | 'dryRun' | 'force' | 'out' | 'outPayload'>,
+    download: DownloadSpec,
+): Promise<void> {
+    const resolved = resolveOut(
+        { ...(ctx.args.out !== undefined && { outFlag: ctx.args.out }) },
+        { force: ctx.force, dryRun: ctx.dryRun },
+    );
+    if (!resolved.ok) throw new Error(resolved.error);
+
+    if (ctx.dryRun) {
+        ctx.out({
+            dryRun: true,
+            action: download.action,
+            ...download.idFields,
+            out: resolved.path,
+        });
+        return;
+    }
+
+    const result = await download.load();
+    const payload = typeof result === 'string' ? result : new Uint8Array(result);
+    const acknowledgement = {
+        ...download.idFields,
+        out: resolved.path,
+        size: typeof payload === 'string' ? Buffer.byteLength(payload, 'utf-8') : payload.byteLength,
+    };
+
+    if (resolved.target === 'stdout') {
+        ctx.outPayload(payload, acknowledgement);
+        return;
+    }
+
+    if (typeof payload === 'string') {
+        safeWriteText(resolved.path, payload, ctx.force);
+    } else {
+        safeWriteBinary(resolved.path, payload, ctx.force);
+    }
+    ctx.out(acknowledgement);
+}
 
 /**
  * Sentinel value for the `--out -` Unix-convention stdout target. When the
@@ -11,7 +63,7 @@ import { lstatSync } from 'node:fs';
 export const STDOUT_SENTINEL = '-';
 
 /**
- * Raw input for the binary-download output resolver. Only `outFlag`; no
+ * Raw input for the download destination resolver. Only `outFlag`; no
  * filename override (the user already specified the destination path).
  */
 export interface FileOutput {
@@ -28,7 +80,7 @@ export interface ResolveOutOptions {
 }
 
 /**
- * Resolve a `--out <path>` binary-download output target. Validates flag
+ * Resolve a `--out <path>` download target. Validates flag
  * presence; refuses to overwrite an existing file unless `--force`. Always
  * refuses to write through a symbolic link (even with `--force`) — the
  * target file is never followed, eliminating a TOCTOU symlink-clobber where
@@ -37,8 +89,8 @@ export interface ResolveOutOptions {
  *
  * `--out -` (`STDOUT_SENTINEL`) bypasses filesystem checks entirely — the
  * destination is stdout, no path is opened, and there's no
- * clobber/symlink concern. The handler is responsible for routing the JSON
- * ack to stderr when this target is selected.
+ * clobber/symlink concern. `outputDownload()` delegates the payload and JSON
+ * ack routing to the output module when this target is selected.
  *
  * In dry-run, no filesystem precondition is checked — dry-run is meant to
  * be side-effect-free and not act as a clobber pre-check (the real run

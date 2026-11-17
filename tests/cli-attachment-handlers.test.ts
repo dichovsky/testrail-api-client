@@ -13,7 +13,7 @@
  */
 import type { BinaryInputStream } from '../src/cli/stdin.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, renameSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -47,7 +47,7 @@ interface MockedClient {
         getAttachmentsForTest: ReturnType<typeof vi.fn>;
         getAttachmentsForPlan: ReturnType<typeof vi.fn>;
         getAttachmentsForPlanEntry: ReturnType<typeof vi.fn>;
-        getAttachment: ReturnType<typeof vi.fn>;
+        getAttachment: ReturnType<typeof vi.fn<TestRailClient['attachments']['getAttachment']>>;
         addAttachmentToCase: ReturnType<typeof vi.fn>;
         addAttachmentToResult: ReturnType<typeof vi.fn>;
         addAttachmentToRun: ReturnType<typeof vi.fn>;
@@ -65,7 +65,9 @@ function buildClient(): MockedClient {
             getAttachmentsForTest: vi.fn().mockResolvedValue([{ id: 3 }]),
             getAttachmentsForPlan: vi.fn().mockResolvedValue([{ id: 4 }]),
             getAttachmentsForPlanEntry: vi.fn().mockResolvedValue([{ id: 5 }]),
-            getAttachment: vi.fn().mockResolvedValue(new Uint8Array([7, 8, 9]).buffer),
+            getAttachment: vi
+                .fn<TestRailClient['attachments']['getAttachment']>()
+                .mockResolvedValue(new Uint8Array([7, 8, 9]).buffer),
             addAttachmentToCase: vi.fn().mockResolvedValue({ attachment_id: 100 }),
             addAttachmentToResult: vi.fn().mockResolvedValue({ attachment_id: 101 }),
             addAttachmentToRun: vi.fn().mockResolvedValue({ attachment_id: 102 }),
@@ -201,15 +203,20 @@ describe('handleAttachmentGet', () => {
         rmSync(tmp, { recursive: true, force: true });
     });
 
-    it('writes binary to --out and emits JSON ack', async () => {
+    it.each([
+        { name: 'ordinary bytes', bytes: [7, 8, 9] },
+        { name: 'empty content', bytes: [] },
+        { name: 'non-UTF-8 bytes', bytes: [0x00, 0xff, 0x80, 0xc3] },
+    ])('writes $name to --out and emits the byte count', async ({ bytes }) => {
         const client = buildClient();
+        client.attachments.getAttachment.mockResolvedValueOnce(new Uint8Array(bytes).buffer);
         const p = join(tmp, 'fetched.bin');
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: p });
         await handleAttachmentGet(ctx);
         expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
         expect(existsSync(p)).toBe(true);
-        expect(Array.from(readFileSync(p))).toEqual([7, 8, 9]);
-        expect(out).toHaveBeenCalledWith({ attachmentId: 42, out: p, size: 3 });
+        expect(Array.from(readFileSync(p))).toEqual(bytes);
+        expect(out).toHaveBeenCalledWith({ attachmentId: 42, out: p, size: bytes.length });
     });
 
     it('rejects missing --out', async () => {
@@ -235,6 +242,73 @@ describe('handleAttachmentGet', () => {
         const { ctx } = buildCtx(client, { pathParams: ['42'], out: p, force: true });
         await handleAttachmentGet(ctx);
         expect(Array.from(readFileSync(p))).toEqual([7, 8, 9]);
+    });
+
+    it.each(['new file', 'existing file', 'stdout'])(
+        'leaves %s untouched and emits no ack when the fetch fails',
+        async (target) => {
+            const client = buildClient();
+            const failure = new Error('download failed');
+            client.attachments.getAttachment.mockRejectedValueOnce(failure);
+            const p = target === 'stdout' ? '-' : join(tmp, 'failed.bin');
+            if (target === 'existing file') writeFileSync(p, 'original');
+            const { ctx, out, captured } = buildCtx(client, {
+                pathParams: ['42'],
+                out: p,
+                force: target === 'existing file',
+            });
+
+            await expect(handleAttachmentGet(ctx)).rejects.toBe(failure);
+
+            expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
+            if (target === 'existing file') expect(readFileSync(p, 'utf-8')).toBe('original');
+            if (target === 'new file') expect(existsSync(p)).toBe(false);
+            expect(out).not.toHaveBeenCalled();
+            expect(captured.stdout).toEqual([]);
+            expect(captured.stderr).toEqual([]);
+        },
+    );
+
+    it('preserves a file created at the destination while fetching', async () => {
+        const client = buildClient();
+        const p = join(tmp, 'concurrent.bin');
+        client.attachments.getAttachment.mockImplementationOnce(() => {
+            writeFileSync(p, 'concurrent file');
+            return Promise.resolve(new Uint8Array([7, 8, 9]).buffer);
+        });
+        const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: p });
+
+        await expect(handleAttachmentGet(ctx)).rejects.toThrow(/EEXIST/);
+
+        expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
+        expect(readFileSync(p, 'utf-8')).toBe('concurrent file');
+        expect(out).not.toHaveBeenCalled();
+        expect(captured.stdout).toEqual([]);
+        expect(captured.stderr).toEqual([]);
+    });
+
+    it.skipIf(process.platform === 'win32')('refuses a symlink substituted while fetching with --force', async () => {
+        const client = buildClient();
+        const p = join(tmp, 'replaced.bin');
+        const held = join(tmp, 'original.bin');
+        const sentinel = join(tmp, 'sentinel.txt');
+        writeFileSync(p, 'original');
+        writeFileSync(sentinel, 'keep sentinel');
+        client.attachments.getAttachment.mockImplementationOnce(() => {
+            renameSync(p, held);
+            symlinkSync(sentinel, p);
+            return Promise.resolve(new Uint8Array([7, 8, 9]).buffer);
+        });
+        const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: p, force: true });
+
+        await expect(handleAttachmentGet(ctx)).rejects.toThrow(/symbolic link/);
+
+        expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
+        expect(readFileSync(held, 'utf-8')).toBe('original');
+        expect(readFileSync(sentinel, 'utf-8')).toBe('keep sentinel');
+        expect(out).not.toHaveBeenCalled();
+        expect(captured.stdout).toEqual([]);
+        expect(captured.stderr).toEqual([]);
     });
 
     it('dry-run skips API call and file write', async () => {

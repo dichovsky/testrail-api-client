@@ -11,7 +11,7 @@
  */
 import type { BinaryInputStream } from '../src/cli/stdin.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, renameSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -25,7 +25,7 @@ let inputStream: BinaryInputStream & { isTTY: boolean | undefined } = Object.ass
 
 interface MockedClient {
     bdd: {
-        getBdd: ReturnType<typeof vi.fn>;
+        getBdd: ReturnType<typeof vi.fn<TestRailClient['bdd']['getBdd']>>;
         getBdds: ReturnType<typeof vi.fn>;
         getBddsPage: ReturnType<typeof vi.fn>;
         getAllBdds: ReturnType<typeof vi.fn>;
@@ -37,7 +37,7 @@ interface MockedClient {
 function buildClient(): MockedClient {
     return {
         bdd: {
-            getBdd: vi.fn().mockResolvedValue('Feature: Login\n  Scenario: ok\n'),
+            getBdd: vi.fn<TestRailClient['bdd']['getBdd']>().mockResolvedValue('Feature: Login\n  Scenario: ok\n'),
             getBdds: vi.fn().mockResolvedValue([{ name: 'login.feature' }]),
             getBddsPage: vi.fn().mockResolvedValue({ kind: 'legacy-array', items: [], size: 0 }),
             getAllBdds: vi.fn().mockResolvedValue([{ name: 'all.feature' }]),
@@ -206,6 +206,73 @@ describe('handleBddGet', () => {
         expect(readFileSync(p, 'utf-8')).toBe('Feature: Login\n  Scenario: ok\n');
     });
 
+    it.each(['new file', 'existing file', 'stdout'])(
+        'leaves %s untouched and emits no ack when the fetch fails',
+        async (target) => {
+            const client = buildClient();
+            const failure = new Error('download failed');
+            client.bdd.getBdd.mockRejectedValueOnce(failure);
+            const p = target === 'stdout' ? '-' : join(tmp, 'failed.feature');
+            if (target === 'existing file') writeFileSync(p, 'original');
+            const { ctx, out, captured } = buildCtx(client, {
+                pathParams: ['42'],
+                out: p,
+                force: target === 'existing file',
+            });
+
+            await expect(handleBddGet(ctx)).rejects.toBe(failure);
+
+            expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
+            if (target === 'existing file') expect(readFileSync(p, 'utf-8')).toBe('original');
+            if (target === 'new file') expect(existsSync(p)).toBe(false);
+            expect(out).not.toHaveBeenCalled();
+            expect(captured.stdout).toEqual([]);
+            expect(captured.stderr).toEqual([]);
+        },
+    );
+
+    it('preserves a file created at the destination while fetching', async () => {
+        const client = buildClient();
+        const p = join(tmp, 'concurrent.feature');
+        client.bdd.getBdd.mockImplementationOnce(() => {
+            writeFileSync(p, 'concurrent file');
+            return Promise.resolve('Feature: Downloaded\n');
+        });
+        const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: p });
+
+        await expect(handleBddGet(ctx)).rejects.toThrow(/EEXIST/);
+
+        expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
+        expect(readFileSync(p, 'utf-8')).toBe('concurrent file');
+        expect(out).not.toHaveBeenCalled();
+        expect(captured.stdout).toEqual([]);
+        expect(captured.stderr).toEqual([]);
+    });
+
+    it.skipIf(process.platform === 'win32')('refuses a symlink substituted while fetching with --force', async () => {
+        const client = buildClient();
+        const p = join(tmp, 'replaced.feature');
+        const held = join(tmp, 'original.feature');
+        const sentinel = join(tmp, 'sentinel.txt');
+        writeFileSync(p, 'original');
+        writeFileSync(sentinel, 'keep sentinel');
+        client.bdd.getBdd.mockImplementationOnce(() => {
+            renameSync(p, held);
+            symlinkSync(sentinel, p);
+            return Promise.resolve('Feature: Downloaded\n');
+        });
+        const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: p, force: true });
+
+        await expect(handleBddGet(ctx)).rejects.toThrow(/symbolic link/);
+
+        expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
+        expect(readFileSync(held, 'utf-8')).toBe('original');
+        expect(readFileSync(sentinel, 'utf-8')).toBe('keep sentinel');
+        expect(out).not.toHaveBeenCalled();
+        expect(captured.stdout).toEqual([]);
+        expect(captured.stderr).toEqual([]);
+    });
+
     it('dry-run skips API call and file write', async () => {
         const client = buildClient();
         const p = join(tmp, 'preview.feature');
@@ -229,18 +296,40 @@ describe('handleBddGet', () => {
     });
 
     describe("--out '-' (stdout)", () => {
-        it("writes Gherkin text to stdout and its JSON ack to stderr (--out '-')", async () => {
+        it.each([
+            { name: 'Gherkin text', text: 'Feature: Login\n  Scenario: ok\n' },
+            { name: 'multibyte text without a trailing newline', text: 'Feature: 🚀' },
+            { name: 'empty content', text: '' },
+        ])('writes $name verbatim to stdout and its byte count to stderr', async ({ text }) => {
             const client = buildClient();
-            const { ctx, captured } = buildCtx(client, { pathParams: ['42'], out: '-' });
+            client.bdd.getBdd.mockResolvedValueOnce(text);
+            const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: '-' });
             await handleBddGet(ctx);
 
             expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
-            expect(captured.stdout.join('')).toBe('Feature: Login\n  Scenario: ok\n');
+            expect(out).not.toHaveBeenCalled();
+            expect(captured.stdout.join('')).toBe(text);
 
             const ack = JSON.parse(captured.stderr.join('').trimEnd()) as Record<string, unknown>;
             expect(ack['caseId']).toBe(42);
             expect(ack['out']).toBe('<stdout>');
-            expect(ack['size']).toBe(Buffer.byteLength('Feature: Login\n  Scenario: ok\n', 'utf-8'));
+            expect(ack['size']).toBe(Buffer.byteLength(text, 'utf-8'));
+        });
+
+        it('emits only a preview in dry-run, without fetching or writing a payload', async () => {
+            const client = buildClient();
+            const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: '-', dryRun: true });
+            await handleBddGet(ctx);
+
+            expect(client.bdd.getBdd).not.toHaveBeenCalled();
+            expect(captured.stdout).toEqual([]);
+            expect(captured.stderr).toEqual([]);
+            expect(out).toHaveBeenCalledWith({
+                dryRun: true,
+                action: 'bdd get',
+                caseId: 42,
+                out: '<stdout>',
+            });
         });
 
         it('does not warn about a TTY, because Gherkin is text', async () => {

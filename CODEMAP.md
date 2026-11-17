@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "5d51a4a3817aafd26360930493872e2804a5344844b6e8725b214e66c58a612f",
+  "sourceHash": "a5a8fba076c130e772d0b4059b61564298082bfffa10a7125491622f3734a6a5",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2684,42 +2684,58 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/file-output.ts",
       "imports": [
+        "./handler-context.js",
+        "./safe-write.js",
         "node:fs"
       ],
       "reExports": [],
       "symbols": [
         {
+          "name": "DownloadSpec",
+          "kind": "interface",
+          "line": 6,
+          "exported": true,
+          "signature": "export interface DownloadSpec { readonly action: string; readonly idFields: Readonly<Record<string, number | string>>; readonly load: () => Promise<string | ArrayBuffer>; }"
+        },
+        {
+          "name": "outputDownload",
+          "kind": "function",
+          "line": 14,
+          "exported": true,
+          "signature": "export async function outputDownload( ctx: Pick<HandlerContext, 'args' | 'dryRun' | 'force' | 'out' | 'outPayload'>, download: DownloadSpec, ): Promise<void>"
+        },
+        {
           "name": "STDOUT_SENTINEL",
           "kind": "const",
-          "line": 11,
+          "line": 63,
           "exported": true,
           "signature": "export const STDOUT_SENTINEL = '-'"
         },
         {
           "name": "FileOutput",
           "kind": "interface",
-          "line": 17,
+          "line": 69,
           "exported": true,
           "signature": "export interface FileOutput { outFlag?: string; }"
         },
         {
           "name": "OutputResolution",
           "kind": "type",
-          "line": 21,
+          "line": 73,
           "exported": true,
           "signature": "export type OutputResolution = { ok: true; path: string; target: 'file' | 'stdout' } | { ok: false; error: string }"
         },
         {
           "name": "ResolveOutOptions",
           "kind": "interface",
-          "line": 23,
+          "line": 75,
           "exported": true,
           "signature": "export interface ResolveOutOptions { force: boolean; dryRun: boolean; }"
         },
         {
           "name": "resolveOut",
           "kind": "function",
-          "line": 47,
+          "line": 99,
           "exported": true,
           "signature": "export function resolveOut(input: FileOutput, opts: ResolveOutOptions): OutputResolution"
         }
@@ -3090,57 +3106,56 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "../file-output.js",
         "../handler-context.js",
         "../ids.js",
-        "../pagination.js",
-        "../safe-write.js"
+        "../pagination.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "paginationFromCtx",
           "kind": "function",
-          "line": 15,
+          "line": 14,
           "exported": false,
           "signature": "function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: number }"
         },
         {
           "name": "handleAttachmentListForCase",
           "kind": "function",
-          "line": 24,
+          "line": 23,
           "exported": true,
           "signature": "export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForRun",
           "kind": "function",
-          "line": 34,
+          "line": 33,
           "exported": true,
           "signature": "export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForTest",
           "kind": "function",
-          "line": 44,
+          "line": 43,
           "exported": true,
           "signature": "export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlan",
           "kind": "function",
-          "line": 49,
+          "line": 48,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlanEntry",
           "kind": "function",
-          "line": 63,
+          "line": 62,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentGet",
           "kind": "function",
-          "line": 81,
+          "line": 80,
           "exported": true,
           "signature": "export async function handleAttachmentGet(ctx: HandlerContext): Promise<void>"
         }
@@ -3154,7 +3169,6 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "../handler-context.js",
         "../ids.js",
         "../pagination.js",
-        "../safe-write.js",
         "../upload.js"
       ],
       "reExports": [],
@@ -3162,28 +3176,28 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "handleBddList",
           "kind": "function",
-          "line": 10,
+          "line": 9,
           "exported": true,
           "signature": "export async function handleBddList(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleBddGet",
           "kind": "function",
-          "line": 54,
+          "line": 53,
           "exported": true,
           "signature": "export async function handleBddGet(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleBddAdd",
           "kind": "function",
-          "line": 96,
+          "line": 71,
           "exported": true,
           "signature": "export async function handleBddAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleBddUpdate",
           "kind": "function",
-          "line": 104,
+          "line": 79,
           "exported": true,
           "signature": "export async function handleBddUpdate(ctx: HandlerContext): Promise<void>"
         }

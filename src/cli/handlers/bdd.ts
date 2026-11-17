@@ -1,7 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
-import { resolveOut } from '../file-output.js';
-import { safeWriteText } from '../safe-write.js';
+import { outputDownload } from '../file-output.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 import { parseOptionalId, parseOptionalIdList, parseOptionalRefs } from '../filters.js';
 import { setupUpload, uploadPayload } from '../upload.js';
@@ -53,34 +52,10 @@ export async function handleBddList(ctx: HandlerContext): Promise<void> {
  */
 export async function handleBddGet(ctx: HandlerContext): Promise<void> {
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
-    const resolved = resolveOut(
-        { ...(ctx.args.out !== undefined && { outFlag: ctx.args.out }) },
-        { force: ctx.force, dryRun: ctx.dryRun },
-    );
-    if (!resolved.ok) throw new Error(resolved.error);
-
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'bdd get',
-            caseId,
-            out: resolved.path,
-        });
-        return;
-    }
-
-    const text = await ctx.client.bdd.getBdd(caseId);
-
-    if (resolved.target === 'stdout') {
-        ctx.outPayload(text, { caseId, out: '<stdout>', size: Buffer.byteLength(text, 'utf-8') });
-        return;
-    }
-
-    safeWriteText(resolved.path, text, ctx.force);
-    ctx.out({
-        caseId,
-        out: resolved.path,
-        size: Buffer.byteLength(text, 'utf-8'),
+    await outputDownload(ctx, {
+        action: 'bdd get',
+        idFields: { caseId },
+        load: () => ctx.client.bdd.getBdd(caseId),
     });
 }
 

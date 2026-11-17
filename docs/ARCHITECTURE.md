@@ -443,6 +443,8 @@ Explicit closures let TypeScript check list-method signatures.
 body to `{}`. Custom handlers cover irregular actions such as bulk case deletion,
 attachment uploads/deletion, and group creation. `setupUpload()` passes
 `read: !ctx.dryRun` to `resolveFile()` so previews do not drain binary stdin.
+Download handlers parse IDs, then call `outputDownload()` with a lazy SDK callback.
+It validates the destination before fetching, handles previews, and routes text or binary content through the existing output and safe-write functions.
 Contributor recipes belong in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 `CliRuntime.stdin` supplies terminal status and separate text and binary readers.
@@ -460,7 +462,7 @@ Tests provide independent input streams without replacing process globals.
 | `pagination.ts`                          | Validate modes/controls before client construction and select item, page, or aggregate output             |
 | `body.ts`, `stdin.ts`                    | Select JSON input, bound explicit text and binary readers, and validate write payloads                    |
 | `file-input.ts`                          | Require regular upload files and select file or injected binary stdin input                               |
-| `file-output.ts`, `safe-write.ts`        | Validate paths and write through a held descriptor                                                        |
+| `file-output.ts`, `safe-write.ts`        | Own download previews, destination checks, fetching, output routing, and safe file writes                 |
 | `response-validation.ts`                 | Build redacted, deduplicated schema-mismatch warnings or strict errors                                    |
 | `diagnostics.ts`                         | Reserve private files, redact failure records, and own finalization                                       |
 | `output.ts`, `sanitize.ts`               | Format output and strip terminal control characters                                                       |
