@@ -128,7 +128,7 @@ describe('live-audit regression — updateGroup must send group_id in the body',
         mockFetch.mockResolvedValueOnce(mockOk({ id: 7, name: 'redacted', user_ids: [] }));
         const client = createClient();
         await client.users.updateGroup(7, { name: 'x' });
-        const body = JSON.parse((mockFetch.mock.calls[0]?.[1] as RequestInit).body as string) as Json;
+        const body = JSON.parse((mockFetch.mock.calls[0]?.[1] as RequestInit | undefined)?.body as string) as Json;
         expect(body['group_id']).toBe(7);
     });
 });

@@ -84,9 +84,6 @@ jobs:
             - name: Run TypeScript 7 type check
               run: npm run typecheck
 
-            - name: Run TypeScript 6 compatibility check
-              run: npm run typecheck:ts6
-
             - name: Run linting
               run: npm run lint
 

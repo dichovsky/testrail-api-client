@@ -32,7 +32,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import { getJSDoc, getModifiers, parseSource, ts } from './ts-source.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -161,17 +161,33 @@ function computeSourceHash(rootDir: string, relFiles: string[]): string {
 function normalizeWhitespace(source: string): string {
     // Tokenize via TS scanner so string literals (which may contain spaces or
     // newlines) are not corrupted by a naive `replace(/\s+/g, ' ')`.
-    const scanner = ts.createScanner(
-        ts.ScriptTarget.Latest,
-        /* skipTrivia */ false,
-        ts.LanguageVariant.Standard,
-        source,
-    );
+    const scanner = ts.createScanner(/* skipTrivia */ false, ts.LanguageVariant.Standard, source);
     let out = '';
     let needSpace = false;
+    let position = 0;
     while (true) {
         const kind = scanner.scan();
-        if (kind === ts.SyntaxKind.EndOfFileToken) break;
+        if (kind === ts.SyntaxKind.EndOfFile) break;
+        if (scanner.getTokenEnd() <= position) {
+            // The TypeScript 7 scanner reports a `#` that does not start a private
+            // name (for example inside a regex literal or after a template
+            // substitution, both of which this plain re-scan cannot tell apart) as an
+            // empty PrivateIdentifier and never advances, so the loop would spin
+            // forever. Keep the character and resume after it; any other stall is
+            // a scanner change this generator must fail on rather than hang on.
+            if (source[position] !== '#') {
+                throw new Error(`Signature scanner made no progress at offset ${position} of: ${source}`);
+            }
+            if (needSpace) {
+                out += ' ';
+                needSpace = false;
+            }
+            out += '#';
+            position += 1;
+            scanner.setText(source, position);
+            continue;
+        }
+        position = scanner.getTokenEnd();
         if (
             kind === ts.SyntaxKind.WhitespaceTrivia ||
             kind === ts.SyntaxKind.NewLineTrivia ||
@@ -229,19 +245,14 @@ function sliceVariable(stmt: ts.VariableStatement, sourceFile: ts.SourceFile, ma
 
 // ── AST: JSDoc extraction (first paragraph + inline tag mentions) ─────────────
 
-function commentToString(comment: string | ts.NodeArray<ts.JSDocComment> | undefined): string {
-    if (typeof comment === 'string') return comment;
-    if (comment === undefined) return '';
-    if (Array.isArray(comment)) return (comment as { text?: string }[]).map((c) => c.text ?? '').join('');
-    return '';
+function commentToString(comment: ts.NodeArray<ts.JSDocComment> | undefined): string {
+    // TypeScript 7 always yields a NodeArray (never a string). Link parts expose only their display text.
+    return comment?.map((c) => c.text).join('') ?? '';
 }
 
 function extractJsdoc(node: ts.Node): string | undefined {
-    const docs = ts.getJSDocCommentsAndTags(node);
-    if (docs === undefined || docs.length === 0) return undefined;
-    const jsDocNode = docs.find((d) => d.kind === ts.SyntaxKind.JSDoc);
+    const jsDocNode = getJSDoc(node);
     if (jsDocNode === undefined) return undefined;
-    if (!ts.isJSDoc(jsDocNode)) return undefined;
 
     const commentText = commentToString(jsDocNode.comment);
     const firstParagraph = commentText.split(/\n\s*\n/)[0] ?? '';
@@ -250,7 +261,7 @@ function extractJsdoc(node: ts.Node): string | undefined {
     const inline: string[] = [];
     let exampleSeen = false;
     for (const tag of jsDocNode.tags ?? []) {
-        const tagName = tag.tagName.escapedText as string;
+        const tagName = tag.tagName.text;
         const c = commentToString(tag.comment).replace(/\s+/g, ' ').trim();
         if (tagName === 'param' || tagName === 'returns' || tagName === 'return') continue;
         if (tagName === 'deprecated') {
@@ -277,9 +288,7 @@ function lineOf(node: ts.Node, sourceFile: ts.SourceFile): number {
 }
 
 function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
-    if (!ts.canHaveModifiers(node)) return false;
-    const mods = ts.getModifiers(node);
-    return mods !== undefined ? mods.some((m) => m.kind === kind) : false;
+    return getModifiers(node)?.some((m) => m.kind === kind) ?? false;
 }
 
 const hasExportModifier = (node: ts.Node): boolean => hasModifier(node, ts.SyntaxKind.ExportKeyword);
@@ -306,7 +315,7 @@ function classifyMember(member: ts.ClassElement): MemberKind | undefined {
 
 function memberName(member: ts.ClassElement): string | undefined {
     if (ts.isConstructorDeclaration(member)) return 'constructor';
-    const n = member.name;
+    const n: ts.Node | undefined = (member as { readonly name?: ts.Node }).name;
     if (n === undefined) return undefined;
     if (ts.isIdentifier(n) || ts.isPrivateIdentifier(n) || ts.isStringLiteral(n) || ts.isNumericLiteral(n)) {
         return n.text;
@@ -818,15 +827,14 @@ export function buildCodemap({ rootDir }: { rootDir: string }): BuildCodemapResu
 
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string };
 
-    // Parse source files directly. We only need AST walking, not type-checking,
-    // and createProgram doesn't reliably attach `.jsDoc` arrays to nodes (which
-    // ts.getJSDocCommentsAndTags relies on). createSourceFile with
-    // setParentNodes=true gives us both JSDoc attachment and `.parent` chains.
+    // Parse source files directly. We only need AST walking, not type-checking.
+    // parseSource (the TypeScript 7 adapter) attaches `.jsDoc` arrays and
+    // `.parent` chains to every node.
     const sourceFileByRel = new Map<string, ts.SourceFile>();
     for (const rel of relFiles) {
         const abs = join(root, rel);
         const text = readFileSync(abs, 'utf8');
-        const sf = ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, /* setParentNodes */ true);
+        const sf = parseSource(abs, text);
         if (!sf.isDeclarationFile) sourceFileByRel.set(rel, sf);
     }
 

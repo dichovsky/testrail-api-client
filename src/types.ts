@@ -281,8 +281,8 @@ export interface TestRailConfig {
      * rejection surfaces as an unhandled rejection (fatal on Node >= 15). A hook
      * that returns a thenable is rejected with `TestRailValidationError`. Do
      * async work in a fire-and-forget call inside a synchronous hook.
-     * (`typescript-eslint`'s `no-misused-promises` catches this at lint time if
-     * you have typed linting enabled; `tsc` alone does not.)
+     * (`typescript-eslint`'s and oxlint's `no-misused-promises` catch this at lint
+     * time if you have type-aware linting enabled; `tsc` alone does not.)
      *
      * **Do not mutate `mismatch.data`.** It is the same object reference the
      * caller receives, so an in-place edit (a redact-before-log pass, say)

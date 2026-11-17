@@ -834,7 +834,7 @@ describe('advisory response validation (6.0.0)', () => {
             // guard is for.
             const asyncHook = new TestRailClient({
                 ...BASE_CONFIG,
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                // oxlint-disable-next-line typescript/no-misused-promises
                 onSchemaMismatch: async () => {
                     throw new Error('strict');
                 },
@@ -856,7 +856,7 @@ describe('advisory response validation (6.0.0)', () => {
             try {
                 const asyncHook = new TestRailClient({
                     ...BASE_CONFIG,
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                    // oxlint-disable-next-line typescript/no-misused-promises
                     onSchemaMismatch: async () => {
                         throw new Error('boom');
                     },

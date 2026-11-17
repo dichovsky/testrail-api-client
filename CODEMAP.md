@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "5d51a4a3817aafd26360930493872e2804a5344844b6e8725b214e66c58a612f",
+  "sourceHash": "5fab91b4a0f859dc241cbbda1410574e83ed457f92c75de0c813e282be17443c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"

@@ -25,16 +25,16 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Delete modes are fixed when called.** `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()` now snapshot `options.soft`. Previously, changing it while a request was pending could change response validation and whether the method returned a preview. The dispatched mode now determines the URL, response schema, and return value.
 - CLI text and binary stdin now use explicit runtime readers. Binary limits, timeouts, and dry-run behavior remain unchanged.
 - Multipart uploads now have one owner for transport observation and cleanup. Released upload sources cannot reopen their original paths.
+- **Oxlint replaces ESLint, and TypeScript 7 is the only TypeScript.** `npm run lint` now runs oxlint with type-aware rules through `oxlint-tsgolint`. The configuration is `.oxlintrc.json`, and the ESLint configuration and packages are removed. The `typescript` dev dependency is now `~7.0.2`. The TypeScript 6 alias, the `@typescript/native` alias, and `npm run typecheck:ts6` are removed. The package smoke test now checks the packed declarations with TypeScript 7 only. CI no longer verifies consumers on TypeScript 6. The code generators now parse source through `scripts/ts-source.ts`, which uses the unstable TypeScript 7 API (`typescript/unstable/*`). The lockfile pins that API, and the `:check` drift gates catch behavior changes.
 - Updated Zod to `^4.6.7`. Zod remains the only runtime dependency.
-- Updated `@types/node` to `^26.6.6` and both TypeScript ESLint packages to `^8.72.2`.
-- Updated Vitest and its V8 coverage provider to `^5.1.0`, ESLint to `^10.15.0`, and `lockfile-lint` to `^5.1.0`.
+- Updated `@types/node` to `^26.6.6`.
+- Updated Vitest and its V8 coverage provider to `^5.1.0` and `lockfile-lint` to `^5.1.0`.
 - Updated Prettier to `~3.10.1` and refreshed transitive dependencies. The other direct dependencies already use their latest releases.
 - Converted repository documentation to Simplified Technical English. Preserved historical runtime requirements, commands, issue references, and evidence.
 
 ### Security
 
-- Overrode transitive `minimatch` with `^11.0.8` to resolve GHSA-g3hv-75wg-m249. The TypeScript ESLint dependency range otherwise retains vulnerable version 10.
-- The updated dependency tree reports zero vulnerabilities in `npm audit`.
+- The updated production dependency tree reports zero vulnerabilities in `npm audit --omit=dev`.
 
 ## [9.0.0] — 2026-10-04 — pinned connections, comment-only results, and a split skill
 
