@@ -42,3 +42,9 @@ Ownership starts before ID validation and client-state checks. A rejected upload
 The **upload lifetime** covers this ownership, body preparation, transport observation, and cleanup. Nested SDK and request calls share one lifetime. An abort request alone does not prove that transmission stopped. Cleanup uses transport evidence to prevent an incomplete file from appearing complete.
 
 A caller-visible timeout can occur before transport work settles. `trackOperation().settled` remains the way to wait for all associated work.
+
+## Destructive action
+
+A destructive action is a CLI command that deletes data or closes a run or plan. Real execution requires both `TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes`. The CLI checks the environment gate before authentication. After each handler validates its inputs, the shared destructive execution workflow (`src/cli/destructive.ts`) checks soft-mode support, handles dry-run, requires confirmation, and reports success only after the SDK call succeeds.
+
+`--dry-run` produces a local preview without calling the SDK and bypasses both confirmation gates. `--soft` requests a server-side preview on supported commands. It still makes a request and requires both gates. Unsupported `--soft` is ignored during dry-run and rejected during real execution.

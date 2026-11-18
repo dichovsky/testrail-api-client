@@ -1,7 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, parseEntryId, parseAttachmentId } from '../ids.js';
 import { setupUpload, uploadPayload } from '../upload.js';
-import { resolveSoftFlag } from '../write-handler-factory.js';
+import { executeDestructive } from '../destructive.js';
 
 export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void> {
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
@@ -52,22 +52,14 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
  */
 export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void> {
     const attachmentId = parseAttachmentId(ctx.args.pathParams[0], 'attachment_id');
-    resolveSoftFlag(ctx);
-
-    if (ctx.dryRun) {
-        ctx.out({
+    await executeDestructive(ctx, {
+        preview: () => ({
             dryRun: true,
             action: 'attachment delete',
             attachmentId,
             destructive: true,
-        });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    await ctx.client.attachments.deleteAttachment(attachmentId);
-    ctx.out({ attachmentId, deleted: true });
+        }),
+        call: () => ctx.client.attachments.deleteAttachment(attachmentId),
+        formatResult: () => ({ attachmentId, deleted: true }),
+    });
 }

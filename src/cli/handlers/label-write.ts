@@ -2,7 +2,8 @@ import { AddLabelPayloadSchema, DeleteLabelsPayloadSchema, UpdateLabelPayloadSch
 import type { HandlerContext } from '../handler-context.js';
 import { resolveBody } from '../body.js';
 import { IdParseError } from '../ids.js';
-import { createDestructiveHandler, createWriteHandler, resolveSoftFlag } from '../write-handler-factory.js';
+import { createDestructiveHandler, createWriteHandler } from '../write-handler-factory.js';
+import { executeDestructive } from '../destructive.js';
 
 /** `label add <project_id>` — create a project-scoped label. */
 export const handleLabelAdd = createWriteHandler({
@@ -33,8 +34,8 @@ export const handleLabelDelete = createDestructiveHandler({
 
 /**
  * Destructive bulk label deletion. This is body-bearing, so it cannot use the
- * no-body destructive factory; it mirrors the same dry-run/soft/confirmation
- * ordering while validating `label_ids` through the shared payload schema.
+ * no-body destructive factory. It validates `label_ids` through the shared
+ * payload schema before entering the shared destructive workflow.
  */
 export async function handleLabelDeleteBulk(ctx: HandlerContext): Promise<void> {
     if (ctx.args.pathParams.length > 0) {
@@ -44,23 +45,15 @@ export async function handleLabelDeleteBulk(ctx: HandlerContext): Promise<void> 
     }
     const body = resolveBody(ctx.bodyInput, DeleteLabelsPayloadSchema);
     if (!body.ok) throw new Error(body.error);
-    resolveSoftFlag(ctx);
-
-    if (ctx.dryRun) {
-        ctx.out({
+    await executeDestructive(ctx, {
+        preview: () => ({
             dryRun: true,
             action: 'label delete-bulk',
             destructive: true,
             payload: body.payload,
             source: body.source,
-        });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    await ctx.client.labels.deleteLabels(body.payload);
-    ctx.out({ labelIds: body.payload.label_ids, deleted: true });
+        }),
+        call: () => ctx.client.labels.deleteLabels(body.payload),
+        formatResult: () => ({ labelIds: body.payload.label_ids, deleted: true }),
+    });
 }

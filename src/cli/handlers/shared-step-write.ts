@@ -2,7 +2,8 @@ import { AddSharedStepPayloadSchema, UpdateSharedStepPayloadSchema } from '../..
 import type { HandlerContext } from '../handler-context.js';
 import { parseOptionalBoolean } from '../filters.js';
 import { parseId } from '../ids.js';
-import { createWriteHandler, resolveSoftFlag } from '../write-handler-factory.js';
+import { createWriteHandler } from '../write-handler-factory.js';
+import { executeDestructive } from '../destructive.js';
 
 export const handleSharedStepAdd = createWriteHandler({
     action: 'shared-step add',
@@ -27,27 +28,18 @@ export const handleSharedStepUpdate = createWriteHandler({
 export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void> {
     const sharedStepId = parseId(ctx.args.pathParams[0], 'shared_step_id');
     const keepInCases = parseOptionalBoolean(ctx.args.keepInCases, '--keep-in-cases');
-    resolveSoftFlag(ctx);
-
-    if (ctx.dryRun) {
-        ctx.out({
+    await executeDestructive(ctx, {
+        preview: () => ({
             dryRun: true,
             action: 'shared-step delete',
             sharedStepId,
             keepInCases: keepInCases ?? true,
             destructive: true,
-        });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    if (keepInCases === undefined) {
-        await ctx.client.sharedSteps.deleteSharedStep(sharedStepId);
-    } else {
-        await ctx.client.sharedSteps.deleteSharedStep(sharedStepId, { keepInCases });
-    }
-    ctx.out({ sharedStepId, keepInCases: keepInCases ?? true, deleted: true });
+        }),
+        call: () =>
+            keepInCases === undefined
+                ? ctx.client.sharedSteps.deleteSharedStep(sharedStepId)
+                : ctx.client.sharedSteps.deleteSharedStep(sharedStepId, { keepInCases }),
+        formatResult: () => ({ sharedStepId, keepInCases: keepInCases ?? true, deleted: true }),
+    });
 }

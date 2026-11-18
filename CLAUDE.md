@@ -48,6 +48,7 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `src/cli/{auth,ids,dispatch,handler-context,response-validation}.ts` | CLI core helpers: environment and flag resolution, ID parsing, handler routing, and schema mismatch handling                                                                       |
 | `src/cli/{file-input,file-output}.ts`                                | Upload source resolver (`--file`) and download destination resolver (`--out`)                                                                                                      |
 | `src/cli/{upload,download}.ts`                                       | Shared upload and attachment/BDD download workflows: dry-run previews, lazy transfer, and safe output                                                                              |
+| `src/cli/destructive.ts`                                             | Shared delete and close workflow: soft-mode checks, dry-run, confirmation, and successful output                                                                                   |
 | `src/cli/diagnostics.ts`                                             | Redacted CLI error records and private diagnostic file creation, writing, and cleanup                                                                                              |
 | `src/cli/handlers/*.ts`                                              | Async command handlers for each resource and action                                                                                                                                |
 | `src/index.ts`                                                       | Public package exports                                                                                                                                                             |
@@ -337,7 +338,8 @@ Shared test helpers live in `tests/helpers.ts`. Use the test output for current 
 8. Regenerate the codemap, skill, mapping, and agent instructions.
 9. Run `npm run verify`.
 
-The factories handle parameter parsing, body validation, dry-run, and destructive checks.
+The factories handle parameter parsing and body validation. Destructive handlers delegate soft-mode checks, dry-run, confirmation, and successful output to `executeDestructive()` in `src/cli/destructive.ts`.
+Custom destructive handlers validate their inputs first, then supply preview, SDK-call, and result-formatting callbacks to the same workflow.
 Dispatch and help read `ACTIONS`; they do not need separate command lists.
 
 **Add CLI attachment action (binary file I/O):**
@@ -348,7 +350,7 @@ Dispatch and help read `ACTIONS`; they do not need separate command lists.
 4. For downloads, call `outputDownload()` from `src/cli/download.ts` with a lazy SDK callback.
 5. Add the `ActionSpec` entry, including its handler, in `src/cli/metadata/attachments.ts`.
 6. Select `fileInput: true` for uploads, `fileOutput: true` for downloads, or `destructive: true` for deletion.
-7. For deletion, check `ctx.confirmDestructive` after the dry-run branch.
+7. For deletion, parse the attachment ID, then call `executeDestructive()` with preview, SDK-call, and result-formatting callbacks.
 8. Add tests for success, dry-run, missing flags, and invalid parameters in `tests/cli-attachment-handlers.test.ts`.
 9. For deletion, test the `--yes` gate and dry-run precedence.
 10. Add an in-process CLI test in `tests/cli.test.ts`.

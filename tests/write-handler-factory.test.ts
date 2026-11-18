@@ -211,10 +211,30 @@ describe('createDestructiveHandler', () => {
         expect(out).toHaveBeenCalledWith({ dryRun: true, action: 'thing delete', thingId: 8, destructive: true });
     });
 
-    it('soft-unsupported: rejects --soft', async () => {
-        const handler = createDestructiveHandler({ action: 'thing delete', pathParams: ['thing_id'], call: vi.fn() });
-        const { ctx } = makeCtx({ pathParams: ['8'], soft: true, confirmDestructive: true });
+    it('soft-unsupported: rejects --soft before checking confirmation', async () => {
+        const call = vi.fn();
+        const handler = createDestructiveHandler({ action: 'thing delete', pathParams: ['thing_id'], call });
+        const { ctx, out } = makeCtx({ pathParams: ['8'], soft: true });
         await expect(handler(ctx)).rejects.toThrow('thing delete does not support --soft.');
+        expect(call).not.toHaveBeenCalled();
+        expect(out).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { pathParams: ['0', 'invalid'], error: /plan_id must be a positive integer/ },
+        { pathParams: ['5', 'invalid'], error: /entry_id must be a UUID string/ },
+    ])('validates path parameters $pathParams before dry-run or --soft handling', async ({ pathParams, error }) => {
+        const call = vi.fn();
+        const handler = createDestructiveHandler({
+            action: 'plan delete-entry',
+            pathParams: ['plan_id'],
+            entryParam: 'entry_id',
+            call,
+        });
+        const { ctx, out } = makeCtx({ pathParams, dryRun: true, soft: true });
+        await expect(handler(ctx)).rejects.toThrow(error);
+        expect(call).not.toHaveBeenCalled();
+        expect(out).not.toHaveBeenCalled();
     });
 
     it('requires --yes when not in dry-run', async () => {

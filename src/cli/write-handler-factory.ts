@@ -3,6 +3,7 @@ import type { Handler, HandlerContext } from './handler-context.js';
 import type { TestRailClient } from '../client.js';
 import { parseId, parseEntryId } from './ids.js';
 import { resolveBody } from './body.js';
+import { executeDestructive } from './destructive.js';
 
 /**
  * Declarative factories that collapse the ~60 near-identical CLI write
@@ -15,15 +16,15 @@ import { resolveBody } from './body.js';
  *   - `createWriteHandler`       — non-destructive body writes (add/update/
  *                                  move/copy/bulk). Emits the API result (or a
  *                                  `formatOutput` envelope for void endpoints).
- *   - `createDestructiveHandler` — delete/close actions. Handles the `--yes`
- *                                  gate, ActionSpec-owned `--soft`
- *                                  reject/optional behavior, and the
- *                                  `{deleted:true}` vs returned-entity split.
+ *   - `createDestructiveHandler` — delete/close actions. Parses path params
+ *                                  and supplies command output and the SDK
+ *                                  call to the shared destructive workflow.
  *
  * Genuinely irregular handlers stay hand-written: `case delete-bulk` (body +
  * `--project-id` + soft), attachment uploads (`setupUpload` streaming), and
  * `group add` (rejects positional args). They don't fit a shared skeleton
- * without bending the factory out of shape.
+ * without bending the factory out of shape. Custom destructive handlers
+ * use the same execution workflow after their own input validation.
  */
 
 /** snake_case path-param name → camelCase preview/output key. */
@@ -145,17 +146,6 @@ export interface DestructiveHandlerSpec {
     call: (client: TestRailClient, nums: NumIds, entry: string, soft: boolean) => Promise<unknown>;
 }
 
-/** Resolve `--soft` exclusively from the dispatched ActionSpec. Dry-run keeps
- * its established precedence over unsupported-soft rejection. */
-export function resolveSoftFlag(ctx: HandlerContext): boolean {
-    const requested = ctx.args.soft === true;
-    const supported = ctx.actionSpec.softMode === 'optional';
-    if (requested && !supported && !ctx.dryRun) {
-        throw new Error(`${ctx.actionSpec.resource} ${ctx.actionSpec.action} does not support --soft.`);
-    }
-    return requested && supported;
-}
-
 export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler {
     const pathParams = spec.pathParams ?? [];
     const kind = spec.kind ?? 'delete';
@@ -163,40 +153,24 @@ export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler 
         const softMode = ctx.actionSpec.softMode ?? 'reject';
         const { nums, entry, idBag } = parsePathArgs(ctx, pathParams, spec.entryParam);
         const ids = nums as unknown as NumIds;
-        const soft = resolveSoftFlag(ctx);
-
-        if (ctx.dryRun) {
-            ctx.out({
+        await executeDestructive(ctx, {
+            preview: (soft) => ({
                 dryRun: true,
                 action: spec.action,
                 ...idBag,
                 ...(softMode === 'optional' ? { soft } : {}),
                 destructive: true,
-            });
-            return;
-        }
-
-        if (!ctx.confirmDestructive) {
-            throw new Error('Destructive action; pass --yes to confirm.');
-        }
-
-        if (kind === 'close') {
-            ctx.out(await spec.call(ctx.client, ids, entry, false));
-            return;
-        }
-
-        if (softMode === 'optional') {
-            if (soft) {
-                const preview = await spec.call(ctx.client, ids, entry, true);
-                ctx.out({ ...idBag, soft: true, deleted: false, preview });
-                return;
-            }
-            await spec.call(ctx.client, ids, entry, false);
-            ctx.out({ ...idBag, soft: false, deleted: true });
-            return;
-        }
-
-        await spec.call(ctx.client, ids, entry, false);
-        ctx.out({ ...idBag, deleted: true });
+            }),
+            call: (soft) => spec.call(ctx.client, ids, entry, kind !== 'close' && softMode === 'optional' && soft),
+            formatResult: (result, soft) => {
+                if (kind === 'close') return result;
+                if (softMode === 'optional') {
+                    return soft
+                        ? { ...idBag, soft: true, deleted: false, preview: result }
+                        : { ...idBag, soft: false, deleted: true };
+                }
+                return { ...idBag, deleted: true };
+            },
+        });
     };
 }
