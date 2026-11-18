@@ -11,7 +11,7 @@ import { lstatSync } from 'node:fs';
 export const STDOUT_SENTINEL = '-';
 
 /**
- * Raw input for the binary-download output resolver. Only `outFlag`; no
+ * Raw input for the download destination resolver. Only `outFlag`; no
  * filename override (the user already specified the destination path).
  */
 export interface FileOutput {
@@ -28,7 +28,7 @@ export interface ResolveOutOptions {
 }
 
 /**
- * Resolve a `--out <path>` binary-download output target. Validates flag
+ * Resolve a `--out <path>` download target. Validates flag
  * presence; refuses to overwrite an existing file unless `--force`. Always
  * refuses to write through a symbolic link (even with `--force`) — the
  * target file is never followed, eliminating a TOCTOU symlink-clobber where
@@ -37,8 +37,8 @@ export interface ResolveOutOptions {
  *
  * `--out -` (`STDOUT_SENTINEL`) bypasses filesystem checks entirely — the
  * destination is stdout, no path is opened, and there's no
- * clobber/symlink concern. The handler is responsible for routing the JSON
- * ack to stderr when this target is selected.
+ * clobber/symlink concern. `outputDownload()` delegates the payload and JSON
+ * ack routing to the output module when this target is selected.
  *
  * In dry-run, no filesystem precondition is checked — dry-run is meant to
  * be side-effect-free and not act as a clobber pre-check (the real run

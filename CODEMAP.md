@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "5fab91b4a0f859dc241cbbda1410574e83ed457f92c75de0c813e282be17443c",
+  "sourceHash": "6f2121e0ed0612159884a666926370328aba6f31969ce3884ae4f37f0dba24d1",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2628,6 +2628,31 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       ]
     },
     {
+      "path": "src/cli/download.ts",
+      "imports": [
+        "./file-output.js",
+        "./handler-context.js",
+        "./safe-write.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "DownloadSpec",
+          "kind": "interface",
+          "line": 6,
+          "exported": true,
+          "signature": "export interface DownloadSpec { readonly action: string; readonly idFields: Readonly<Record<string, number | string>>; readonly load: () => Promise<string | ArrayBuffer>; }"
+        },
+        {
+          "name": "outputDownload",
+          "kind": "function",
+          "line": 14,
+          "exported": true,
+          "signature": "export async function outputDownload( ctx: Pick<HandlerContext, 'args' | 'dryRun' | 'force' | 'out' | 'outPayload'>, download: DownloadSpec, ): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/file-input.ts",
       "imports": [
         "../constants.js",
@@ -3087,60 +3112,59 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/handlers/attachment.ts",
       "imports": [
-        "../file-output.js",
+        "../download.js",
         "../handler-context.js",
         "../ids.js",
-        "../pagination.js",
-        "../safe-write.js"
+        "../pagination.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "paginationFromCtx",
           "kind": "function",
-          "line": 15,
+          "line": 14,
           "exported": false,
           "signature": "function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: number }"
         },
         {
           "name": "handleAttachmentListForCase",
           "kind": "function",
-          "line": 24,
+          "line": 23,
           "exported": true,
           "signature": "export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForRun",
           "kind": "function",
-          "line": 34,
+          "line": 33,
           "exported": true,
           "signature": "export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForTest",
           "kind": "function",
-          "line": 44,
+          "line": 43,
           "exported": true,
           "signature": "export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlan",
           "kind": "function",
-          "line": 49,
+          "line": 48,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlanEntry",
           "kind": "function",
-          "line": 63,
+          "line": 62,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentGet",
           "kind": "function",
-          "line": 81,
+          "line": 80,
           "exported": true,
           "signature": "export async function handleAttachmentGet(ctx: HandlerContext): Promise<void>"
         }
@@ -3149,12 +3173,11 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/handlers/bdd.ts",
       "imports": [
-        "../file-output.js",
+        "../download.js",
         "../filters.js",
         "../handler-context.js",
         "../ids.js",
         "../pagination.js",
-        "../safe-write.js",
         "../upload.js"
       ],
       "reExports": [],
@@ -3162,28 +3185,28 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "handleBddList",
           "kind": "function",
-          "line": 10,
+          "line": 9,
           "exported": true,
           "signature": "export async function handleBddList(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleBddGet",
           "kind": "function",
-          "line": 54,
+          "line": 53,
           "exported": true,
           "signature": "export async function handleBddGet(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleBddAdd",
           "kind": "function",
-          "line": 96,
+          "line": 71,
           "exported": true,
           "signature": "export async function handleBddAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleBddUpdate",
           "kind": "function",
-          "line": 104,
+          "line": 79,
           "exported": true,
           "signature": "export async function handleBddUpdate(ctx: HandlerContext): Promise<void>"
         }

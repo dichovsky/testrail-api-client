@@ -1,7 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, parseEntryId, parseAttachmentId } from '../ids.js';
-import { resolveOut } from '../file-output.js';
-import { safeWriteBinary } from '../safe-write.js';
+import { outputDownload } from '../download.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 /**
@@ -80,36 +79,9 @@ export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Pro
  */
 export async function handleAttachmentGet(ctx: HandlerContext): Promise<void> {
     const attachmentId = parseAttachmentId(ctx.args.pathParams[0], 'attachment_id');
-    const resolved = resolveOut(
-        { ...(ctx.args.out !== undefined && { outFlag: ctx.args.out }) },
-        { force: ctx.force, dryRun: ctx.dryRun },
-    );
-    if (!resolved.ok) throw new Error(resolved.error);
-
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'attachment get',
-            attachmentId,
-            out: resolved.path,
-        });
-        return;
-    }
-
-    const buf = await ctx.client.attachments.getAttachment(attachmentId);
-    const bytes = new Uint8Array(buf);
-
-    if (resolved.target === 'stdout') {
-        // The output module owns the rest: the TTY warning, the payload, and
-        // routing the JSON ack to stderr so the stdout stream stays pure binary.
-        ctx.outPayload(bytes, { attachmentId, out: '<stdout>', size: bytes.byteLength });
-        return;
-    }
-
-    safeWriteBinary(resolved.path, bytes, ctx.force);
-    ctx.out({
-        attachmentId,
-        out: resolved.path,
-        size: bytes.byteLength,
+    await outputDownload(ctx, {
+        action: 'attachment get',
+        idFields: { attachmentId },
+        load: () => ctx.client.attachments.getAttachment(attachmentId),
     });
 }

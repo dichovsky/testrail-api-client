@@ -46,7 +46,8 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `src/cli/index.ts`                                                   | `runCli(runtime)`: parses arguments, dispatches commands, resolves auth, and runs handlers                                                                                         |
 | `src/cli/output.ts`                                                  | CLI output module: `createOutput({quiet, format, stdout, stderr, stdoutIsTTY})` for formatting, sanitization, `--quiet`, and `--out -`                                             |
 | `src/cli/{auth,ids,dispatch,handler-context,response-validation}.ts` | CLI core helpers: environment and flag resolution, ID parsing, handler routing, and schema mismatch handling                                                                       |
-| `src/cli/{file-input,file-output}.ts`                                | Binary file input resolver (`--file`) and binary download resolver (`--out`) for attachment commands                                                                               |
+| `src/cli/{file-input,file-output}.ts`                                | Upload source resolver (`--file`) and download destination resolver (`--out`)                                                                                                      |
+| `src/cli/{upload,download}.ts`                                       | Shared upload and attachment/BDD download workflows: dry-run previews, lazy transfer, and safe output                                                                              |
 | `src/cli/diagnostics.ts`                                             | Redacted CLI error records and private diagnostic file creation, writing, and cleanup                                                                                              |
 | `src/cli/handlers/*.ts`                                              | Async command handlers for each resource and action                                                                                                                                |
 | `src/index.ts`                                                       | Public package exports                                                                                                                                                             |
@@ -344,7 +345,7 @@ Dispatch and help read `ACTIONS`; they do not need separate command lists.
 1. Confirm that the SDK method exists in `src/modules/attachments.ts`.
 2. Add the handler to `src/cli/handlers/attachment.ts` or `src/cli/handlers/attachment-write.ts`.
 3. For uploads, use `setupUpload()` for dry-run previews and file-descriptor streaming.
-4. For downloads, use `resolveOut()` from `src/cli/file-output.ts`.
+4. For downloads, call `outputDownload()` from `src/cli/download.ts` with a lazy SDK callback.
 5. Add the `ActionSpec` entry, including its handler, in `src/cli/metadata/attachments.ts`.
 6. Select `fileInput: true` for uploads, `fileOutput: true` for downloads, or `destructive: true` for deletion.
 7. For deletion, check `ctx.confirmDestructive` after the dry-run branch.
@@ -361,7 +362,7 @@ Keep `attachment delete` as a custom handler because attachment IDs can be integ
 `--soft` sends `soft=1` to the server to preview affected counts without deletion.
 `--dry-run --yes --soft` returns a local preview with `soft: true` and sends no request.
 
-**Add text-response endpoint:** Call `this.client.request<string>({ method, endpoint, responseKind: 'text' })`. Text responses return `Promise<string>` and bypass the cache. Use `resolveOut()` and the existing safe-write path for CLI file output. Follow the BDD handler pattern.
+**Add text-response endpoint:** Call `this.client.request<string>({ method, endpoint, responseKind: 'text' })`. Text responses return `Promise<string>` and bypass the cache. For CLI downloads, pass the text-returning SDK call to `outputDownload()`. Follow the BDD handler pattern.
 
 **Change caching:** Keep key selection and response cacheability in `src/client-core.ts`. Change storage, request sharing, invalidation, and cleanup through `RequestCache.resolve()` in `src/request-cache.ts`.
 
