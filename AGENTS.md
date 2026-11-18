@@ -171,7 +171,7 @@ All destructive CLI commands require both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIV
 - Do not hardcode numeric constants; use `src/constants.ts`.
 - Do not call `request()` without validating IDs first.
 - Do not pass the API key on `argv`.
-- Do not skip `npm run typecheck` or `npm run typecheck:ts6` before committing.
+- Do not skip `npm run typecheck` before committing.
 - Do not manually edit `CODEMAP.md`, `docs/API-MAPPING.md`, `skill/reference/payload-schemas.yaml`, or `AGENTS.md`.
   Do not manually edit generated sections in `skill/SKILL.md` or `skill/reference/commands.md`.
   Run the matching `npm run` generator script after editing source files.
@@ -195,9 +195,8 @@ npm run verify                 # Build, static/drift checks, coverage, package s
 npm test                       # Vitest suite only (no implicit pre-hook)
 npm run test:coverage          # Coverage report
 npm run build                  # Compile to dist/
-npm run lint                   # ESLint
+npm run lint                   # Oxlint (type-aware)
 npm run typecheck              # Native TypeScript 7 check
-npm run typecheck:ts6          # TypeScript 6 compatibility check
 npm run codemap                # Regenerate CODEMAP.md
 npm run mapping                # Regenerate docs/API-MAPPING.md
 npm run skill                  # Regenerate skill/SKILL.md + reference/

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { buildCodemap, runCli } from '../scripts/generate-codemap.js';
+import { parseSource, ts } from '../scripts/ts-source.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -229,31 +230,137 @@ describe('buildCodemap — compiler AST offset contract', () => {
     });
 });
 
-describe('TypeScript compiler API boundary', () => {
-    it('keeps compiler API consumers in the reviewed TS6-compatible generator set', () => {
-        const compilerApiImport = /(?:from\s+|import\s*\(|require\s*\()\s*['"]typescript['"]/;
-        const nativeApiImport = /['"]@typescript\/(?:native|native-preview)['"]/;
-        const sourceConsumers = collectTypeScriptFiles(join(REPO_ROOT, 'src'))
-            .filter((path) => compilerApiImport.test(readFileSync(path, 'utf8')))
-            .map(repositoryRelative)
-            .sort();
-        const scriptFiles = collectTypeScriptFiles(join(REPO_ROOT, 'scripts'));
-        const scriptConsumers = scriptFiles
-            .filter((path) => compilerApiImport.test(readFileSync(path, 'utf8')))
-            .map(repositoryRelative)
-            .sort();
-        const nativeApiConsumers = [...collectTypeScriptFiles(join(REPO_ROOT, 'src')), ...scriptFiles]
-            .filter((path) => nativeApiImport.test(readFileSync(path, 'utf8')))
-            .map(repositoryRelative)
-            .sort();
+describe('buildCodemap — signature scanning', () => {
+    it('keeps a # that starts no private name instead of stalling the TypeScript 7 scanner', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'codemap-hash-'));
+        try {
+            writeFileSync(join(dir, 'package.json'), '{"name":"hash-fixture","version":"0.0.0"}\n');
+            writeFileSync(
+                join(dir, 'codemap.config.json'),
+                JSON.stringify({ sourceDirs: ['src'], entrypoints: ['src/index.ts'], exclude: [] }),
+            );
+            mkdirSync(join(dir, 'src'), { recursive: true });
+            writeFileSync(
+                join(dir, 'src', 'index.ts'),
+                [
+                    'export const HEX_COLOR = /^#[0-9a-f]{6}$/i;',
+                    'export type Tagged<T extends string> = `${T}#   suffix`;',
+                    'export class Box {',
+                    '    #hidden = 1;',
+                    '    reveal(): number {',
+                    '        return this.#hidden;',
+                    '    }',
+                    '}',
+                    '',
+                ].join('\n'),
+            );
 
-        expect(sourceConsumers).toEqual([]);
-        expect(scriptConsumers).toEqual([
-            'scripts/action-metadata-parser.ts',
-            'scripts/generate-codemap.ts',
-            'scripts/generate-mapping.ts',
-        ]);
-        expect(nativeApiConsumers).toEqual([]);
+            const data = extractJson(build(dir).markdown);
+            const byName = (name: string): PublicApiEntry | undefined => data.publicApi.find((e) => e.name === name);
+            expect(byName('HEX_COLOR')?.signature).toBe('export const HEX_COLOR = /^#[0-9a-f]{6}$/i');
+            // Whitespace after the # is still collapsed to one space; the # itself survives.
+            expect(byName('Tagged')?.signature).toBe('export type Tagged<T extends string> = `${T}# suffix`');
+            expect(byName('Box')?.signature).toBe('export class Box');
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
+describe('TypeScript compiler API boundary', () => {
+    const ADAPTER = 'scripts/ts-source.ts';
+    const TYPESCRIPT_SPECIFIER = /^typescript(?:\/|$)/;
+    const RETIRED_NATIVE_PACKAGE = /['"]@typescript\/(?:native|native-preview)['"]/;
+    const NATIVE_MANIFEST_ENTRY = /@typescript\/native/;
+
+    function isModuleSpecifier(literal: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral): boolean {
+        const { parent } = literal;
+        if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent) || ts.isExternalModuleReference(parent)) {
+            return true;
+        }
+        if (ts.isCallExpression(parent)) {
+            const callee = parent.expression;
+            return (
+                callee.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(callee) && callee.text === 'require')
+            );
+        }
+        return ts.isLiteralTypeNode(parent) && ts.isImportTypeNode(parent.parent);
+    }
+
+    /** Module specifiers (`typescript` or `typescript/...`) used by imports, re-exports, `import()` and `require()`. */
+    function typescriptSpecifiers(path: string, text: string): string[] {
+        const found: string[] = [];
+        const visit = (node: ts.Node): void => {
+            if (
+                (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+                TYPESCRIPT_SPECIFIER.test(node.text) &&
+                isModuleSpecifier(node)
+            ) {
+                found.push(node.text);
+            }
+            node.forEachChild(visit);
+        };
+        visit(parseSource(path, text));
+        return found;
+    }
+
+    function typescriptImporters(): { file: string; specifier: string }[] {
+        return ['src', 'scripts', 'tests']
+            .flatMap((directory) => collectTypeScriptFiles(join(REPO_ROOT, directory)))
+            .flatMap((path) => {
+                const text = readFileSync(path, 'utf8');
+                // Cheap prefilter: only files that mention the package at all are parsed.
+                if (!text.includes('typescript')) return [];
+                return typescriptSpecifiers(path, text).map((specifier) => ({
+                    file: repositoryRelative(path),
+                    specifier,
+                }));
+            })
+            .sort((a, b) => a.file.localeCompare(b.file) || a.specifier.localeCompare(b.specifier));
+    }
+
+    it('detects the typescript specifier in every import form but not in comments or plain strings', () => {
+        const detected = (text: string): string[] => typescriptSpecifiers('sample.ts', text);
+
+        expect(detected("import ts from 'typescript';")).toEqual(['typescript']);
+        expect(detected('import * as ts from "typescript/unstable/ast";')).toEqual(['typescript/unstable/ast']);
+        expect(detected("import 'typescript';")).toEqual(['typescript']);
+        expect(detected("export { a } from 'typescript/unstable/sync';")).toEqual(['typescript/unstable/sync']);
+        expect(detected("const ts = await import('typescript');")).toEqual(['typescript']);
+        expect(detected('const ts = await import(`typescript/unstable/sync`);')).toEqual(['typescript/unstable/sync']);
+        expect(detected("const ts = require('typescript');")).toEqual(['typescript']);
+        expect(detected("import ts = require('typescript');")).toEqual(['typescript']);
+        expect(detected("type Ts = import('typescript').Node;")).toEqual(['typescript']);
+
+        expect(detected("// import ts from 'typescript';\nconst a = 1;")).toEqual([]);
+        expect(detected("const packagePath = ['node_modules', 'typescript'];")).toEqual([]);
+        expect(detected("import { x } from './typescript.js'; import y from 'typescript-eslint';")).toEqual([]);
+    });
+
+    it('keeps the compiler API out of src/', () => {
+        expect(typescriptImporters().filter(({ file }) => file.startsWith('src/'))).toEqual([]);
+    });
+
+    it('confines typescript/unstable/* to the scripts/ts-source.ts adapter', () => {
+        const unstableImporters = typescriptImporters()
+            .filter(({ specifier }) => specifier.startsWith('typescript/unstable/'))
+            .map(({ file }) => file);
+        expect([...new Set(unstableImporters)]).toEqual([ADAPTER]);
+    });
+
+    it('never imports the bare typescript specifier, which is only a version string under TypeScript 7', () => {
+        expect(typescriptImporters().filter(({ specifier }) => specifier === 'typescript')).toEqual([]);
+    });
+
+    it('does not reference the retired native compiler preview package', () => {
+        const referencingFiles = ['src', 'scripts', 'tests']
+            .flatMap((directory) => collectTypeScriptFiles(join(REPO_ROOT, directory)))
+            .filter((path) => RETIRED_NATIVE_PACKAGE.test(readFileSync(path, 'utf8')))
+            .map(repositoryRelative);
+        const manifest = readFileSync(join(REPO_ROOT, 'package.json'), 'utf8');
+
+        expect(referencingFiles).toEqual([]);
+        expect(NATIVE_MANIFEST_ENTRY.test(manifest)).toBe(false);
     });
 });
 

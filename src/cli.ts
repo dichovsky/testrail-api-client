@@ -11,7 +11,7 @@ import { readBoundedStdin, readStdinBinary } from './cli/stdin.js';
  * code, and the signal handlers.
  *
  * This is the only file in `src/` permitted to name `process.stdout` or
- * `process.stderr`; ESLint's `no-restricted-properties` rejects them
+ * `process.stderr`; oxlint's `no-restricted-properties` rejects them
  * everywhere else, so every other byte the CLI emits has to travel through
  * these writers.
  *

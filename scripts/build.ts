@@ -15,7 +15,7 @@ rmSync(join(root, 'dist'), {
     maxRetries: REMOVE_MAX_RETRIES,
     retryDelay: REMOVE_RETRY_DELAY_MS,
 });
-const result = spawnSync(process.execPath, ['node_modules/@typescript/native/bin/tsc', '-p', 'tsconfig.prod.json'], {
+const result = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.prod.json'], {
     cwd: root,
     stdio: 'inherit',
 });

@@ -1,0 +1,246 @@
+{
+    // Replaces eslint.config.mjs. Core rules are unprefixed; @typescript-eslint/* rules are typescript/*.
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript", "oxc", "unicorn"],
+    // The oxlint correctness defaults stay on, as errors, next to the explicit rule list below.
+    "categories": {
+        "correctness": "error"
+    },
+    "env": {
+        "builtin": true
+    },
+    "globals": {
+        "console": "readonly",
+        "process": "readonly",
+        "setInterval": "readonly",
+        "clearInterval": "readonly",
+        "setTimeout": "readonly",
+        "clearTimeout": "readonly",
+        "fetch": "readonly",
+        "Response": "readonly",
+        "RequestInit": "readonly",
+        "AbortController": "readonly",
+        "AbortSignal": "readonly",
+        "URL": "readonly",
+        "Buffer": "readonly",
+        "btoa": "readonly"
+    },
+    "options": {
+        "typeAware": true,
+        "reportUnusedDisableDirectives": "warn"
+    },
+    "ignorePatterns": ["**/*.js", "**/*.d.ts", "node_modules/**", "dist/**", "coverage/**", ".claude/**"],
+    "rules": {
+        // ESLint recommended. No oxlint rule exists for no-octal: legacy octal literals and escapes are
+        // parse errors in modules. getter-return is not applied to .ts files by oxlint; tsc reports TS2378.
+        "constructor-super": "error",
+        "for-direction": "error",
+        "getter-return": "error",
+        "no-async-promise-executor": "error",
+        "no-case-declarations": "error",
+        "no-class-assign": "error",
+        "no-compare-neg-zero": "error",
+        "no-cond-assign": "error",
+        "no-const-assign": "error",
+        "no-constant-binary-expression": "error",
+        "no-constant-condition": "error",
+        "no-control-regex": "error",
+        "no-debugger": "error",
+        "no-delete-var": "error",
+        "no-dupe-class-members": "error",
+        "no-dupe-else-if": "error",
+        "no-dupe-keys": "error",
+        "no-duplicate-case": "error",
+        "no-empty": "error",
+        "no-empty-character-class": "error",
+        "no-empty-pattern": "error",
+        "no-empty-static-block": "error",
+        "no-ex-assign": "error",
+        "no-extra-boolean-cast": "error",
+        "no-fallthrough": "error",
+        "no-func-assign": "error",
+        "no-global-assign": "error",
+        "no-import-assign": "error",
+        "no-invalid-regexp": "error",
+        "no-irregular-whitespace": [
+            "error",
+            {
+                "skipComments": false,
+                "skipStrings": true,
+                "skipTemplates": false,
+                "skipRegExps": false,
+                "skipJSXText": false
+            }
+        ],
+        "no-loss-of-precision": "error",
+        "no-misleading-character-class": "error",
+        "no-new-native-nonconstructor": "error",
+        "no-nonoctal-decimal-escape": "error",
+        "no-obj-calls": "error",
+        "no-prototype-builtins": "error",
+        "no-redeclare": "error",
+        "no-regex-spaces": "error",
+        "no-self-assign": "error",
+        "no-setter-return": "error",
+        "no-shadow-restricted-names": "error",
+        "no-sparse-arrays": "error",
+        "no-this-before-super": "error",
+        "no-unassigned-vars": "error",
+        "no-undef": "error",
+        "no-unexpected-multiline": "error",
+        "no-unreachable": "error",
+        "no-unsafe-finally": "error",
+        "no-unsafe-negation": "error",
+        "no-unsafe-optional-chaining": "error",
+        "no-unused-labels": "error",
+        "no-unused-private-class-members": "error",
+        "no-useless-assignment": "error",
+        "no-useless-backreference": "error",
+        "no-useless-catch": "error",
+        "no-useless-escape": "error",
+        "no-with": "error",
+        "preserve-caught-error": "error",
+        "require-yield": "error",
+        "use-isnan": "error",
+        "valid-typeof": "error",
+
+        // typescript-eslint recommended
+        "typescript/ban-ts-comment": "error",
+        "typescript/no-array-constructor": "error",
+        "typescript/no-duplicate-enum-values": "error",
+        "typescript/no-empty-object-type": "error",
+        "typescript/no-explicit-any": "error",
+        "typescript/no-extra-non-null-assertion": "error",
+        "typescript/no-misused-new": "error",
+        "typescript/no-namespace": "error",
+        "typescript/no-non-null-asserted-optional-chain": "error",
+        "typescript/no-require-imports": "error",
+        "typescript/no-this-alias": "error",
+        "typescript/no-unnecessary-type-constraint": "error",
+        "typescript/no-unsafe-declaration-merging": "error",
+        "typescript/no-unsafe-function-type": "error",
+        "typescript/no-unused-expressions": "error",
+        "typescript/no-unused-vars": [
+            "error",
+            { "vars": "all", "args": "after-used", "caughtErrors": "all", "ignoreRestSiblings": false }
+        ],
+        "typescript/no-wrapper-object-types": "error",
+        "typescript/prefer-as-const": "error",
+        "typescript/prefer-namespace-keyword": "error",
+        "typescript/triple-slash-reference": "error",
+
+        // typescript-eslint recommended-type-checked
+        "typescript/await-thenable": "error",
+        "typescript/no-array-delete": "error",
+        "typescript/no-base-to-string": "error",
+        "typescript/no-duplicate-type-constituents": "error",
+        "typescript/no-floating-promises": "error",
+        "typescript/no-for-in-array": "error",
+        "typescript/no-implied-eval": "error",
+        "typescript/no-misused-promises": "error",
+        "typescript/no-redundant-type-constituents": "error",
+        "typescript/no-unnecessary-type-assertion": "error",
+        "typescript/no-unsafe-argument": "error",
+        "typescript/no-unsafe-assignment": "error",
+        "typescript/no-unsafe-call": "error",
+        "typescript/no-unsafe-enum-comparison": "error",
+        "typescript/no-unsafe-member-access": "error",
+        "typescript/no-unsafe-return": "error",
+        "typescript/no-unsafe-unary-minus": "error",
+        "typescript/only-throw-error": "error",
+        "typescript/prefer-promise-reject-errors": "error",
+        "typescript/require-await": "error",
+        "typescript/restrict-plus-operands": "error",
+        "typescript/restrict-template-expressions": "error",
+        "typescript/unbound-method": "error",
+
+        // Project rules
+        "typescript/prefer-nullish-coalescing": "error",
+        "typescript/prefer-optional-chain": "error",
+        "typescript/no-non-null-assertion": "error",
+        "typescript/prefer-readonly": "error",
+        "typescript/strict-boolean-expressions": "error",
+        "typescript/switch-exhaustiveness-check": "error",
+
+        "prefer-const": "error",
+        "no-var": "error",
+        "eqeqeq": "error",
+        "no-console": "warn",
+        "no-alert": "error",
+        "no-eval": "error",
+        "no-implied-eval": "error",
+        "no-new-func": "error",
+        "no-script-url": "error",
+        "no-proto": "error",
+        "no-iterator": "error",
+        "no-caller": "error",
+        "no-extend-native": "error",
+        "no-new-wrappers": "error",
+        "no-constructor-return": "error",
+        "no-await-in-loop": "warn",
+        "prefer-template": "error",
+        "object-shorthand": "error",
+        "prefer-arrow-callback": "error"
+    },
+    "overrides": [
+        {
+            // ARCH #13 — output ownership. `src/cli/output.ts` owns every byte the
+            // CLI emits, and `src/cli.ts` is the single place the real process
+            // streams are named. Everything in between takes a writer from
+            // `CliRuntime` / `HandlerContext`.
+            //
+            // Without this, a handler with no writer to hand reaches for
+            // `process.stderr` and quietly leaves the runtime: that is how `run
+            // watch` came to read `--quiet` out of `process.argv`, and how the
+            // `--out -` download ack bypassed the writers a caller supplied.
+            //
+            // A tripwire against accidental reintroduction, not a guarantee. It
+            // catches the direct form, the bracketed `process['stdout']`, and
+            // destructuring; it does NOT catch aliasing (`const p = process`) or
+            // `globalThis.process`. `tests/cli-output-ownership.test.ts` is the
+            // behavioural backstop that would still fail, and
+            // `tests/oxlint-config.test.ts` checks that this override still applies.
+            "files": ["src/**/*.ts"],
+            "excludeFiles": ["src/cli.ts"],
+            "rules": {
+                "no-restricted-properties": [
+                    "error",
+                    {
+                        "object": "process",
+                        "property": "stdout",
+                        "message": "Write through the output module instead (ctx.out / ctx.err / ctx.outPayload, or CliRuntime.stdout). Only src/cli.ts may name the process streams — see ARCH #13."
+                    },
+                    {
+                        "object": "process",
+                        "property": "stderr",
+                        "message": "Write through the output module instead (ctx.err / ctx.errRaw, or CliRuntime.stderr). Only src/cli.ts may name the process streams — see ARCH #13."
+                    },
+                    {
+                        "object": "process",
+                        "property": "stdin",
+                        "message": "Take stdin from CliRuntime or HandlerContext. Only src/cli.ts may select the process input."
+                    },
+                    {
+                        "object": "process",
+                        "property": "argv",
+                        "message": "Take argv from CliRuntime.argv. Reading process.argv inside a handler ignores the argv runCli was actually handed — see ARCH #13."
+                    }
+                ]
+            }
+        },
+        {
+            // Tests mock fs.Stats by spreading real instances, which no-misused-spread rejects.
+            "files": ["tests/**"],
+            "globals": {
+                "global": "writable"
+            },
+            "rules": {
+                "typescript/no-misused-spread": "off",
+                "typescript/require-await": "off",
+                "typescript/no-unsafe-assignment": "off",
+                "typescript/no-unsafe-member-access": "off",
+                "typescript/no-unsafe-call": "off"
+            }
+        }
+    ]
+}

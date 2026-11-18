@@ -85,7 +85,7 @@ export interface CliRuntime {
  * Every byte the invocation emits leaves through `runtime.stdout` /
  * `runtime.stderr` — including the download payloads, the meta-commands, the
  * schema-mismatch warnings, and `run watch`'s status lines. `src/cli.ts` is the
- * only file in `src/` permitted to name the process streams, and ESLint
+ * only file in `src/` permitted to name the process streams, and oxlint
  * enforces it. `tests/cli-output-ownership.test.ts` asserts the invariant from
  * the outside.
  */

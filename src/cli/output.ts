@@ -332,7 +332,7 @@ function needsQuoting(s: string): boolean {
     // Any inline `:` followed by space, or trailing `:`, would terminate a
     // mapping key. Any ` #` would start an inline comment. Both unsafe in
     // plain form.
-    if (/:\s/.test(s) || /:$/.test(s) || /\s#/.test(s)) return true;
+    if (/:\s/.test(s) || s.endsWith(':') || /\s#/.test(s)) return true;
     // Control chars / non-printables — must be quoted (and escaped). Scanned
     // by character code (no control-character regex literal): C0 (U+0000–U+001F),
     // DEL (U+007F), and C1 (U+0080–U+009F), all single UTF-16 code units.

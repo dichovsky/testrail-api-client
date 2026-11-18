@@ -120,7 +120,7 @@ function invoke<T>(callback: () => T | PromiseLike<T>, run: (fn: () => Promise<T
         return run(() => Promise.resolve(callback()));
     } catch (error) {
         // Preserve even non-Error callback rejections without changing identity.
-        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors
         return Promise.reject(error);
     }
 }
