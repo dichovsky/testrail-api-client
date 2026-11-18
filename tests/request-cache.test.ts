@@ -51,7 +51,7 @@ describe('RequestCache', () => {
     ])('converts %s synchronous loader throw into a rejected Error', async (_label, thrown) => {
         const cache = createCache();
         const load = (): Promise<CacheLoadResult<unknown>> => {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            // oxlint-disable-next-line typescript/only-throw-error
             throw thrown;
         };
 
@@ -117,7 +117,7 @@ describe('RequestCache', () => {
                 resolve(cache, 'project:1', () => {
                     // Deliberately exercise normalization of a non-Error throw
                     // from an untyped user-supplied loader.
-                    // eslint-disable-next-line @typescript-eslint/only-throw-error
+                    // oxlint-disable-next-line typescript/only-throw-error
                     throw thrown;
                 }),
             ).rejects.toThrow('synchronous load failed');

@@ -13,8 +13,7 @@ npm run verify                                    # Run all local checks, includ
 npm test                                          # Run Vitest suite only (no implicit pre-hook)
 npm run test:coverage                             # Generate coverage report
 npm run build                                     # Compile with native TypeScript 7 to dist/
-npm run lint && npm run typecheck                 # Run ESLint and TypeScript 7 check
-npm run typecheck:ts6                             # Run TypeScript 6 compatibility check
+npm run lint && npm run typecheck                 # Run oxlint (type-aware) and TypeScript 7 check
 npm run codemap                                   # Regenerate CODEMAP.md
 npm run mapping                                   # Regenerate docs/API-MAPPING.md
 npm run skill                                     # Regenerate skill docs and payload reference
@@ -63,6 +62,7 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `docs/testrail-endpoints.json`                                       | Inventory of 133 TestRail endpoints across 28 resources                                                                                                                            |
 | `scripts/generate-mapping.ts`                                        | Generates `docs/API-MAPPING.md` and runs validation gates A, B, C, C2, and D                                                                                                       |
 | `scripts/mapping-renderer.ts`                                        | Helper functions for the mapping generator: Zod schemas, path normalization, tag parsers, and Markdown renderers                                                                   |
+| `scripts/ts-source.ts`                                               | TypeScript 7 parsing adapter for the code generators; the only module that may import `typescript/unstable/*`                                                                      |
 
 ## API Symbol Index
 
@@ -191,7 +191,7 @@ Library callers should call `destroy()` from their own shutdown hook.
 
 **Output ownership:** `src/cli/output.ts` controls all CLI output. Only `src/cli.ts` can reference `process.stdout`, `process.stderr`, or `process.argv`. All other files must use the writers on `HandlerContext` (`out`, `outRaw`, `outPayload`, `err`, `errRaw`).
 
-ESLint enforces this restriction. `createOutput` requires explicit writers, and all five `HandlerContext` writers are required.
+Oxlint enforces this restriction (`no-restricted-properties` in `.oxlintrc.json`). `createOutput` requires explicit writers, and all five `HandlerContext` writers are required.
 Only `createOutput` controls `--quiet`. Pass a writer to collaborating modules instead of another quiet flag.
 `outPayload` always emits the payload for `--out -`; `--quiet` suppresses only its acknowledgement.
 Binary payloads trigger the TTY warning. Text payloads, including `bdd get --out -`, do not.
@@ -375,4 +375,4 @@ Keep `attachment delete` as a custom handler because attachment IDs can be integ
 - Do not mutate objects in place (return new objects).
 - Do not hardcode numeric constants (use `src/constants.ts`).
 - Do not call `request()` before validating IDs.
-- Do not skip `npm run typecheck` or `npm run typecheck:ts6` before committing.
+- Do not skip `npm run typecheck` before committing.

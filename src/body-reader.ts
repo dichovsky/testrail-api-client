@@ -123,7 +123,7 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     // ownership instead of using the stream's async iterator.
     const drain = async (): Promise<void> => {
         while (true) {
-            // eslint-disable-next-line no-await-in-loop -- each read depends on the previous chunk
+            // oxlint-disable-next-line no-await-in-loop -- each read depends on the previous chunk
             const { done, value } = await reader.read();
             // A chain of already-resolved read() promises can monopolise the
             // microtask queue long enough to starve the timeout callback. Compare

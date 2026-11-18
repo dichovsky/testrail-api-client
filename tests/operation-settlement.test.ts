@@ -173,7 +173,7 @@ describe('TestRailClient.trackOperation settlement', () => {
         const reason = { kind: 'caller-defined failure' };
         const operation = client.trackOperation(() => {
             // Untyped consumers can throw any value; tracking must not normalize it.
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            // oxlint-disable-next-line typescript/only-throw-error
             throw reason;
         });
 

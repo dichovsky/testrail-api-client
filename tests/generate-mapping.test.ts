@@ -216,6 +216,13 @@ describe('pagination registry', () => {
         expect(() => collectActionsFromSource(source, 'sample.ts')).toThrow(/non-literal element \(SpreadElement\)/);
     });
 
+    it('names the offending node kind, including literal kinds that share a range-marker alias', () => {
+        // TypeScript's reverse enum map prints `FirstLiteralToken` for a numeric
+        // literal; the error must name the real kind.
+        const source = `export const sampleActions = [1];`;
+        expect(() => collectActionsFromSource(source, 'sample.ts')).toThrow(/non-literal element \(NumericLiteral\)/);
+    });
+
     it('refuses an initializer it cannot read instead of returning nothing', () => {
         // The failure this guards is silence: returning [] here reads as
         // "no actions to check" to every gate.

@@ -6,8 +6,8 @@
  * emits no source maps, so there is nothing to strip afterwards.
  * Pass `--prepared` when a release job has already built it. The
  * packed tarball is installed into a private temporary consumer with a local
- * Zod copy, then its declarations are compiled by both TypeScript 7 and 6, so
- * the smoke test does not depend on registry or TestRail access.
+ * Zod copy, then its declarations are compiled by TypeScript 7, so the smoke
+ * test does not depend on registry or TestRail access.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -63,23 +63,11 @@ interface CompilerLauncher {
     readonly executablePath: string;
 }
 
-interface CompilerLaunchers {
-    readonly typeScript7: CompilerLauncher;
-    readonly typeScript6: CompilerLauncher;
-}
-
 const TYPESCRIPT_7_COMPILER: CompilerSpec = {
     displayName: 'TypeScript 7',
-    packagePath: ['node_modules', '@typescript', 'native'],
+    packagePath: ['node_modules', 'typescript'],
     binaryName: 'tsc',
     expectedMajor: 7,
-};
-
-const TYPESCRIPT_6_COMPILER: CompilerSpec = {
-    displayName: 'TypeScript 6',
-    packagePath: ['node_modules', 'typescript'],
-    binaryName: 'tsc6',
-    expectedMajor: 6,
 };
 
 function fail(message: string): never {
@@ -324,13 +312,6 @@ function resolveCompiler(spec: CompilerSpec): CompilerLauncher {
     return {
         displayName: spec.displayName,
         executablePath,
-    };
-}
-
-function resolveCompilers(): CompilerLaunchers {
-    return {
-        typeScript7: resolveCompiler(TYPESCRIPT_7_COMPILER),
-        typeScript6: resolveCompiler(TYPESCRIPT_6_COMPILER),
     };
 }
 
@@ -740,27 +721,23 @@ function installConsumer(consumerDirectory: string): void {
     );
 }
 
-function compileConsumer(consumerDirectory: string, compilers: CompilerLaunchers): void {
-    const compile = (compiler: CompilerLauncher, outputDirectoryName: string): void => {
-        const outputDirectory = path.join(consumerDirectory, 'types', outputDirectoryName);
-        requireSuccess(
-            `${compiler.displayName} consumer declaration compile`,
-            run(
-                process.execPath,
-                [compiler.executablePath, '--project', 'tsconfig.json', '--outDir', outputDirectory],
-                consumerDirectory,
-                safeChildEnvironment(),
-            ),
+function compileConsumer(consumerDirectory: string, compiler: CompilerLauncher): void {
+    const outputDirectoryName = 'typescript-7';
+    const outputDirectory = path.join(consumerDirectory, 'types', outputDirectoryName);
+    requireSuccess(
+        `${compiler.displayName} consumer declaration compile`,
+        run(
+            process.execPath,
+            [compiler.executablePath, '--project', 'tsconfig.json', '--outDir', outputDirectory],
+            consumerDirectory,
+            safeChildEnvironment(),
+        ),
+    );
+    if (!existsSync(path.join(outputDirectory, 'consumer.d.ts'))) {
+        fail(
+            `${compiler.displayName} consumer declaration compile did not emit types/${outputDirectoryName}/consumer.d.ts.`,
         );
-        if (!existsSync(path.join(outputDirectory, 'consumer.d.ts'))) {
-            fail(
-                `${compiler.displayName} consumer declaration compile did not emit types/${outputDirectoryName}/consumer.d.ts.`,
-            );
-        }
-    };
-
-    compile(compilers.typeScript7, 'typescript-7');
-    compile(compilers.typeScript6, 'typescript-6');
+    }
 }
 
 function runtimeImportSmoke(consumerDirectory: string): void {
@@ -897,7 +874,7 @@ function main(): void {
     if (args.some((arg) => arg !== '--prepared')) {
         fail(`unknown argument ${args.find((arg) => arg !== '--prepared') ?? '(unknown)'}; expected only --prepared.`);
     }
-    const compilers = resolveCompilers();
+    const compiler = resolveCompiler(TYPESCRIPT_7_COMPILER);
     if (args.includes('--prepared')) {
         requirePreparedDist();
     } else {
@@ -916,7 +893,7 @@ function main(): void {
         writeConsumerFixture(consumerDirectory, archivePath, zodArchivePath);
         installConsumer(consumerDirectory);
         verifyInstalledManifest(consumerDirectory, identity);
-        compileConsumer(consumerDirectory, compilers);
+        compileConsumer(consumerDirectory, compiler);
         runtimeImportSmoke(consumerDirectory);
         cliSmoke(consumerDirectory, identity);
     } finally {

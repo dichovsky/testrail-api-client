@@ -92,7 +92,7 @@ describe('DNS dispatcher handler compatibility', () => {
                         expect(headers['x-label']).toBe('café');
                         expect(headers['set-cookie']).toEqual(['first=1', 'second=2']);
                         expect(headers['constructor']).toBe('safe');
-                        // eslint-disable-next-line no-proto -- malicious header name must remain ordinary data
+                        // oxlint-disable-next-line no-proto -- malicious header name must remain ordinary data
                         expect(headers['__proto__']).toBe('safe');
                         expect(controller.rawHeaders).toContainEqual(Buffer.from('café', 'latin1'));
                         controller.pause();
@@ -274,7 +274,7 @@ describe('DNS dispatcher address families', () => {
         'matches family $family and all=$all while preserving approved order',
         async ({ family, all, expected, expectedFamily }) => {
             const origin = await originFor(createServer((_request, response) => response.end('ok')));
-            // eslint-disable-next-line @typescript-eslint/unbound-method -- invoked with the original receiver below
+            // oxlint-disable-next-line typescript/unbound-method -- invoked with the original receiver below
             const original = Agent.prototype.createConnection;
             const observed = vi.fn();
             vi.spyOn(Agent.prototype, 'createConnection').mockImplementation(function (this: Agent, options, callback) {
@@ -305,7 +305,7 @@ describe('DNS dispatcher address families', () => {
                 response.end('unexpected');
             }),
         );
-        // eslint-disable-next-line @typescript-eslint/unbound-method -- invoked with the original receiver below
+        // oxlint-disable-next-line typescript/unbound-method -- invoked with the original receiver below
         const original = Agent.prototype.createConnection;
         const observed = vi.fn();
         vi.spyOn(Agent.prototype, 'createConnection').mockImplementation(function (this: Agent, options, callback) {

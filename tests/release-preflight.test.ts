@@ -308,12 +308,12 @@ describe('publish workflow wiring', () => {
         expect(publishJob).not.toContain('npx ');
     });
 
-    it('runs the TypeScript 7 check before the TypeScript 6 compatibility check', () => {
-        const primaryTypecheck = workflow.indexOf('run: npm run typecheck\n');
-        const compatibilityTypecheck = workflow.indexOf('run: npm run typecheck:ts6');
+    it('runs the TypeScript 7 check before linting', () => {
+        const typecheck = workflow.indexOf('run: npm run typecheck\n');
+        const lint = workflow.indexOf('run: npm run lint\n');
 
-        expect(primaryTypecheck).toBeGreaterThanOrEqual(0);
-        expect(primaryTypecheck).toBeLessThan(compatibilityTypecheck);
+        expect(typecheck).toBeGreaterThanOrEqual(0);
+        expect(typecheck).toBeLessThan(lint);
     });
 
     it('hands only the tested map-stripped dist artifact to the OIDC job', () => {
@@ -351,7 +351,6 @@ describe('publish workflow wiring', () => {
 
     it.each([
         'npm run typecheck',
-        'npm run typecheck:ts6',
         'npm run format:check',
         'npm run codemap:check',
         'npm run mapping:check',
@@ -466,12 +465,12 @@ ${verification}`,
 describe('CI package smoke wiring', () => {
     const workflow = readFileSync(resolve('.github/workflows/ci.yml'), 'utf8');
 
-    it('runs the TypeScript 7 check before the TypeScript 6 compatibility check', () => {
-        const primaryTypecheck = workflow.indexOf('run: npm run typecheck\n');
-        const compatibilityTypecheck = workflow.indexOf('run: npm run typecheck:ts6');
+    it('runs the TypeScript 7 check before linting', () => {
+        const typecheck = workflow.indexOf('run: npm run typecheck\n');
+        const lint = workflow.indexOf('run: npm run lint\n');
 
-        expect(primaryTypecheck).toBeGreaterThanOrEqual(0);
-        expect(primaryTypecheck).toBeLessThan(compatibilityTypecheck);
+        expect(typecheck).toBeGreaterThanOrEqual(0);
+        expect(typecheck).toBeLessThan(lint);
     });
 
     // The three OSes used to be three copy-pasted jobs; they are now one

@@ -506,7 +506,7 @@ Combining dry-run with soft or yes still sends no request. See
 ### 6.7 Output ownership
 
 Only `src/cli.ts` can reference `process.stdout`, `process.stderr`, or
-`process.argv`; ESLint enforces this. `createOutput()` requires explicit writers,
+`process.argv`; oxlint enforces this. `createOutput()` requires explicit writers,
 and handlers receive all five through `HandlerContext`:
 
 | Writer       | Stream and behavior                                                                                |

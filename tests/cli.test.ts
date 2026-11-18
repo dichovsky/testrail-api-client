@@ -5844,7 +5844,7 @@ describe('CLI', () => {
                 [['bdd', 'add', '1'], 'bdd add requires --file <path|->'],
             ] as const) {
                 // runCli rewrites process argv/env and must stay sequential.
-                // eslint-disable-next-line no-await-in-loop
+                // oxlint-disable-next-line no-await-in-loop
                 const { exitCodes, stderr } = await runCli([...argv], [], {});
                 expect(exitCodes).toContain(1);
                 expect(stderr).toContain(expected);

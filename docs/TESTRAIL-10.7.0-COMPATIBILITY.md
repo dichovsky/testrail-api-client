@@ -176,6 +176,6 @@ error so callers do not repeat a completed write.
 ## Verification contract
 
 Generated-artifact checks verify the codemap, API mapping, CLI and SKILL docs,
-and `AGENTS.md`. `npm run verify` also runs both TypeScript checks, ESLint, the build, and Vitest. Run `npm run test:coverage` to execute the full coverage
+and `AGENTS.md`. `npm run verify` also runs the TypeScript check, oxlint, the build, and Vitest. Run `npm run test:coverage` to execute the full coverage
 check. The repository enforces 99% coverage for statements, lines, and functions
 and 98% for branches, which exceeds the 95% compatibility target.

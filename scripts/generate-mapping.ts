@@ -51,7 +51,6 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
 import { collectActionsFromSource } from './action-metadata-parser.js';
 import {
     EndpointsArraySchema,
@@ -66,6 +65,7 @@ import {
     type MappingRow,
     type Endpoint,
 } from './mapping-renderer.js';
+import { ts, parseSource } from './ts-source.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -92,10 +92,7 @@ function getTestrailTagText(method: ts.Node): string | null {
     const tags = ts.getJSDocTags(method);
     for (const tag of tags) {
         if (tag.tagName?.text === 'testrail') {
-            const c = tag.comment;
-            if (typeof c === 'string') return c;
-            if (Array.isArray(c))
-                return c.map((n) => (typeof n === 'string' ? n : ((n as { text?: string }).text ?? ''))).join('');
+            if (tag.comment !== undefined) return tag.comment.map((n) => n.text).join('');
         }
     }
     return null;
@@ -107,7 +104,7 @@ function getTestrailTagText(method: ts.Node): string | null {
  */
 function crawlModuleFile(filePath: string): CallSite[] {
     const source = readFileSync(filePath, 'utf8');
-    const sf = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true);
+    const sf = parseSource(filePath, source);
     const out: CallSite[] = [];
 
     function visitMethod(member: ts.ClassElement): void {
@@ -139,7 +136,7 @@ function crawlModuleFile(filePath: string): CallSite[] {
                 visitMethod(member);
             }
         }
-        ts.forEachChild(node, visit);
+        node.forEachChild(visit);
     }
     visit(sf);
     return out;

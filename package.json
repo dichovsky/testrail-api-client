@@ -55,7 +55,7 @@
         "codemap:check": "tsx scripts/generate-codemap.ts --check",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "lint": "eslint .",
+        "lint": "oxlint --type-aware",
         "mapping": "tsx scripts/generate-mapping.ts",
         "mapping:check": "tsx scripts/generate-mapping.ts --check",
         "package:smoke": "tsx scripts/package-smoke.ts",
@@ -67,31 +67,24 @@
         "test:coverage": "vitest run --coverage",
         "test:fast": "vitest run --reporter=dot --no-coverage",
         "test:watch": "vitest",
-        "typecheck": "node node_modules/@typescript/native/bin/tsc",
-        "typecheck:ts6": "node node_modules/typescript/bin/tsc6 --stableTypeOrdering",
-        "verify": "npm run build && npm run typecheck && npm run typecheck:ts6 && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run agents-md:check && npm run skill:check && npm run published:check && npm run lockfile-lint && npm run test:coverage && npm run package:smoke -- --prepared"
+        "typecheck": "tsc",
+        "verify": "npm run build && npm run typecheck && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run agents-md:check && npm run skill:check && npm run published:check && npm run lockfile-lint && npm run test:coverage && npm run package:smoke -- --prepared"
     },
     "dependencies": {
         "zod": "^4.6.7"
     },
     "devDependencies": {
-        "@eslint/js": "^10.0.1",
         "@types/node": "^26.6.6",
-        "@typescript-eslint/eslint-plugin": "^8.72.2",
-        "@typescript-eslint/parser": "^8.72.2",
-        "@typescript/native": "npm:typescript@~7.0.2",
         "@vitest/coverage-v8": "^5.1.0",
         "audit-ci": "7.1.0",
-        "eslint": "^10.15.0",
         "fast-check": "^4.10.2",
         "lockfile-lint": "^5.1.0",
+        "oxlint": "^1.94.0",
+        "oxlint-tsgolint": "^7.0.2007",
         "prettier": "~3.10.1",
         "tsx": "^4.23.15",
-        "typescript": "npm:@typescript/typescript6@6.0.2",
+        "typescript": "~7.0.2",
         "vitest": "^5.1.0"
-    },
-    "overrides": {
-        "minimatch": "^11.0.8"
     },
     "engines": {
         "node": ">=26"

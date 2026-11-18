@@ -43,7 +43,7 @@ function dispatcher(origin: string): NonNullable<RequestInit['dispatcher']> {
 
 /** Keep the real dispatcher lifecycle while routing its approved test IP locally. */
 function connectToLocalFixture(): void {
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- invoked with the original receiver below
+    // oxlint-disable-next-line typescript/unbound-method -- invoked with the original receiver below
     const original = HttpAgent.prototype.createConnection;
     vi.spyOn(HttpAgent.prototype, 'createConnection').mockImplementation(function (this: HttpAgent, options, callback) {
         const lookup: LookupFunction = (_hostname, lookupOptions, done) => {
@@ -141,7 +141,7 @@ describe('DNS-pinned native fetch dispatcher', () => {
         const origin = `http://family.invalid:${port}`;
         // Exercise the stdlib single-answer lookup callback used when a
         // socket is constrained to IPv4, rather than automatic family racing.
-        // eslint-disable-next-line @typescript-eslint/unbound-method -- invoked with its original agent receiver below
+        // oxlint-disable-next-line typescript/unbound-method -- invoked with its original agent receiver below
         const originalCreateConnection = HttpAgent.prototype.createConnection;
         const connection = vi.spyOn(HttpAgent.prototype, 'createConnection').mockImplementation(function (
             this: HttpAgent,
@@ -505,7 +505,7 @@ describe('DNS-pinned native fetch dispatcher', () => {
             const thrown = await new Promise<Error>((resolve) => {
                 const failAt = (current: string): void => {
                     if (phase === 'untyped' && current === 'connect') {
-                        // eslint-disable-next-line @typescript-eslint/only-throw-error -- an untyped transport callback may throw an arbitrary value
+                        // oxlint-disable-next-line typescript/only-throw-error -- an untyped transport callback may throw an arbitrary value
                         throw 'handler failed';
                     }
                     if (current === phase) throw failure;

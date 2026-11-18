@@ -1,5 +1,5 @@
-import ts from 'typescript';
 import type { ActionEntry } from './mapping-renderer.js';
+import { ts, parseSource } from './ts-source.js';
 
 /**
  * Extract the mapping-relevant subset of each per-resource `*Actions` array.
@@ -7,7 +7,7 @@ import type { ActionEntry } from './mapping-renderer.js';
  * filesystem-writing mapping generator.
  */
 export function collectActionsFromSource(source: string, filePath: string): ActionEntry[] {
-    const sf = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true);
+    const sf = parseSource(filePath, source);
     const actions: ActionEntry[] = [];
 
     function literalValue(node: ts.Node): string | boolean | undefined {
@@ -92,7 +92,7 @@ export function collectActionsFromSource(source: string, filePath: string): Acti
                 // failing — the one outcome worse than a parse error.
                 throw new Error(
                     `${filePath}: cannot read \`${node.name.text}\` — expected an array literal, found ` +
-                        `${ts.SyntaxKind[arrayNode.kind]}. The mapping gates would silently check nothing. ` +
+                        `${ts.formatSyntaxKind(arrayNode.kind)}. The mapping gates would silently check nothing. ` +
                         `Teach collectActionsFromSource this shape before using it.`,
                 );
             }
@@ -106,12 +106,12 @@ export function collectActionsFromSource(source: string, filePath: string): Acti
                 // every gate would test membership against a short list.
                 throw new Error(
                     `${filePath}: \`${node.name.text}\` contains a non-literal element ` +
-                        `(${ts.SyntaxKind[element.kind]}). Gates C, C2 and D would check a shorter list ` +
+                        `(${ts.formatSyntaxKind(element.kind)}). Gates C, C2 and D would check a shorter list ` +
                         `than the array actually holds.`,
                 );
             }
         }
-        ts.forEachChild(node, visit);
+        node.forEachChild(visit);
     }
 
     visit(sf);

@@ -18,9 +18,10 @@ npm run verify
 
 `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run lifecycle scripts automatically. Run build and code generation commands explicitly with `npm run`.
 
-The build and primary type check use native TypeScript 7.
-Code generators and typed ESLint rules use the TypeScript 6 compiler API.
-The package smoke test checks published declaration files with both TypeScript 6 and TypeScript 7.
+TypeScript 7 is the only TypeScript. The build and type check use the `typescript` package (`tsc`).
+Oxlint is the linter. It uses `.oxlintrc.json` and runs type-aware rules through `oxlint-tsgolint`.
+The code generators parse source through `scripts/ts-source.ts`, which uses the unstable TypeScript 7 API (`typescript/unstable/*`).
+The package smoke test checks published declaration files with TypeScript 7.
 
 ## Verification checks
 
@@ -30,8 +31,7 @@ CI runs these checks in separate steps.
 ```bash
 npm run build           # Required before AGENTS.md check and package smoke test
 npm run typecheck       # TypeScript 7 check
-npm run typecheck:ts6    # TypeScript 6 compatibility check
-npm run lint
+npm run lint            # Oxlint (type-aware)
 npm run format:check
 npm run codemap:check    # Check CODEMAP.md for drift
 npm run mapping:check    # Check docs/API-MAPPING.md for drift
@@ -48,7 +48,7 @@ CI also runs fuzz tests and dependency security audits.
 The [release checklist](docs/RELEASING.md#validate-and-merge) includes the commands for those additional checks.
 
 During development, run a relevant test file with `npx vitest run tests/client-endpoints.test.ts`.
-Run both `npm run typecheck` and `npm run typecheck:ts6` before committing.
+Run `npm run typecheck` before committing.
 
 ## Generated files
 
