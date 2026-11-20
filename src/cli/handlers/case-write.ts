@@ -10,7 +10,8 @@ import {
     CopyCasesToSectionPayloadSchema,
     MoveCasesToSectionPayloadSchema,
 } from '../../schemas.js';
-import { createWriteHandler, createDestructiveHandler, resolveSoftFlag } from '../write-handler-factory.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
+import { executeDestructive } from '../destructive.js';
 
 export const handleCaseAdd = createWriteHandler({
     action: 'case add',
@@ -86,10 +87,8 @@ export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
     const body = resolveBody(ctx.bodyInput, DeleteCasesPayloadSchema);
     if (!body.ok) throw new Error(body.error);
 
-    const soft = resolveSoftFlag(ctx);
-
-    if (ctx.dryRun) {
-        ctx.out({
+    await executeDestructive(ctx, {
+        preview: (soft) => ({
             dryRun: true,
             action: 'case delete-bulk',
             suiteId,
@@ -98,19 +97,11 @@ export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
             destructive: true,
             payload: body.payload,
             source: body.source,
-        });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    if (soft) {
-        const preview = await ctx.client.cases.deleteCases(suiteId, projectId, body.payload, { soft: true });
-        ctx.out({ suiteId, projectId, soft: true, deleted: false, preview });
-        return;
-    }
-    await ctx.client.cases.deleteCases(suiteId, projectId, body.payload, { soft: false });
-    ctx.out({ suiteId, projectId, soft: false, deleted: true });
+        }),
+        call: (soft) => ctx.client.cases.deleteCases(suiteId, projectId, body.payload, { soft }),
+        formatResult: (result, soft) =>
+            soft
+                ? { suiteId, projectId, soft: true, deleted: false, preview: result }
+                : { suiteId, projectId, soft: false, deleted: true },
+    });
 }

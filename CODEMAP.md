@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "6f2121e0ed0612159884a666926370328aba6f31969ce3884ae4f37f0dba24d1",
+  "sourceHash": "82b39f71d93c48944fdd7e4b13861bf66ed08dfb3c17ca1f5c6e34ac9d40787f",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2337,6 +2337,43 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       ]
     },
     {
+      "path": "src/cli/destructive.ts",
+      "imports": [
+        "./handler-context.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "DestructiveContext",
+          "kind": "type",
+          "line": 3,
+          "exported": false,
+          "signature": "type DestructiveContext = Pick<HandlerContext, 'args' | 'actionSpec' | 'dryRun' | 'confirmDestructive' | 'out'>"
+        },
+        {
+          "name": "DestructiveExecution",
+          "kind": "interface",
+          "line": 9,
+          "exported": true,
+          "signature": "export interface DestructiveExecution<Result> { readonly preview: (soft: boolean) => unknown; readonly call: (soft: boolean) => Promise<Result>; readonly formatResult: (result: Result, soft: boolean) …"
+        },
+        {
+          "name": "resolveSoftFlag",
+          "kind": "function",
+          "line": 16,
+          "exported": false,
+          "signature": "function resolveSoftFlag(ctx: DestructiveContext): boolean"
+        },
+        {
+          "name": "executeDestructive",
+          "kind": "function",
+          "line": 26,
+          "exported": true,
+          "signature": "export async function executeDestructive<Result>( ctx: DestructiveContext, execution: DestructiveExecution<Result>, ): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/diagnostics.ts",
       "imports": [
         "../constants.js",
@@ -3058,10 +3095,10 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/handlers/attachment-write.ts",
       "imports": [
+        "../destructive.js",
         "../handler-context.js",
         "../ids.js",
-        "../upload.js",
-        "../write-handler-factory.js"
+        "../upload.js"
       ],
       "reExports": [],
       "symbols": [
@@ -3286,6 +3323,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "imports": [
         "../../schemas.js",
         "../body.js",
+        "../destructive.js",
         "../handler-context.js",
         "../ids.js",
         "../write-handler-factory.js"
@@ -3295,56 +3333,56 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "handleCaseAdd",
           "kind": "const",
-          "line": 15,
+          "line": 16,
           "exported": true,
           "signature": "export const handleCaseAdd = createWriteHandler({ action: 'case add', pathParams: ['section_id'], bodySchema: AddCasePayloadSchema, call: (client, [sectionId], body) => client.cases.addCase(sectionId,…"
         },
         {
           "name": "handleCaseAddBulk",
           "kind": "const",
-          "line": 26,
+          "line": 27,
           "exported": true,
           "signature": "export const handleCaseAddBulk = createWriteHandler({ action: 'case add-bulk', pathParams: ['section_id'], bodySchema: AddCasesBulkPayloadSchema, previewExtras: (body) => ({ count: body.length }), cal…"
         },
         {
           "name": "handleCaseUpdate",
           "kind": "const",
-          "line": 34,
+          "line": 35,
           "exported": true,
           "signature": "export const handleCaseUpdate = createWriteHandler({ action: 'case update', pathParams: ['case_id'], bodySchema: UpdateCasePayloadSchema, call: (client, [caseId], body) => client.cases.updateCase(case…"
         },
         {
           "name": "handleCaseUpdateBulk",
           "kind": "const",
-          "line": 41,
+          "line": 42,
           "exported": true,
           "signature": "export const handleCaseUpdateBulk = createWriteHandler({ action: 'case update-bulk', pathParams: ['suite_id'], bodySchema: UpdateCasesPayloadSchema, call: (client, [suiteId], body) => client.cases.upd…"
         },
         {
           "name": "handleCaseCopyToSection",
           "kind": "const",
-          "line": 48,
+          "line": 49,
           "exported": true,
           "signature": "export const handleCaseCopyToSection = createWriteHandler({ action: 'case copy-to-section', pathParams: ['section_id'], bodySchema: CopyCasesToSectionPayloadSchema, call: (client, [sectionId], body) =…"
         },
         {
           "name": "handleCaseMoveToSection",
           "kind": "const",
-          "line": 55,
+          "line": 56,
           "exported": true,
           "signature": "export const handleCaseMoveToSection = createWriteHandler({ action: 'case move-to-section', pathParams: ['section_id'], bodySchema: MoveCasesToSectionPayloadSchema, call: (client, [sectionId], body) =…"
         },
         {
           "name": "handleCaseDelete",
           "kind": "const",
-          "line": 67,
+          "line": 68,
           "exported": true,
           "signature": "export const handleCaseDelete = createDestructiveHandler({ action: 'case delete', pathParams: ['case_id'], call: (client, [caseId], _entry, soft) => client.cases.deleteCase(caseId, { soft }), })"
         },
         {
           "name": "handleCaseDeleteBulk",
           "kind": "function",
-          "line": 79,
+          "line": 80,
           "exported": true,
           "signature": "export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void>"
         }
@@ -3596,6 +3634,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "imports": [
         "../../schemas.js",
         "../body.js",
+        "../destructive.js",
         "../handler-context.js",
         "../ids.js",
         "../write-handler-factory.js"
@@ -3605,28 +3644,28 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "handleLabelAdd",
           "kind": "const",
-          "line": 8,
+          "line": 9,
           "exported": true,
           "signature": "export const handleLabelAdd = createWriteHandler({ action: 'label add', pathParams: ['project_id'], bodySchema: AddLabelPayloadSchema, call: (client, [projectId], body) => client.labels.addLabel(proje…"
         },
         {
           "name": "handleLabelUpdate",
           "kind": "const",
-          "line": 20,
+          "line": 21,
           "exported": true,
           "signature": "export const handleLabelUpdate = createWriteHandler({ action: 'label update', pathParams: ['label_id'], bodySchema: UpdateLabelPayloadSchema, call: (client, [labelId], body) => client.labels.updateLab…"
         },
         {
           "name": "handleLabelDelete",
           "kind": "const",
-          "line": 28,
+          "line": 29,
           "exported": true,
           "signature": "export const handleLabelDelete = createDestructiveHandler({ action: 'label delete', pathParams: ['label_id'], call: (client, [labelId]) => client.labels.deleteLabel(labelId), })"
         },
         {
           "name": "handleLabelDeleteBulk",
           "kind": "function",
-          "line": 39,
+          "line": 40,
           "exported": true,
           "signature": "export async function handleLabelDeleteBulk(ctx: HandlerContext): Promise<void>"
         }
@@ -4288,6 +4327,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "path": "src/cli/handlers/shared-step-write.ts",
       "imports": [
         "../../schemas.js",
+        "../destructive.js",
         "../filters.js",
         "../handler-context.js",
         "../ids.js",
@@ -4298,21 +4338,21 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "handleSharedStepAdd",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const handleSharedStepAdd = createWriteHandler({ action: 'shared-step add', pathParams: ['project_id'], bodySchema: AddSharedStepPayloadSchema, call: (client, [projectId], body) => client.share…"
         },
         {
           "name": "handleSharedStepUpdate",
           "kind": "const",
-          "line": 14,
+          "line": 15,
           "exported": true,
           "signature": "export const handleSharedStepUpdate = createWriteHandler({ action: 'shared-step update', pathParams: ['shared_step_id'], bodySchema: UpdateSharedStepPayloadSchema, call: (client, [sharedStepId], body)…"
         },
         {
           "name": "handleSharedStepDelete",
           "kind": "function",
-          "line": 27,
+          "line": 28,
           "exported": true,
           "signature": "export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -6682,6 +6722,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "imports": [
         "../client.js",
         "./body.js",
+        "./destructive.js",
         "./handler-context.js",
         "./ids.js",
         "zod"
@@ -6691,63 +6732,56 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "camelCase",
           "kind": "function",
-          "line": 30,
+          "line": 31,
           "exported": false,
           "signature": "function camelCase(snake: string): string"
         },
         {
           "name": "NumIds",
           "kind": "type",
-          "line": 45,
+          "line": 46,
           "exported": true,
           "signature": "export type NumIds = readonly [number, number]"
         },
         {
           "name": "ParsedPath",
           "kind": "interface",
-          "line": 47,
+          "line": 48,
           "exported": false,
           "signature": "interface ParsedPath { nums: number[]; entry: string; idBag: Record<string, number | string>; }"
         },
         {
           "name": "parsePathArgs",
           "kind": "function",
-          "line": 57,
+          "line": 58,
           "exported": false,
           "signature": "function parsePathArgs(ctx: HandlerContext, pathParams: readonly string[], entryParam: string | undefined): ParsedPath"
         },
         {
           "name": "WriteHandlerSpec",
           "kind": "interface",
-          "line": 73,
+          "line": 74,
           "exported": true,
           "signature": "export interface WriteHandlerSpec<S extends z.ZodTypeAny> { action: string; pathParams?: readonly string[]; entryParam?: string; bodySchema: S; allowEmptyBody?: boolean; call: (client: TestRailClient,…"
         },
         {
           "name": "createWriteHandler",
           "kind": "function",
-          "line": 98,
+          "line": 99,
           "exported": true,
           "signature": "export function createWriteHandler<S extends z.ZodTypeAny>(spec: WriteHandlerSpec<S>): Handler"
         },
         {
           "name": "DestructiveHandlerSpec",
           "kind": "interface",
-          "line": 131,
+          "line": 132,
           "exported": true,
           "signature": "export interface DestructiveHandlerSpec { action: string; pathParams?: readonly string[]; entryParam?: string; kind?: 'delete' | 'close'; call: (client: TestRailClient, nums: NumIds, entry: string, so…"
         },
         {
-          "name": "resolveSoftFlag",
-          "kind": "function",
-          "line": 150,
-          "exported": true,
-          "signature": "export function resolveSoftFlag(ctx: HandlerContext): boolean"
-        },
-        {
           "name": "createDestructiveHandler",
           "kind": "function",
-          "line": 159,
+          "line": 149,
           "exported": true,
           "signature": "export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler"
         }

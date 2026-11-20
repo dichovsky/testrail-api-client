@@ -30,6 +30,7 @@ import {
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
+import { handleAttachmentDelete } from '../src/cli/handlers/attachment-write.js';
 import { makeStdin, USER_EMAIL_SHAPE_CASES, captureOutput, makeActionSpec } from './helpers.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import {
@@ -91,6 +92,9 @@ import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
+    attachments: {
+        deleteAttachment: ReturnType<typeof vi.fn>;
+    };
     cases: {
         addCase: ReturnType<typeof vi.fn>;
         addCases: ReturnType<typeof vi.fn>;
@@ -193,6 +197,9 @@ interface MockedClient {
 
 function buildClient(): MockedClient {
     return {
+        attachments: {
+            deleteAttachment: vi.fn().mockResolvedValue(undefined),
+        },
         cases: {
             addCase: vi.fn().mockResolvedValue({ id: 1, title: 'created' }),
             addCases: vi.fn().mockResolvedValue([
@@ -362,6 +369,210 @@ function buildCtx(
     };
     return { ctx, out };
 }
+
+describe('destructive handler contracts', () => {
+    const scenarios: {
+        action: string;
+        handler: (ctx: HandlerContext) => Promise<void>;
+        overrides: CtxOverrides;
+        sdkCall: (client: MockedClient) => ReturnType<typeof vi.fn>;
+        preview: Record<string, unknown>;
+    }[] = [
+        {
+            action: 'case delete',
+            handler: handleCaseDelete,
+            overrides: { pathParams: ['42'], softMode: 'optional' },
+            sdkCall: (client) => client.cases.deleteCase,
+            preview: { caseId: 42, soft: true, destructive: true },
+        },
+        {
+            action: 'project delete',
+            handler: handleProjectDelete,
+            overrides: { pathParams: ['7'] },
+            sdkCall: (client) => client.projects.deleteProject,
+            preview: { projectId: 7, destructive: true },
+        },
+        {
+            action: 'run close',
+            handler: handleRunClose,
+            overrides: { pathParams: ['10'] },
+            sdkCall: (client) => client.runs.closeRun,
+            preview: { runId: 10, destructive: true },
+        },
+        {
+            action: 'case delete-bulk',
+            handler: handleCaseDeleteBulk,
+            overrides: { pathParams: ['5'], projectId: '9', dataFlag: '{"case_ids":[1,2]}', softMode: 'optional' },
+            sdkCall: (client) => client.cases.deleteCases,
+            preview: {
+                suiteId: 5,
+                projectId: 9,
+                soft: true,
+                destructive: true,
+                payload: { case_ids: [1, 2] },
+                source: 'data',
+            },
+        },
+        {
+            action: 'label delete-bulk',
+            handler: handleLabelDeleteBulk,
+            overrides: { dataFlag: '{"label_ids":[7,8]}' },
+            sdkCall: (client) => client.labels.deleteLabels,
+            preview: { destructive: true, payload: { label_ids: [7, 8] }, source: 'data' },
+        },
+        {
+            action: 'attachment delete',
+            handler: handleAttachmentDelete,
+            overrides: { pathParams: [' 2ec27be4-812f-4806-9a5d-d39130d1691a '] },
+            sdkCall: (client) => client.attachments.deleteAttachment,
+            preview: { attachmentId: '2ec27be4-812f-4806-9a5d-d39130d1691a', destructive: true },
+        },
+        {
+            action: 'shared-step delete',
+            handler: handleSharedStepDelete,
+            overrides: { pathParams: ['55'], keepInCases: 'false' },
+            sdkCall: (client) => client.sharedSteps.deleteSharedStep,
+            preview: { sharedStepId: 55, keepInCases: false, destructive: true },
+        },
+    ];
+
+    it.each(scenarios)(
+        '$action: dry-run with --soft needs no --yes and preserves JSON field order',
+        async ({ action, handler, overrides, preview }) => {
+            const client = buildClient();
+            const { ctx, out } = buildCtx(client, { ...overrides, action, dryRun: true, soft: true });
+
+            await handler(ctx);
+
+            expect(out).toHaveBeenCalledTimes(1);
+            expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe(JSON.stringify({ dryRun: true, action, ...preview }));
+            for (const module of Object.values({ ...client })) {
+                for (const method of Object.values(module)) expect(method).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    it.each(scenarios)(
+        '$action: rejected SDK calls propagate without success output',
+        async ({ action, handler, overrides, sdkCall }) => {
+            const client = buildClient();
+            const failure = new Error('SDK request failed');
+            const call = sdkCall(client).mockRejectedValueOnce(failure);
+            const { ctx, out } = buildCtx(client, {
+                ...overrides,
+                action,
+                confirmDestructive: true,
+                soft: overrides.softMode === 'optional',
+            });
+
+            await expect(handler(ctx)).rejects.toBe(failure);
+
+            expect(call).toHaveBeenCalledTimes(1);
+            expect(out).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(scenarios.filter(({ overrides }) => overrides.softMode === 'optional'))(
+        '$action: a real soft preview still requires --yes',
+        async ({ action, handler, overrides, sdkCall }) => {
+            const client = buildClient();
+            const { ctx, out } = buildCtx(client, { ...overrides, action, soft: true });
+
+            await expect(handler(ctx)).rejects.toThrow('Destructive action; pass --yes to confirm.');
+
+            expect(sdkCall(client)).not.toHaveBeenCalled();
+            expect(out).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(scenarios.filter(({ action }) => action.endsWith('delete-bulk')))(
+        '$action: dry-run preserves the parsed stdin payload and source',
+        async ({ action, handler, overrides, preview, sdkCall }) => {
+            const client = buildClient();
+            const readStdin = vi.fn(() => overrides.dataFlag ?? '');
+            const { ctx, out } = buildCtx(client, { ...overrides, action, dryRun: true, soft: true });
+
+            await handler({ ...ctx, bodyInput: { readStdin } });
+
+            expect(readStdin).toHaveBeenCalledTimes(1);
+            expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe(
+                JSON.stringify({ dryRun: true, action, ...preview, source: 'stdin' }),
+            );
+            expect(sdkCall(client)).not.toHaveBeenCalled();
+        },
+    );
+
+    const invalidPreparations: {
+        name: string;
+        handler: (ctx: HandlerContext) => Promise<void>;
+        overrides: CtxOverrides;
+        error: RegExp;
+    }[] = [
+        {
+            name: 'case suite ID before project flag or body',
+            handler: handleCaseDeleteBulk,
+            overrides: { pathParams: ['0'], dataFlag: '{}', dryRun: true },
+            error: /suite_id must be a positive integer/,
+        },
+        {
+            name: 'case project ID before body',
+            handler: handleCaseDeleteBulk,
+            overrides: { pathParams: ['5'], projectId: '0', dataFlag: '{}', dryRun: true },
+            error: /--project-id must be a positive integer/,
+        },
+        {
+            name: 'case body before soft handling or confirmation',
+            handler: handleCaseDeleteBulk,
+            overrides: { pathParams: ['5'], projectId: '9', dataFlag: '{}' },
+            error: /Payload validation failed/,
+        },
+        {
+            name: 'label positional arguments before body',
+            handler: handleLabelDeleteBulk,
+            overrides: { pathParams: ['7'], dataFlag: '{}', dryRun: true },
+            error: /takes no positional arguments/,
+        },
+        {
+            name: 'label body before soft rejection or confirmation',
+            handler: handleLabelDeleteBulk,
+            overrides: { dataFlag: '{}' },
+            error: /Payload validation failed/,
+        },
+        {
+            name: 'shared-step ID before keep-in-cases option',
+            handler: handleSharedStepDelete,
+            overrides: { pathParams: ['0'], keepInCases: 'maybe', dryRun: true },
+            error: /shared_step_id must be a positive integer/,
+        },
+        {
+            name: 'shared-step option before soft rejection or confirmation',
+            handler: handleSharedStepDelete,
+            overrides: { pathParams: ['55'], keepInCases: 'maybe' },
+            error: /--keep-in-cases/,
+        },
+        {
+            name: 'attachment ID before dry-run or soft handling',
+            handler: handleAttachmentDelete,
+            overrides: { pathParams: ['invalid'], dryRun: true },
+            error: /attachment_id must be a positive integer or a UUID string/,
+        },
+    ];
+
+    it.each(invalidPreparations)(
+        'validates $name without SDK calls or output',
+        async ({ handler, overrides, error }) => {
+            const client = buildClient();
+            const { ctx, out } = buildCtx(client, { ...overrides, soft: true });
+
+            await expect(handler(ctx)).rejects.toThrow(error);
+
+            expect(out).not.toHaveBeenCalled();
+            for (const module of Object.values({ ...client })) {
+                for (const method of Object.values(module)) expect(method).not.toHaveBeenCalled();
+            }
+        },
+    );
+});
 
 // ── case add ──────────────────────────────────────────────────────────────
 
@@ -545,7 +756,7 @@ describe('handleCaseDeleteBulk', () => {
         });
         await handleCaseDeleteBulk(ctx);
         expect(client.cases.deleteCases).toHaveBeenCalledWith(5, 9, { case_ids: [1, 2] }, { soft: false });
-        expect(out).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }));
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe('{"suiteId":5,"projectId":9,"soft":false,"deleted":true}');
     });
 
     it('passes soft=true and surfaces preview counts when ctx.args.soft is set', async () => {
@@ -563,12 +774,8 @@ describe('handleCaseDeleteBulk', () => {
         });
         await handleCaseDeleteBulk(ctx);
         expect(client.cases.deleteCases).toHaveBeenCalledWith(5, 9, { case_ids: [1] }, { soft: true });
-        expect(out).toHaveBeenCalledWith(
-            expect.objectContaining({
-                soft: true,
-                deleted: false,
-                preview: { affected_tests: 7 },
-            }),
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe(
+            '{"suiteId":5,"projectId":9,"soft":true,"deleted":false,"preview":{"affected_tests":7}}',
         );
     });
 
@@ -2936,7 +3143,7 @@ describe('handleSharedStepDelete', () => {
         const { ctx, out } = buildCtx(client, { pathParams: ['55'], confirmDestructive: true });
         await handleSharedStepDelete(ctx);
         expect(client.sharedSteps.deleteSharedStep).toHaveBeenCalledWith(55);
-        expect(out).toHaveBeenCalledWith({ sharedStepId: 55, keepInCases: true, deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe('{"sharedStepId":55,"keepInCases":true,"deleted":true}');
     });
 
     it('forwards an explicit --keep-in-cases=false option', async () => {
@@ -2948,7 +3155,7 @@ describe('handleSharedStepDelete', () => {
         });
         await handleSharedStepDelete(ctx);
         expect(client.sharedSteps.deleteSharedStep).toHaveBeenCalledWith(55, { keepInCases: false });
-        expect(out).toHaveBeenCalledWith({ sharedStepId: 55, keepInCases: false, deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe('{"sharedStepId":55,"keepInCases":false,"deleted":true}');
     });
 
     it('rejects an invalid --keep-in-cases value before the destructive gate', async () => {
@@ -4038,7 +4245,7 @@ describe('handleLabelDeleteBulk', () => {
         });
         await handleLabelDeleteBulk(ctx);
         expect(client.labels.deleteLabels).toHaveBeenCalledWith({ label_ids: [7, 8] });
-        expect(out).toHaveBeenCalledWith({ labelIds: [7, 8], deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe('{"labelIds":[7,8],"deleted":true}');
     });
 
     it('dry-run validates and wins without confirmation', async () => {

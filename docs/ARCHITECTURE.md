@@ -432,11 +432,15 @@ mapping generator, and `resolveActionInvocation()`. Help also consumes
 Every `Handler` receives a `HandlerContext` with the spec, client, projected
 arguments, pagination, body input, binary stdin, execution flags, and output writers.
 
-| Handler             | Execution order                                                                                                               |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Read                | Parse positive IDs with `parseId`, then call the SDK and output. Lists use `outputPaginated()` with typed per-module closures |
-| Write factory       | Parse IDs, resolve and validate the body, return a dry-run preview if requested, then call the SDK                            |
-| Destructive factory | Parse IDs and soft mode, return dry-run preview, enforce soft-mode support and confirmation, then call the SDK                |
+| Handler       | Execution order                                                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Read          | Parse positive IDs with `parseId`, then call the SDK and output. Lists use `outputPaginated()` with typed per-module closures |
+| Write factory | Parse IDs, resolve and validate the body, return a dry-run preview if requested, then call the SDK                            |
+| Destructive   | Parse inputs, check soft-mode support, return a dry-run preview if requested, require confirmation, then call the SDK         |
+
+Destructive handlers validate their inputs before calling `executeDestructive()` in `destructive.ts`.
+Both the factory and custom handlers use this workflow for soft-mode checks, dry-run, confirmation, and successful output.
+Their callbacks define the preview, SDK call, and result format. They do not repeat the execution gates.
 
 Explicit closures let TypeScript check list-method signatures.
 `createWriteHandler()` uses `resolveBody()`; `allowEmptyBody` defaults an omitted
@@ -464,6 +468,7 @@ Tests provide independent input streams without replacing process globals.
 | `file-input.ts`                          | Require regular upload files and select file or injected binary stdin input                               |
 | `file-output.ts`, `safe-write.ts`        | Validate download destinations and write through a held descriptor                                        |
 | `upload.ts`, `download.ts`               | Own the upload and download workflows: dry-run previews, lazy transfer, and output routing                |
+| `destructive.ts`                         | Own soft-mode checks, dry-run, confirmation, and successful output for delete and close commands          |
 | `response-validation.ts`                 | Build redacted, deduplicated schema-mismatch warnings or strict errors                                    |
 | `diagnostics.ts`                         | Reserve private files, redact failure records, and own finalization                                       |
 | `output.ts`, `sanitize.ts`               | Format output and strip terminal control characters                                                       |
