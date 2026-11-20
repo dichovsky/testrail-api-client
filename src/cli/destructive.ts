@@ -2,7 +2,10 @@ import type { HandlerContext } from './handler-context.js';
 
 type DestructiveContext = Pick<HandlerContext, 'args' | 'actionSpec' | 'dryRun' | 'confirmDestructive' | 'out'>;
 
-/** Command-specific output and a lazy SDK call, supplied after input validation. */
+/**
+ * Command-specific output and a lazy SDK call, supplied after input validation.
+ * The soft argument is true only when requested and supported by the action.
+ */
 export interface DestructiveExecution<Result> {
     readonly preview: (soft: boolean) => unknown;
     readonly call: (soft: boolean) => Promise<Result>;

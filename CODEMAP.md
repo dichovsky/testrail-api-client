@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "a254d1f2820ebd16a98b7e5cd09b5b8ba3329b50eed5d71f0631e282423f7221",
+  "sourceHash": "82b39f71d93c48944fdd7e4b13861bf66ed08dfb3c17ca1f5c6e34ac9d40787f",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2353,21 +2353,21 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "DestructiveExecution",
           "kind": "interface",
-          "line": 6,
+          "line": 9,
           "exported": true,
           "signature": "export interface DestructiveExecution<Result> { readonly preview: (soft: boolean) => unknown; readonly call: (soft: boolean) => Promise<Result>; readonly formatResult: (result: Result, soft: boolean) …"
         },
         {
           "name": "resolveSoftFlag",
           "kind": "function",
-          "line": 13,
+          "line": 16,
           "exported": false,
           "signature": "function resolveSoftFlag(ctx: DestructiveContext): boolean"
         },
         {
           "name": "executeDestructive",
           "kind": "function",
-          "line": 23,
+          "line": 26,
           "exported": true,
           "signature": "export async function executeDestructive<Result>( ctx: DestructiveContext, execution: DestructiveExecution<Result>, ): Promise<void>"
         }

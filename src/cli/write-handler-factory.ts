@@ -161,7 +161,7 @@ export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler 
                 ...(softMode === 'optional' ? { soft } : {}),
                 destructive: true,
             }),
-            call: (soft) => spec.call(ctx.client, ids, entry, kind !== 'close' && softMode === 'optional' && soft),
+            call: (soft) => spec.call(ctx.client, ids, entry, kind !== 'close' && soft),
             formatResult: (result, soft) => {
                 if (kind === 'close') return result;
                 if (softMode === 'optional') {

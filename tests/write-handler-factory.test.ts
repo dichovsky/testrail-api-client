@@ -202,6 +202,7 @@ describe('createDestructiveHandler', () => {
         await handler(ctx);
         expect(call).toHaveBeenCalledWith(ctx.client, [8], '', false);
         expect(out).toHaveBeenCalledWith({ thingId: 8, deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe('{"thingId":8,"deleted":true}');
     });
 
     it('soft-unsupported: dry-run preview omits the soft key', async () => {
@@ -259,6 +260,9 @@ describe('createDestructiveHandler', () => {
         await handler(ctx);
         expect(call).toHaveBeenCalledWith(ctx.client, [8], '', true);
         expect(out).toHaveBeenCalledWith({ thingId: 8, soft: true, deleted: false, preview: { affected_cases: 3 } });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe(
+            '{"thingId":8,"soft":true,"deleted":false,"preview":{"affected_cases":3}}',
+        );
     });
 
     it('soft-optional without --soft: deletes and emits {soft:false, deleted:true}', async () => {
@@ -272,6 +276,7 @@ describe('createDestructiveHandler', () => {
         await handler(ctx);
         expect(call).toHaveBeenCalledWith(ctx.client, [8], '', false);
         expect(out).toHaveBeenCalledWith({ thingId: 8, soft: false, deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe('{"thingId":8,"soft":false,"deleted":true}');
     });
 
     it('soft-optional: dry-run preview includes soft key', async () => {
@@ -305,6 +310,28 @@ describe('createDestructiveHandler', () => {
         expect(out).toHaveBeenCalledWith({ id: 8, is_completed: true });
     });
 
+    it('kind close with optional --soft: passes false to the SDK and preserves the returned entity', async () => {
+        const result = { id: 8, is_completed: true };
+        const call = vi.fn().mockResolvedValue(result);
+        const handler = createDestructiveHandler({
+            action: 'thing close',
+            pathParams: ['thing_id'],
+            kind: 'close',
+            call,
+        });
+        const { ctx, out } = makeCtx({
+            pathParams: ['8'],
+            action: 'close',
+            softMode: 'optional',
+            soft: true,
+            confirmDestructive: true,
+        });
+        await handler(ctx);
+        expect(call).toHaveBeenCalledWith(ctx.client, [8], '', false);
+        expect(out).toHaveBeenCalledOnce();
+        expect(out.mock.calls[0]?.[0]).toBe(result);
+    });
+
     it('entryParam: deletes with a UUID entry and emits both ids', async () => {
         const call = vi.fn().mockResolvedValue(undefined);
         const uuid = '12345678-1234-1234-1234-123456789abc';
@@ -318,6 +345,9 @@ describe('createDestructiveHandler', () => {
         await handler(ctx);
         expect(call).toHaveBeenCalledWith(ctx.client, [5], uuid, false);
         expect(out).toHaveBeenCalledWith({ planId: 5, entryId: uuid, deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe(
+            '{"planId":5,"entryId":"12345678-1234-1234-1234-123456789abc","deleted":true}',
+        );
     });
 
     it('no path params: dry-run preview carries only the action + destructive flag', async () => {

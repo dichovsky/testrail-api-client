@@ -655,6 +655,7 @@ describe('handleAttachmentDelete', () => {
         await handleAttachmentDelete(ctx);
         expect(client.attachments.deleteAttachment).toHaveBeenCalledWith(42);
         expect(out).toHaveBeenCalledWith({ attachmentId: 42, deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe('{"attachmentId":42,"deleted":true}');
     });
 
     it('dry-run skips API call even with --yes (dry-run wins)', async () => {
@@ -701,6 +702,9 @@ describe('handleAttachmentDelete', () => {
         await handleAttachmentDelete(ctx);
         expect(client.attachments.deleteAttachment).toHaveBeenCalledWith(UUID_ID);
         expect(out).toHaveBeenCalledWith({ attachmentId: UUID_ID, deleted: true });
+        expect(JSON.stringify(out.mock.calls[0]?.[0])).toBe(
+            '{"attachmentId":"2ec27be4-812f-4806-9a5d-d39130d1691a","deleted":true}',
+        );
     });
 
     it('dry-run with UUID id skips API call and emits preview', async () => {
