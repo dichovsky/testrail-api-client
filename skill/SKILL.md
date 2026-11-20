@@ -4,7 +4,7 @@ description: Use the `testrail` CLI to query and write TestRail projects, suites
 license: MIT
 compatibility: Requires Node.js 26+ and network access to a configured TestRail instance.
 metadata:
-  version: 9.0.0
+  version: 10.0.0
   homepage: https://github.com/dichovsky/testrail-api-client
 ---
 
@@ -25,7 +25,8 @@ Use the official TestRail documentation for browser UI workflows.
 ## Install and verify
 
 The npm package `@dichovsky/testrail-api-client` provides the `testrail` binary.
-It requires Node.js 26 or newer (`engines.node: ">=26"`). Version `7.2.0` supports Node.js 20 and 22.
+It requires Node.js 26 or newer (`engines.node: ">=26"`). Version `9.0.0` supports Node.js 24.
+Version `7.2.0` supports Node.js 20 and 22.
 1. Install the package locally.
 2. Verify the binary:
 

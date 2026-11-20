@@ -2,6 +2,8 @@
 
 Use `TestRailClient` in TypeScript or JavaScript applications that need typed responses, shared rate limiting, caching, or structured errors.
 The package uses ESM and requires Node.js 26 or newer.
+Published declaration files are tested with TypeScript 7. Other compiler versions are not tested.
+TypeScript is not a runtime or peer dependency of the package.
 
 [Create a client](#create-a-client) · [Configuration](#configuration) · [Lifecycle](#lifecycle) · [Caching and retries](#caching-and-retries) · [Pagination](#pagination) · [Response validation](#response-validation) · [Error handling](#error-handling) · [Custom fields](#custom-fields)
 

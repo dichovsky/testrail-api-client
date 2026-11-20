@@ -5,37 +5,46 @@ This document records all notable changes to `@dichovsky/testrail-api-client`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`, `9.0.0`.
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`, `9.0.0`, `10.0.0`.
 > Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal or unreleased and never reached the npm registry.
 > The `5.0.0` entry combines unreleased work from `5.0.0` through `7.1.0` into one major version bump from `4.1.0`.
 > That update did not revert any source code. It only aligned the version number and this log with the published npm versions.
 
 ## [Unreleased]
 
+## [10.0.0] — 2026-11-21 — Node 26, upload ownership, and response validation
+
+This major release requires Node.js 26 and changes upload cleanup and custom response validation.
+It includes #310–#317, plus release preparation and removal of the obsolete dependency audit exception.
+See the [upgrade checklist](README.md#upgrading-to-1000) before updating existing applications.
+
 ### Changed — BREAKING
 
-- **Internal response checks no longer call public `parse()`.** This affects previews from `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()`. It also affects `bdd.addBdd()` and `bdd.updateBdd()`. Subclass or instance overrides of `parse()` previously handled these replies; they no longer run for them. Direct `client.parse()` calls retain their behavior. Migrate mismatch reporting or strict validation to `onSchemaMismatch`; apply response transformations after awaiting the method. See [SDK response validation](docs/SDK.md#response-validation).
-- SDK upload methods now consume supplied file descriptors even when ID validation, request validation, or a destroyed client rejects the call. Callers must not close or reuse these descriptors after calling an upload method.
-- Node.js 26 is now the minimum supported runtime. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
-- CI now tests Node 26 on Linux, Windows, and macOS. Both publish jobs pin Node 26.13.1.
-- CI uses `macos-latest` because GitHub retired the `macos-14` runner image.
+- **Node.js 26 is now the minimum supported runtime.** Upgrade application, CLI, and CI runtimes before installing this release. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
+- **SDK upload methods own supplied file descriptors from the call onward.** This includes calls rejected by ID validation, request validation, or a destroyed client. Remove caller cleanup after early rejection, and do not close or reuse a descriptor after passing it to an upload method. See [SDK upload ownership](docs/SDK.md#upload-files).
+- **Internal response checks no longer call public `parse()`.** This affects previews from `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()`. It also affects `bdd.addBdd()` and `bdd.updateBdd()`. Subclass or instance overrides of `parse()` no longer run for these replies. Direct `client.parse()` calls retain their behavior. Move mismatch reporting or strict validation to `onSchemaMismatch`. Apply response transformations after awaiting the method. See [SDK response validation](docs/SDK.md#response-validation).
 
 ### Changed
 
-- **Delete modes are fixed when called.** `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()` now snapshot `options.soft`. Previously, changing it while a request was pending could change response validation and whether the method returned a preview. The dispatched mode now determines the URL, response schema, and return value.
+- **Delete modes are fixed when called.** The five soft-delete methods listed above now read `options.soft` once. Previously, changing it while a request was pending could change response validation and whether the method returned a preview. The initial mode now determines the URL, response schema, and return value.
 - CLI text and binary stdin now use explicit runtime readers. Binary limits, timeouts, and dry-run behavior remain unchanged.
-- Multipart uploads now have one owner for transport observation and cleanup. Released upload sources cannot reopen their original paths.
-- **Oxlint replaces ESLint, and TypeScript 7 is the only TypeScript.** `npm run lint` now runs oxlint with type-aware rules through `oxlint-tsgolint`. The configuration is `.oxlintrc.json`, and the ESLint configuration and packages are removed. The `typescript` dev dependency is now `~7.0.2`. The TypeScript 6 alias, the `@typescript/native` alias, and `npm run typecheck:ts6` are removed. The package smoke test now checks the packed declarations with TypeScript 7 only. CI no longer verifies consumers on TypeScript 6. The code generators now parse source through `scripts/ts-source.ts`, which uses the unstable TypeScript 7 API (`typescript/unstable/*`). The lockfile pins that API, and the `:check` drift gates catch behavior changes.
+- Multipart uploads now share transport observation and cleanup. Released upload sources cannot reopen their original paths.
+- Attachment and BDD downloads now share output handling. Destination checks, payload output, acknowledgements, and quiet behavior remain unchanged.
+- Destructive CLI commands now share preview, confirmation, execution, and output handling. Existing input checks, destructive gates, soft previews, and output formats remain unchanged.
+- **Oxlint replaces ESLint for repository linting.** `npm run lint` runs type-aware rules through `oxlint-tsgolint`. Configuration now lives in `.oxlintrc.json`.
+- **Repository builds and package checks now use TypeScript 7.** The `typescript` development dependency is `~7.0.2`. The TypeScript 6 alias, the `@typescript/native` alias, and `npm run typecheck:ts6` are removed. Published declarations are tested with TypeScript 7 only; other compiler versions are not tested. TypeScript is not a runtime or peer dependency of the published package.
+- Code generators now parse source through `scripts/ts-source.ts`, using the unstable TypeScript 7 API (`typescript/unstable/*`). The lockfile pins that API, and generated-file checks detect output changes.
+- CI tests Node 26 on Linux, Windows, and macOS. Both publish jobs pin Node 26.13.1. CI uses `macos-latest` after retirement of the `macos-14` runner image.
 - Updated Zod to `^4.6.7`. Zod remains the only runtime dependency.
 - Updated `@types/node` to `^26.6.6`.
 - Updated Vitest and its V8 coverage provider to `^5.1.0` and `lockfile-lint` to `^5.1.0`.
-- Updated Prettier to `~3.10.1` and refreshed transitive dependencies. The other direct dependencies already use their latest releases.
-- Converted repository documentation to Simplified Technical English. Preserved historical runtime requirements, commands, issue references, and evidence.
+- Updated Prettier to `~3.10.1` and refreshed transitive dependencies.
+- Simplified repository documentation and split user guidance into SDK, CLI, and networking guides. Historical runtime requirements, commands, issue references, and evidence remain preserved.
 
 ### Security
 
-- The updated production dependency tree reports zero vulnerabilities in `npm audit --omit=dev`.
-- Allowlisted GHSA-fc5q-39xc-vjpf (picomatch ReDoS) in `audit-ci.jsonc` until 2026-12-18. GitHub widened the advisory to every release, including the latest 4.0.7, so no fix exists yet. Only dev tooling reaches picomatch, and the published package ships only Zod.
+- Removed the temporary picomatch audit exception. GitHub [withdrew GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf) on 2026-11-18 because it was not a security issue.
+- Production and full dependency audits reported zero vulnerabilities during release preparation on 2026-11-21.
 
 ## [9.0.0] — 2026-10-04 — pinned connections, comment-only results, and a split skill
 
