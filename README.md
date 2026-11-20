@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/dichovsky/testrail-api-client/workflows/CI/badge.svg)](https://github.com/dichovsky/testrail-api-client/actions)
 [![npm version](https://badge.fury.io/js/@dichovsky%2Ftestrail-api-client.svg)](https://badge.fury.io/js/@dichovsky%2Ftestrail-api-client)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0+-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7_tested-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `@dichovsky/testrail-api-client` provides a TypeScript SDK and the `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference).
@@ -26,6 +26,18 @@ export TESTRAIL_API_KEY="…"
 ```
 
 Keep the API key out of command arguments and logs. The CLI also accepts it through [standard input](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CLI.md#authentication).
+
+## Upgrading to 10.0.0
+
+- Upgrade application, CLI, and CI runtimes to Node.js 26 or newer.
+- Remove caller cleanup for file descriptors passed to SDK upload methods, including calls that fail before sending a request.
+  The SDK now owns those descriptors from the call onward. See [upload ownership](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#upload-files).
+- Replace `parse()` overrides used for endpoint responses with `onSchemaMismatch` for reporting or strict validation.
+  Apply response transformations after awaiting the endpoint method. See [response validation](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#response-validation) for affected behavior and examples.
+
+Published declaration files are tested with TypeScript 7. Other compiler versions are not tested.
+TypeScript is not a runtime or peer dependency of the package.
+See the [changelog](https://github.com/dichovsky/testrail-api-client/blob/main/CHANGELOG.md) for the full release scope and affected methods.
 
 ## Quick start (SDK)
 

@@ -1,6 +1,7 @@
 # CLI guide
 
 Use `testrail` for shell scripts, CI jobs, and individual API calls.
+Requires Node.js 26 or newer.
 Install with `npm install @dichovsky/testrail-api-client`; the examples below use `npx` to run that local installation.
 For a command without installing locally, use `npm exec --package=@dichovsky/testrail-api-client -- testrail --help`.
 

@@ -18,10 +18,11 @@ npm run verify
 
 `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run lifecycle scripts automatically. Run build and code generation commands explicitly with `npm run`.
 
-TypeScript 7 is the only TypeScript. The build and type check use the `typescript` package (`tsc`).
+The repository builds and checks types with TypeScript 7 through the `typescript` package (`tsc`).
 Oxlint is the linter. It uses `.oxlintrc.json` and runs type-aware rules through `oxlint-tsgolint`.
 The code generators parse source through `scripts/ts-source.ts`, which uses the unstable TypeScript 7 API (`typescript/unstable/*`).
 The package smoke test checks published declaration files with TypeScript 7.
+Other compiler versions are not tested. TypeScript is not a runtime or peer dependency of the published package.
 
 ## Verification checks
 

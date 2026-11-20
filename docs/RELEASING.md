@@ -54,6 +54,13 @@ The `agents-md` script builds the client first. The `skill` script also updates 
 The `mapping` script validates the current skill recipe anchors.
 The CLI reads its version from `package.json`. Generators write the version into the skill and codemap files.
 
+For the 10.0.0 release, keep these upgrade notes in the README and changelog:
+
+- Node.js 26 is the minimum runtime for applications, CLI commands, and CI jobs.
+- SDK upload methods own supplied file descriptors even when validation rejects the call. Link to [upload ownership](SDK.md#upload-files).
+- Endpoint response checks bypass public `parse()` overrides. Link to the [response validation migration](SDK.md#response-validation).
+- TypeScript 7 is the repository compiler and the tested consumer compiler, not a runtime or peer dependency.
+
 For the 9.0.0 DNS-pinning release, the required breaking-change notes covered these changes:
 
 - Global proxy and custom agent bypass.

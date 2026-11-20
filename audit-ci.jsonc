@@ -4,13 +4,5 @@
     "moderate": true,
     // Every exception needs a note and an expiry date. Once the date passes the
     // entry stops applying and the gate fails again, which forces a re-review.
-    "allowlist": [
-        {
-            "GHSA-fc5q-39xc-vjpf": {
-                "active": true,
-                "notes": "picomatch ReDoS through repeated extglobs. GitHub widened the advisory on 2026-11-17 to every release up to 4.0.7 (the latest), so no patched version exists. Dev tooling only: vitest/vite, tinyglobby and lockfile-lint pass trusted glob patterns. The published package ships only zod, and `npm audit --omit=dev` stays clean. Remove this entry once a fixed picomatch is released.",
-                "expiry": "2026-12-18",
-            },
-        },
-    ],
+    "allowlist": [],
 }
