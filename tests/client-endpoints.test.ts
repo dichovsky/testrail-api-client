@@ -3578,7 +3578,7 @@ describe('TestRailClient', () => {
 
             it('throws when any test_id is not a positive integer (before any network call)', async () => {
                 await expect(client.tests.updateTests({ test_ids: [1, 0], labels: ['x'] })).rejects.toThrow(
-                    'testId must be a positive integer',
+                    'testIds[1] must be a positive integer',
                 );
                 expect(mockFetch).not.toHaveBeenCalled();
             });

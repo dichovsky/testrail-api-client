@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject, type KnownResponse } from './common.js';
+import { zObject } from './common.js';
 import { DynamicFiltersPayloadSchema } from './metadata.js';
 
 // ── Run Schema ────────────────────────────────────────────────────────────────
@@ -64,8 +64,6 @@ export const RunSchema = zObject({
     // get_run/get_runs and nested plan-entry response examples.
     dataset_id: z.number().nullish(),
 });
-
-export type Run = KnownResponse<typeof RunSchema>;
 
 // ── Run write payloads ────────────────────────────────────────────────────────
 

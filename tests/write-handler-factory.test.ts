@@ -18,6 +18,7 @@ const BodySchema = z.object({ name: z.string() }).passthrough();
 interface CtxOverrides {
     pathParams?: string[];
     dataFlag?: string;
+    readStdin?: () => string;
     dryRun?: boolean;
     confirmDestructive?: boolean;
     soft?: boolean;
@@ -39,7 +40,10 @@ function makeCtx(overrides: CtxOverrides = {}): { ctx: HandlerContext; out: Retu
             ...(overrides.soft !== undefined && { soft: overrides.soft }),
         },
         stdin: makeStdin(),
-        bodyInput: overrides.dataFlag !== undefined ? { dataFlag: overrides.dataFlag } : {},
+        bodyInput: {
+            ...(overrides.dataFlag !== undefined && { dataFlag: overrides.dataFlag }),
+            ...(overrides.readStdin !== undefined && { readStdin: overrides.readStdin }),
+        },
         dryRun: overrides.dryRun ?? false,
         force: false,
         confirmDestructive: overrides.confirmDestructive ?? false,
@@ -146,6 +150,97 @@ describe('createWriteHandler', () => {
             payload: {},
             source: 'default',
         });
+    });
+
+    // `runCli` registers the stdin thunk whenever stdin is not a terminal, so
+    // in CI, cron, or under `</dev/null` "no body" arrives as an empty read
+    // rather than an absent thunk. Both must mean the same thing.
+    it.each([[''], ['\n'], [' \t\r\n ']])('allowEmptyBody: piped stdin %j is the same as no body', async (piped) => {
+        const call = vi.fn().mockResolvedValue({ ok: true });
+        const handler = createWriteHandler({
+            action: 'dataset update',
+            pathParams: ['dataset_id'],
+            bodySchema: BodySchema.partial(),
+            allowEmptyBody: true,
+            call,
+        });
+        const readStdin = vi.fn(() => piped);
+        const dry = makeCtx({ pathParams: ['4'], dryRun: true, readStdin });
+        await handler(dry.ctx);
+        expect(dry.out).toHaveBeenCalledWith({
+            dryRun: true,
+            action: 'dataset update',
+            datasetId: 4,
+            payload: {},
+            source: 'default',
+        });
+        expect(readStdin).toHaveBeenCalledTimes(1);
+
+        const real = makeCtx({ pathParams: ['4'], readStdin });
+        await handler(real.ctx);
+        expect(call).toHaveBeenCalledExactlyOnceWith(real.ctx.client, [4], {}, '');
+    });
+
+    it('allowEmptyBody: a piped body is read once and still validated', async () => {
+        const call = vi.fn().mockResolvedValue({ ok: true });
+        const handler = createWriteHandler({
+            action: 'dataset update',
+            pathParams: ['dataset_id'],
+            bodySchema: BodySchema.partial(),
+            allowEmptyBody: true,
+            call,
+        });
+        const readStdin = vi.fn(() => ' {"name":"piped"}\n');
+        const { ctx, out } = makeCtx({ pathParams: ['4'], dryRun: true, readStdin });
+        await handler(ctx);
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ payload: { name: 'piped' }, source: 'stdin' }));
+        expect(readStdin).toHaveBeenCalledTimes(1);
+
+        const invalid = makeCtx({ pathParams: ['4'], readStdin: () => '{"name":5}' });
+        await expect(handler(invalid.ctx)).rejects.toThrow(/Payload validation failed/);
+        const malformed = makeCtx({ pathParams: ['4'], readStdin: () => '{' });
+        await expect(handler(malformed.ctx)).rejects.toThrow(/Invalid JSON/);
+        expect(call).not.toHaveBeenCalled();
+    });
+
+    it('allowEmptyBody: a stdin read failure is reported, not treated as an empty body', async () => {
+        const call = vi.fn();
+        const handler = createWriteHandler({
+            action: 'dataset update',
+            pathParams: ['dataset_id'],
+            bodySchema: BodySchema.partial(),
+            allowEmptyBody: true,
+            call,
+        });
+        const readStdin = vi.fn((): string => {
+            throw new Error('Input exceeds maximum 1048576 bytes.');
+        });
+        const { ctx } = makeCtx({ pathParams: ['4'], readStdin });
+        await expect(handler(ctx)).rejects.toThrow('Cannot read stdin: Input exceeds maximum 1048576 bytes.');
+        // A second read would return whatever followed the failure point.
+        expect(readStdin).toHaveBeenCalledTimes(1);
+        expect(call).not.toHaveBeenCalled();
+
+        const nonError = makeCtx({
+            pathParams: ['4'],
+            readStdin: () => {
+                const failure: unknown = 'plain-string failure';
+                throw failure;
+            },
+        });
+        await expect(handler(nonError.ctx)).rejects.toThrow('Cannot read stdin: plain-string failure');
+    });
+
+    it('an action without allowEmptyBody still requires a body on empty piped stdin', async () => {
+        const call = vi.fn();
+        const handler = createWriteHandler({
+            action: 'thing add',
+            bodySchema: BodySchema,
+            call,
+        });
+        const { ctx } = makeCtx({ readStdin: () => '' });
+        await expect(handler(ctx)).rejects.toThrow(/Invalid JSON/);
+        expect(call).not.toHaveBeenCalled();
     });
 
     it('allowEmptyBody: present body still flows through resolveBody', async () => {

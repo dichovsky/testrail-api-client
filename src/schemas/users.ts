@@ -38,8 +38,6 @@ export const UserSchema = zObject({
     assigned_projects: z.array(z.number()).nullish(),
 });
 
-export type User = KnownResponse<typeof UserSchema>;
-
 export const RoleSchema = zObject({
     id: z.number(),
     name: z.string(),
@@ -48,8 +46,6 @@ export const RoleSchema = zObject({
     // alongside is_default. `.nullish()` — older servers omit it.
     is_project_admin: z.boolean().nullish(),
 });
-
-export type Role = KnownResponse<typeof RoleSchema>;
 
 export const GroupSchema = zObject({
     id: z.number(),

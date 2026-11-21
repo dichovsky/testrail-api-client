@@ -42,8 +42,6 @@ export const CaseSchema = zObject({
     ai_automated_test: z.unknown().nullish(),
 });
 
-export type Case = KnownResponse<typeof CaseSchema>;
-
 // Lightweight projection returned by TestRail 10.5+'s `get_case_titles`.
 export const CaseTitleSchema = zObject({
     id: z.number(),
@@ -105,8 +103,6 @@ export const HistoryEntrySchema = zObject({
     comments: z.array(z.unknown()).nullish(),
 });
 
-export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>;
-
 // ── Case write payloads ───────────────────────────────────────────────────────
 
 export const AddCasePayloadSchema = zObject({
@@ -141,8 +137,10 @@ export const UpdateCasePayloadSchema = zObject({
 export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>;
 
 // ── Bulk add cases ────────────────────────────────────────────────────────────
-// `POST add_cases/{section_id}` accepts a JSON array of case payloads — each
-// item has the same shape as `AddCasePayloadSchema`. Distinct from the single
+// `addCases()` and the CLI take a JSON array of case payloads — each item has
+// the same shape as `AddCasePayloadSchema`. On the wire the client wraps that
+// array as `{ cases: [...] }`: `POST add_cases/{section_id}` rejects a bare
+// array with 400 (see `CaseModule.addCases`). Distinct from the single
 // `add_case/{section_id}` (object body) — the CLI exposes both as separate
 // actions so the agent surface stays explicit about array-vs-object intent.
 // `z.array(...).min(1)` rejects empty arrays client-side since TestRail treats
@@ -159,7 +157,7 @@ export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>;
 // the endpoint server-side rejects an empty body; surfacing that here lets
 // agents see the contract failure at the CLI boundary.
 export const UpdateCasesPayloadSchema = zObject({
-    case_ids: z.array(z.number()),
+    case_ids: z.array(z.number().int().positive()).min(1),
     section_id: z.number().optional(),
     title: z.string().optional(),
     template_id: z.number().optional(),
@@ -183,7 +181,7 @@ export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>;
 // example JSON that mixes the two. Surface the misuse early at the schema
 // boundary so destructive intent stays unambiguous.
 export const DeleteCasesPayloadSchema = zObject({
-    case_ids: z.array(z.number()),
+    case_ids: z.array(z.number().int().positive()).min(1),
 }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), {
     message:
         '`soft` is not a body field — use the `--soft` CLI flag or the `options.soft` argument on `deleteCases()` to toggle the server-side preview.',
@@ -219,7 +217,7 @@ export type SoftDeletePreview = KnownResponse<typeof SoftDeletePreviewSchema>;
 // schema — a future TestRail change to either endpoint (e.g. delete adds a
 // `force` flag) must not silently spread to the other.
 export const CopyCasesToSectionPayloadSchema = zObject({
-    case_ids: z.array(z.number()),
+    case_ids: z.array(z.number().int().positive()).min(1),
 });
 
 export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>;
@@ -231,7 +229,7 @@ export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayload
 // have historically listed both — confirmed wrong against the live API and
 // reference clients).
 export const MoveCasesToSectionPayloadSchema = zObject({
-    case_ids: z.array(z.number()),
+    case_ids: z.array(z.number().int().positive()).min(1),
     suite_id: z.number(),
 });
 

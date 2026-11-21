@@ -68,7 +68,11 @@ export class RequestCache {
         const existing = this.pending.get(pendingKey) as OperationHandle<T> | undefined;
         if (existing !== undefined) {
             void observeOperation(existing.settled);
-            return resolution.wait(existing.result);
+            // Joining an in-flight request saves a round trip; it must not also
+            // hand two callers one object. The initiator keeps the original, as
+            // it would have without coalescing, and every joiner gets its own
+            // copy, the same isolation a stored hit gives.
+            return resolution.wait(existing.result.then((value) => globalThis.structuredClone(value)));
         }
 
         const startedAtGeneration = this.generation;

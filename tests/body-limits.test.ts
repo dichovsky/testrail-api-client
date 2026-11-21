@@ -342,11 +342,12 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
         client.destroy();
     });
 
-    it('swallows a non-TestRailApiError body-read failure in requestText into "Unknown error" (covers fallback branch)', async () => {
-        // When the body-read throws a plain Error (not TestRailApiError),
-        // the catch falls through and sets errorText='Unknown error', then
-        // rethrows the original HTTP error verbatim. We synthesize this by
-        // mocking a Response whose text() throws a plain Error.
+    it('keeps the HTTP status when the error body of requestText cannot be read ("Unknown error")', async () => {
+        // A body that fails after the headers arrived is the transport
+        // dropping. The status line already arrived, so the client reports
+        // that status with the text 'Unknown error' instead of a status-0
+        // network error. We synthesize it by mocking a Response whose text()
+        // throws.
         const fakeRes = {
             ok: false,
             status: 500,
@@ -373,7 +374,7 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
         client.destroy();
     });
 
-    it('swallows a non-TestRailApiError body-read failure in requestBinary into "Unknown error"', async () => {
+    it('keeps the HTTP status when the error body of requestBinary cannot be read ("Unknown error")', async () => {
         const fakeRes = {
             ok: false,
             status: 500,

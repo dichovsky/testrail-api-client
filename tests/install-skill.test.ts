@@ -211,6 +211,38 @@ describe('runInstallSkill', () => {
         expect(existsSync(join(project, '.claude'))).toBe(false);
     });
 
+    it('--print-path keeps the bundled path verbatim (machine output)', () => {
+        // Scripts consume this line as a path, so it must round-trip exactly,
+        // unlike the human-facing success message below.
+        const odd = join(tmp, 'bundled-\u001b[2J-SKILL.md');
+        const code = runInstallSkill(
+            { global: false, force: false, printPath: true, output, sourceOverride: odd, cwdOverride: tmp },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(0);
+        expect(stdoutChunks.join('')).toBe(`${odd}\n`);
+    });
+
+    // `err` sanitizes every failure message because the target derives from
+    // HOME / the working directory (CTF #16). The success line carries the same
+    // path through `outRaw`, which writes verbatim, so it has to strip the
+    // control characters itself.
+    it.skipIf(process.platform === 'win32')(
+        'strips terminal control characters from the path in the success message',
+        () => {
+            const project = join(tmp, 'proj-\u001b]0;pwned\u0007\u001b[2J');
+            const code = runInstallSkill(
+                { global: false, force: false, printPath: false, output, sourceOverride: source, cwdOverride: project },
+                'file:///irrelevant',
+            );
+            expect(code).toBe(0);
+            // The file lands at the real path; only the echoed path is cleaned.
+            expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);
+            const shown = join(tmp, 'proj-]0;pwned[2J', '.claude', 'skills', 'testrail-cli', 'SKILL.md');
+            expect(stdoutChunks.join('')).toBe(`Installed testrail-cli skill → ${shown}\n`);
+        },
+    );
+
     it('falls back to process.cwd() when cwdOverride is undefined (project default)', () => {
         // Exercises the `opts.cwdOverride ?? process.cwd()` nullish-coalesce
         // false branch. We stub process.cwd() to a sandboxed tmp so the real

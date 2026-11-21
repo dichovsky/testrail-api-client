@@ -681,6 +681,32 @@ describe('CLI', () => {
             expect(stderr.toLowerCase()).toContain('timeout');
         });
 
+        it.each([[['--timeout', '']], [['--timeout=']]])(
+            'rejects an empty %j instead of falling back to the default',
+            async (flag) => {
+                const { stderr, exitCodes } = await runCli(
+                    ['project', 'get', '1', ...flag],
+                    [jsonResponse(MOCK_PROJECT)],
+                    {
+                        ...AUTH_ENV,
+                        // An empty flag must not fall through to the environment either.
+                        TESTRAIL_TIMEOUT: '5000',
+                    },
+                );
+                expect(exitCodes).toEqual([1]);
+                expect(stderr).toContain('--timeout must be a positive integer');
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it('treats an empty TESTRAIL_TIMEOUT as unset', async () => {
+            const { exitCodes } = await runCli(['project', 'get', '1'], [jsonResponse(MOCK_PROJECT)], {
+                ...AUTH_ENV,
+                TESTRAIL_TIMEOUT: '',
+            });
+            expect(exitCodes).toEqual([0]);
+        });
+
         it('rejects --timeout 0 with exit 1', async () => {
             const { exitCodes } = await runCli(['project', 'get', '1', '--timeout', '0']);
             expect(exitCodes).toContain(1);
@@ -2356,7 +2382,7 @@ describe('CLI', () => {
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
             expect(url).toContain('limit=25');
             expect(url).toContain('offset=0');
-            // serializeIdList joins with comma; encodeURIComponent leaves digits/commas as-is except commas → %2C
+            // serializeIdFilter joins with comma; encodeURIComponent leaves digits/commas as-is except commas → %2C
             expect(url).toMatch(/status_id=1(%2C|,)5/);
             expect(url).toContain('defects_filter=JIRA-99');
         });
@@ -4424,16 +4450,101 @@ describe('CLI', () => {
         });
     });
 
-    // ── optInt invalid input ──────────────────────────────────────────────────
+    // ── Ids at or above 2^53 ──────────────────────────────────────────────────
 
-    describe('invalid --limit value', () => {
-        it('should ignore non-integer --limit and still complete the request', async () => {
+    describe('unsafe-integer ids', () => {
+        // Number() rounds these, so the request used to name a different id
+        // from the one typed — on a destructive call, a different entity.
+        it.each([
+            [['run', 'delete', '9007199254740993', '--yes'], 'run_id must be a safe integer (got: 9007199254740993)'],
+            [
+                ['project', 'get', '99999999999999999999999'],
+                'project id must be a safe integer (got: 99999999999999999999999)',
+            ],
+            [
+                ['case', 'list', '--project-id', '1', '--type-id', '9007199254740993'],
+                '--type-id must be a safe integer (got: 9007199254740993)',
+            ],
+            [
+                ['result', 'list', '--run-id', '1', '--created-after', '99999999999999999999999'],
+                '--created-after must be a safe integer (got: 99999999999999999999999)',
+            ],
+            [
+                ['attachment', 'delete', '9007199254740993', '--yes'],
+                'attachment_id must be a safe integer (got: 9007199254740993)',
+            ],
+        ])('%j is refused and sends nothing', async (argv, message) => {
+            const { exitCodes, stdout, stderr } = await runCli(argv, [jsonResponse({})]);
+            expect(exitCodes).toEqual([1]);
+            expect(stderr).toBe(`Error: ${message}\n`);
+            expect(stdout).toBe('');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    // ── Malformed --limit / --offset in the default mode ──────────────────────
+
+    describe('invalid --limit / --offset value', () => {
+        // These used to be dropped: the request went out without the parameter
+        // and the command exited 0. No credentials are supplied, so reaching
+        // the pagination error also proves it is raised before authentication.
+        it.each([
+            [['project', 'list', '--limit', 'foo'], '--limit must be a positive safe integer (got: foo)'],
+            [
+                ['project', 'list', '--limit', 'abc', '--offset', 'x'],
+                '--limit must be a positive safe integer (got: abc)',
+            ],
+            [
+                ['case', 'list', '--project-id', '1', '--limit', '-5'],
+                '--limit must be a positive safe integer (got: -5)',
+            ],
+            [
+                ['case', 'list', '--project-id', '1', '--limit', '1e2'],
+                '--limit must be a positive safe integer (got: 1e2)',
+            ],
+            [
+                ['case', 'list', '--project-id', '1', '--limit', '010'],
+                '--limit must be a positive safe integer (got: 010)',
+            ],
+            [
+                ['case', 'list', '--project-id', '1', '--limit='],
+                '--limit must be a positive safe integer (got: (empty))',
+            ],
+            [['case', 'list', '--project-id', '1', '--limit', '0'], '--limit must be a positive safe integer (got: 0)'],
+            [['case', 'list', '--project-id', '1', '--limit', '251'], '--limit must not exceed 250 (got: 251)'],
+            [
+                ['case', 'list', '--project-id', '1', '--limit', '99999999999999999999'],
+                '--limit must be a safe integer (got: 99999999999999999999)',
+            ],
+            [
+                ['case', 'list', '--project-id', '1', '--offset', 'ten'],
+                '--offset must be a non-negative safe integer (got: ten)',
+            ],
+            [
+                ['run', 'list', '--project-id', '1', '--limit', ' 5'],
+                '--limit must be a positive safe integer (got:  5)',
+            ],
+            [
+                ['attachment', 'list-for-test', '7', '--offset='],
+                '--offset must be a non-negative safe integer (got: (empty))',
+            ],
+        ])('%j fails before authentication and sends nothing', async (argv, message) => {
+            const { exitCodes, stdout, stderr } = await runCli(argv, [], {});
+            expect(exitCodes).toEqual([1]);
+            expect(stderr).toBe(`Error: ${message}\n`);
+            expect(stdout).toBe('');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('still sends well-formed default-mode --limit and --offset', async () => {
             const { exitCodes } = await runCli(
-                ['project', 'list', '--limit', 'foo'],
+                ['project', 'list', '--limit', '250', '--offset', '0'],
                 [jsonResponse({ projects: [MOCK_PROJECT] })],
             );
-            // optInt('foo') returns undefined; request proceeds without limit param
-            expect(exitCodes).toContain(0);
+            expect(exitCodes).toEqual([0]);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=250');
+            expect(url).toContain('offset=0');
         });
     });
 
@@ -5483,6 +5594,33 @@ describe('CLI', () => {
             const body = JSON.parse(init.body as string) as Record<string, unknown>;
             expect(body).toEqual({});
         });
+
+        it.each([[''], ['\n']])(
+            'dataset update with no body behaves the same when stdin is an empty pipe (%j)',
+            async (piped) => {
+                // A terminal and CI must agree: under `</dev/null` or an empty
+                // pipe the stdin thunk is registered and reads nothing. That
+                // used to fail with "Invalid JSON: Unexpected end of JSON input".
+                const origIsTTY = inputStream.isTTY;
+                inputStream.isTTY = undefined;
+                try {
+                    const { exitCodes, stderr } = await withStubbedStdin(piped, () =>
+                        runCli(
+                            ['dataset', 'update', '77'],
+                            [jsonResponse({ id: 77, name: 'Production matrix', project_id: 1 })],
+                        ),
+                    );
+                    expect(stderr).toBe('');
+                    expect(exitCodes).toEqual([0]);
+                    const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+                    expect(url).toContain('update_dataset/77');
+                    const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+                    expect(JSON.parse(init.body as string)).toEqual({});
+                } finally {
+                    inputStream.isTTY = origIsTTY;
+                }
+            },
+        );
 
         it('dataset update supports --format table', async () => {
             const { exitCodes, stdout } = await runCli(
@@ -6925,26 +7063,23 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('list-for-case rejects --limit 0 fail-fast (validatePaginationParams)', async () => {
+        it('list-for-case rejects --limit 0 fail-fast', async () => {
             const { exitCodes, stderr } = await runCli(['attachment', 'list-for-case', '42', '--limit', '0']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/limit must be a positive integer/);
+            expect(stderr).toContain('--limit must be a positive safe integer (got: 0)');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('list-for-case rejects --offset -1 fail-fast (regex prevents parse before client)', async () => {
-            // optInt drops `-1` (NON_NEG_INT_RE only accepts `0|[1-9]\d*`), so
-            // the handler simply omits offset from the request — no error.
-            // This test asserts that the CLI does NOT silently accept a
-            // malformed flag value as a request parameter — confirm by
-            // checking no `offset=` ends up in the query string.
-            const { exitCodes } = await runCli(
+        it('list-for-case rejects --offset -1 fail-fast', async () => {
+            // A malformed value is an argv error, not a parameter to omit:
+            // dropping it would silently restart a paging script at offset 0.
+            const { exitCodes, stderr } = await runCli(
                 ['attachment', 'list-for-case', '42', '--offset', '-1'],
                 [jsonResponse({ attachments: [] })],
             );
-            expect(exitCodes).toContain(0);
-            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
-            expect(url).not.toContain('offset=');
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--offset must be a non-negative safe integer (got: -1)');
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it('add-to-case uploads --file and returns attachment_id', async () => {
@@ -7946,5 +8081,91 @@ describe('CLI', () => {
                 inputStream.isTTY = savedIsTTY;
             }
         });
+    });
+});
+
+// Failures that reach `runCli` from the runtime it was handed, rather than
+// from argv or the API. Each must still end as `Error: <message>` on stderr
+// with exit 1: a rejection that bypasses the diagnostic scope's own report, and
+// a collaborator that throws something other than an `Error`.
+describe('injected runtime failures', () => {
+    interface RuntimeOverrides {
+        readonly offExit?: () => void;
+        readonly createClient?: () => TestRailClient;
+    }
+
+    async function runWith(overrides: RuntimeOverrides): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+        mockFetch.mockReset();
+        mockFetch.mockResolvedValue(jsonResponse(MOCK_PROJECT));
+        const stdout: string[] = [];
+        const stderr: string[] = [];
+        const exitCode = await invokeCli({
+            argv: ['project', 'get', '1'],
+            env: {
+                TESTRAIL_BASE_URL: AUTH_ENV.TESTRAIL_BASE_URL,
+                TESTRAIL_EMAIL: AUTH_ENV.TESTRAIL_EMAIL,
+                TESTRAIL_API_KEY: AUTH_ENV.TESTRAIL_API_KEY,
+            },
+            stdout: (chunk) =>
+                void stdout.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8')),
+            stderr: (chunk) => void stderr.push(chunk),
+            stdoutIsTTY: false,
+            stdin: {
+                isTTY: true,
+                read: () => {
+                    throw new Error('a read action must not read stdin');
+                },
+                readBinary: () => Promise.reject(new Error('a read action must not read stdin')),
+            },
+            createClient: overrides.createClient ?? ((config) => new TestRailClient(config)),
+            platform: process.platform,
+            lifetime: { onExit: () => undefined, offExit: overrides.offExit ?? (() => undefined) },
+        });
+        return { exitCode, stdout: stdout.join(''), stderr: stderr.join('') };
+    }
+
+    it('succeeds with the default fakes, so each failure below comes from its override', async () => {
+        const result = await runWith({});
+
+        expect(result.stderr).toBe('');
+        expect(result.exitCode).toBe(0);
+        expect(JSON.parse(result.stdout)).toMatchObject({ id: MOCK_PROJECT.id, name: MOCK_PROJECT.name });
+    });
+
+    it.each([
+        ['an Error', new Error('exit-hook failure'), 'exit-hook failure'],
+        ['a non-Error value', 'plain-string', 'plain-string'],
+    ])('reports %s thrown by the exit-hook release after the command succeeded', async (_label, thrown, message) => {
+        // The scope has no failure to report here: the handler succeeded and
+        // the throw comes from its own cleanup. Without the fallback in
+        // `runCli`'s catch the process would exit 1 with an empty stderr.
+        const result = await runWith({
+            offExit: () => {
+                // Typed `unknown` so the non-Error row is an intentional throw.
+                const failure: unknown = thrown;
+                throw failure;
+            },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toBe(`Error: ${message}\n`);
+        // The command itself completed before the release failed.
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(result.stdout)).toMatchObject({ id: MOCK_PROJECT.id });
+    });
+
+    it('reports a non-Error value thrown by the client factory exactly once', async () => {
+        const result = await runWith({
+            createClient: () => {
+                const failure: unknown = 'client factory blew up';
+                throw failure;
+            },
+        });
+
+        expect(result.exitCode).toBe(1);
+        // Once: the scope reports it, and the outer catch must not repeat it.
+        expect(result.stderr).toBe('Error: client factory blew up\n');
+        expect(result.stdout).toBe('');
+        expect(mockFetch).not.toHaveBeenCalled();
     });
 });

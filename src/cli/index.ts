@@ -39,6 +39,17 @@ const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_ARGV_INVALID = 2;
 
+/**
+ * Meta commands take flags only. A positional typed after one is a mistake
+ * (`install-skill ./elsewhere`), never a target, so it is refused like an
+ * extra path parameter on a resource action.
+ */
+function strayPositionalsError(command: string, extra: readonly string[]): string {
+    return `'${command}' takes no positional arguments (got ${extra.length}: ${extra
+        .map((positional) => JSON.stringify(positional))
+        .join(', ')}).`;
+}
+
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 /**
@@ -200,6 +211,9 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
         if (!metaFlags.ok) {
             return fail(metaFlags.error);
         }
+        if (positionals.length > 1) {
+            return fail(strayPositionalsError('install-skill', positionals.slice(1)));
+        }
         return runInstallSkill(
             {
                 global: values['global'] === true,
@@ -219,6 +233,9 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
         const metaFlags = validateMetaCommandFlags('uninstall-skill', suppliedFlags);
         if (!metaFlags.ok) {
             return fail(metaFlags.error);
+        }
+        if (positionals.length > 1) {
+            return fail(strayPositionalsError('uninstall-skill', positionals.slice(1)));
         }
         return runUninstallSkill({
             global: values['global'] === true,
@@ -386,7 +403,9 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
     let reported = false;
     const timeoutFlag = values['timeout'] as string | undefined;
     const timeoutEnv = runtime.env['TESTRAIL_TIMEOUT'];
-    const usingTimeoutFlag = timeoutFlag !== undefined && timeoutFlag !== '';
+    // An empty `--timeout` is a malformed value, rejected by `parseId` below.
+    // Only an empty environment variable counts as unset.
+    const usingTimeoutFlag = timeoutFlag !== undefined;
     const timeoutRaw = usingTimeoutFlag
         ? timeoutFlag
         : timeoutEnv !== undefined && timeoutEnv !== ''

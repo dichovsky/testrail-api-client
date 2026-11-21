@@ -63,10 +63,13 @@ export interface PipelineSpec<TParsed> {
     /** Parses the successful Response body into the caller's return type. */
     parseSuccess(response: Response): Promise<TParsed>;
     /**
-     * Optional hook fired immediately after a successful response is received
-     * but before `parseSuccess()`. Used to invalidate the GET cache on writes.
+     * Optional hook fired exactly once per dispatched attempt, whatever its
+     * outcome: when response headers arrive (before any body is read) or when
+     * the attempt fails after `fetch` was invoked. Used to invalidate the GET
+     * cache on writes, which may have committed upstream even when the client
+     * sees an error status, a network failure, or a timeout.
      */
-    onSuccessBeforeParse?(): void;
+    onWriteOutcome?(): void;
 }
 
 /**

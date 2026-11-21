@@ -13,6 +13,7 @@
  * when the change is intentional.
  */
 import { describe, expect, it } from 'vitest';
+import { runCli } from '../src/cli/index.js';
 import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS, getCliFlagUsage } from '../src/cli/flags.js';
 import { ACTIONS } from '../src/cli/metadata.js';
 import {
@@ -80,6 +81,45 @@ describe('buildHelpText', () => {
         expect(options).toContain('--with-data <0|1>');
         expect(options).toContain('--keep-in-cases <true|false|1|0>');
         expect(options).not.toContain('--case-id');
+    });
+
+    it('says --quiet suppresses error messages too, which is what the CLI does', async () => {
+        // The line used to promise only "normal output and advisory warnings",
+        // while a failing command under --quiet prints nothing at all.
+        const quietLine = renderOptionsBlock()
+            .split('\n')
+            .find((line) => line.trimStart().startsWith('--quiet'));
+        expect(quietLine).toContain(
+            'Suppress normal output, error messages, and advisory warnings; rely on the exit code.',
+        );
+
+        // The behaviour that line describes: an argv error under --quiet.
+        const stderr: string[] = [];
+        const exitCode = await runCli({
+            argv: ['project', 'get', 'not-an-id', '--quiet'],
+            env: {},
+            stdout: () => undefined,
+            stderr: (chunk) => void stderr.push(chunk),
+            stdoutIsTTY: false,
+            stdin: { isTTY: true, read: () => '', readBinary: () => Promise.resolve(new Uint8Array()) },
+            createClient: () => {
+                throw new Error('an argv error must not build a client');
+            },
+            platform: process.platform,
+            lifetime: { onExit: () => undefined, offExit: () => undefined },
+        });
+        expect(exitCode).toBe(1);
+        expect(stderr).toEqual([]);
+    });
+
+    it('describes body sources as the CLI resolves them', () => {
+        const help = buildHelpText();
+        // The entrypoint asks the descriptor whether it is a terminal; reading
+        // `process.stdin.isTTY` is what switched the pipe to non-blocking mode.
+        expect(help).not.toContain('process.stdin.isTTY');
+        expect(help).toContain('Stdin is auto-detected when input is piped\n(stdin is not a terminal)');
+        // `dataset update` is the one body-bearing write whose body is optional.
+        expect(help).toContain("'dataset update' alone may omit the body");
     });
 
     it('describes the two-gate destructive model (--yes + TESTRAIL_ALLOW_DESTRUCTIVE)', () => {

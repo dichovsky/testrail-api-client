@@ -188,6 +188,56 @@ describe('handleRunWatch', () => {
         expect(events).not.toContain('completed');
     });
 
+    it.each([
+        ['a 503', new TestRailApiError(503, 'Service Unavailable')],
+        ['a 429', new TestRailApiError(429, 'Too Many Requests')],
+        ['a network error', new TestRailApiError(0, 'Network error')],
+    ])('--once rejects on %s instead of scheduling another poll', async (_label, error) => {
+        // "Poll once and exit" has to hold when the one poll fails. Rescheduling
+        // on a transient error kept a CI step alive for as long as the outage.
+        const client = buildClient();
+        client.runs.getRun.mockRejectedValue(error);
+        const { ctx, out, stderr } = buildCtx(client, { once: true });
+
+        const settled = handleRunWatch(ctx).then(
+            () => 'resolved',
+            (e: unknown) => e,
+        );
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        expect(client.runs.getRun).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+        expect(await settled).toBe(error);
+        expect(out).not.toHaveBeenCalled();
+        // The caller reports the error; there is no retry to announce.
+        expect(stderr()).toBe('');
+    });
+
+    it('ends every stderr status line with a newline', async () => {
+        const client = buildClient();
+        client.runs.getRun
+            .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
+            .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
+            .mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+
+        const { ctx, stderr } = buildCtx(client, { interval: '5' });
+        const promise = handleRunWatch(ctx);
+        await vi.advanceTimersByTimeAsync(10_000);
+        process.emit('SIGINT');
+        await vi.advanceTimersByTimeAsync(0);
+        await promise;
+
+        const retry =
+            'run watch: transient error for runId=42; retrying in 5s: TestRail API error: 503 Service Unavailable';
+        // One line per status message; the trailing '' is the final newline.
+        expect(stderr().split('\n')).toEqual([
+            retry,
+            retry,
+            expect.stringMatching(/^run watch: interrupted at runId=42; lastSnapshot=\{.*"passed_count":1.*\}$/),
+            '',
+        ]);
+    });
+
     it('dry-run does not call the client and emits a preview', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { interval: '60', dryRun: true });

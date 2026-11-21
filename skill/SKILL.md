@@ -207,7 +207,7 @@ To validate dynamic SDK input at runtime, import the payload schema and call `.p
 
 By default, `testrail` writes formatted JSON to stdout.
 Pass `--format table` for human-readable table output.
-Pass `--quiet` to suppress standard output and advisory warnings. Check the exit code for the result.
+Pass `--quiet` to suppress standard output, error messages, and advisory warnings. Check the exit code for the result.
 When you pass `--out -`, the CLI still writes the downloaded payload bytes to stdout and suppresses only the JSON acknowledgment.
 
 ```bash
@@ -297,7 +297,8 @@ Stable fields include `Test.refs_data`, `Test.case_title`, `Result.case_title`, 
 | `1`  | Failure: bad auth, invalid args, validation, 4xx/5xx HTTP, rate limit, timeout |
 | `2`  | Destructive action blocked by a missing or invalid `TESTRAIL_ALLOW_DESTRUCTIVE` unlock |
 
-The CLI writes errors to stderr in the format `Error: <message>`. Common error messages:
+The CLI writes errors to stderr in the format `Error: <message>`. `--quiet` suppresses these messages.
+Common error messages:
 
 - `Missing auth.`: Set the required authentication environment variables or flags.
 - `<param> must be a positive integer`: Pass a positive integer for the path argument (not `project get abc`).
@@ -307,8 +308,8 @@ The CLI writes errors to stderr in the format `Error: <message>`. Common error m
 - `Invalid JSON: …`: Fix the JSON syntax in the request body.
 - `Payload validation failed: …`: Make sure the request body matches the Zod schema.
 - `TestRail API error: 404 Not Found …`: The TestRail server returned a 4xx or 5xx HTTP response.
-- `--file <path> required for upload actions.`: Pass `--file` for attachment or BDD upload actions.
-- `--out <path> required for binary download.`: Pass `--out` for `attachment get`.
+- `<resource> <action> requires --file <path|->.`: Pass `--file` for attachment or BDD upload actions.
+- `<resource> <action> requires --out <path|->.`: Pass `--out` for `attachment get` or `bdd get`.
 - `Refusing to overwrite '<path>'; pass --force to overwrite.`: The `--out` file already exists. Pass `--force` to overwrite it.
 - `Destructive action; pass --yes to confirm.`: Pass `--yes` for destructive actions such as `attachment delete`, `case delete-bulk`, or `run close`.
 - `unknown flag '--<name>'. Run --help for the full list.`: Fix the misspelled flag (such as `--dryrun` instead of `--dry-run`).
@@ -335,12 +336,12 @@ Do not repeat a failed write command only to capture a diagnostic file.
 ## Limits
 
 - **Rate limit:** The default limit is 100 requests per 60 seconds. The CLI throws an error immediately when the limit is exceeded.
-- **GET cache:** The client caches eligible GET responses in memory for 5 minutes. Successful writes clear the entire cache. `run watch` disables the cache so every poll queries TestRail. `getAll*()` bypasses the cache and request coalescing. `get*Page()` uses a separate strict-schema cache namespace.
+- **GET cache:** The client caches eligible GET responses in memory for 5 minutes. Every write sent to TestRail clears the entire cache, whatever its outcome. `run watch` disables the cache so every poll queries TestRail. `getAll*()` bypasses the cache and request coalescing. `get*Page()` uses a separate strict-schema cache namespace.
 - **Retry:** Ordinary GET requests retry on 5xx responses, 429 responses, and network errors. Report execution GETs (`report run` and `report run-cross-project`) retry only on 429. JSON write requests retry only on 429 to prevent duplicate writes. Multipart uploads never retry. The client retries up to 3 times with exponential backoff and honors `Retry-After`. It does not retry other 4xx errors, timeouts, redirects, or body-limit errors.
 - **No coercion on write payloads:** The CLI does not convert `"5"` to `5`. This rule catches type errors before sending an API request.
 - **`custom_*` fields:** Zod `.passthrough()` schemas preserve custom fields. Only `Case`, `Test`, and `Result` expose flat `custom_*` bracket access as `unknown`. Narrow these values before use.
-- **Terminal output sanitization (v3.0):** The CLI strips C0, C1, and DEL control bytes from stderr messages and `--format table` cells. This prevents terminal escape-sequence injection. As a result, `--format table` removes literal `\n` and `\t` characters from cell values. Use `--format json` to preserve raw characters.
-- **Input bounds:** JSON stdin, API-key stdin, and `--data-file` have a 1 MiB limit. Binary `--file -` uploads have a 100 MiB limit and a 30-second timeout. Stdin reads wait for the pipe to close; use `--data-file` if the pipe might stay open.
+- **Terminal output sanitization (v3.0):** The CLI strips C0, C1, and DEL control bytes from stderr messages and `--format table` cells. This prevents terminal escape-sequence injection. As a result, `--format table` removes literal `\n` and `\t` characters from cell values. Use `--format json` to keep them: JSON output writes each C0, C1, and DEL control character as an escape such as `\n`, `\t`, or `\u009b`, so the parsed value is unchanged and no control byte reaches the terminal.
+- **Input bounds:** JSON stdin, API-key stdin, and `--data-file` have a 1 MiB limit. Binary `--file -` uploads have a 100 MiB limit and a 30-second timeout. Stdin reads wait for the pipe to close, for at most 30 seconds. If stdin might stay open, use `--data` or `--data-file`, or redirect `</dev/null`.
 - **Strict flag parsing (v3.0):** Unknown or misspelled flags (such as `--dryrun`) cause the CLI to exit with code 1.
 
 ## Falling back to the programmatic SDK

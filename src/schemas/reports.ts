@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject, type KnownResponse } from './common.js';
+import { zObject } from './common.js';
 
 // ── Report Schemas ────────────────────────────────────────────────────────────
 
@@ -30,8 +30,6 @@ export const ReportSchema = zObject({
     notify_attachment_pdf_format: z.boolean().nullish(),
     is_shared: z.boolean().nullish(),
 });
-
-export type Report = KnownResponse<typeof ReportSchema>;
 
 /**
  * Enterprise cross-project report template returned by
@@ -71,8 +69,6 @@ export const CrossProjectReportSchema = zObject({
     notify_attachment_pdf_format: z.boolean().nullish(),
 });
 
-export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>;
-
 /**
  * SPEC #2.1.16 — verified against the official TestRail "Reports and
  * Cross-Project Reports" API doc (support article 7077825062036) on
@@ -90,5 +86,3 @@ export const ReportResultSchema = zObject({
     report_pdf: z.string().nullish(),
     user_report_url: z.string().nullish(),
 });
-
-export type ReportResult = KnownResponse<typeof ReportResultSchema>;

@@ -1,5 +1,6 @@
 import { ZodError } from 'zod';
 import type { PaginationErrorReason } from './pagination.js';
+import { MAX_SANITIZED_CAUSE_DEPTH } from './constants.js';
 
 /**
  * Thrown when communication with TestRail fails or a successful response cannot
@@ -13,10 +14,65 @@ export class TestRailApiError extends Error {
         public readonly status: number,
         public readonly statusText: string,
         public readonly response?: unknown,
+        options?: ErrorOptions,
     ) {
-        super(`TestRail API error: ${status} ${statusText}`);
+        super(`TestRail API error: ${status} ${statusText}`, options);
         this.name = 'TestRailApiError';
     }
+}
+
+/**
+ * Builds the status-0 {@link TestRailApiError} for a failure below HTTP: a
+ * refused or reset connection, a TLS or DNS failure, a body that stops
+ * mid-stream. `reason` is kept as `cause` because Node reports most of these as
+ * a bare "fetch failed" and puts the actionable detail on the original error.
+ * Pass `options.cause` when `reason` came from caller code (see
+ * {@link sanitizedCause}); an `undefined` cause there means "attach none",
+ * never "fall back to `reason`".
+ */
+export function networkError(reason: unknown, context = '', options?: { readonly cause: unknown }): TestRailApiError {
+    const message = `${context}${reason instanceof Error ? reason.message : String(reason)}`;
+    const cause = options === undefined ? reason : options.cause;
+    return new TestRailApiError(0, `Network error: ${message}`, message, cause === undefined ? undefined : { cause });
+}
+
+const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const;
+
+/**
+ * A plain copy of a failure raised by caller-supplied code (a custom `fetch`):
+ * its name, message, and primitive `code`, `errno`, and `syscall`, recursing
+ * into `cause`. HTTP adapters often embed the request they were given in their
+ * errors, and the client passes the Authorization header to `fetch` in
+ * `init.headers`. Attaching the raw object would expose that credential to any
+ * logger that walks the cause chain. A non-Error object is dropped; a primitive
+ * is kept.
+ */
+export function sanitizedCause(reason: unknown, depth = 0): unknown {
+    if (!(reason instanceof Error)) return typeof reason === 'object' && reason !== null ? undefined : reason;
+    const nested =
+        depth < MAX_SANITIZED_CAUSE_DEPTH && reason.cause !== undefined
+            ? { cause: sanitizedCause(reason.cause, depth + 1) }
+            : undefined;
+    // An AggregateError (one connect failure per address) keeps its members,
+    // copied the same way, because they hold the only actionable detail.
+    const copy =
+        reason instanceof AggregateError
+            ? new AggregateError(
+                  depth < MAX_SANITIZED_CAUSE_DEPTH
+                      ? (reason.errors as readonly unknown[]).map((member) => sanitizedCause(member, depth + 1))
+                      : [],
+                  reason.message,
+                  nested,
+              )
+            : new Error(reason.message, nested);
+    copy.name = reason.name;
+    for (const field of SAFE_CAUSE_FIELDS) {
+        const value: unknown = Reflect.get(reason, field);
+        if (typeof value === 'string' || typeof value === 'number') {
+            Object.defineProperty(copy, field, { value, enumerable: true });
+        }
+    }
+    return copy;
 }
 
 /**

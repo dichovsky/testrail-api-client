@@ -442,7 +442,7 @@ export interface GetRunsOptions {
     /** Return only runs created before this Unix timestamp */
     createdBefore?: number;
     /** Return only runs created by these user IDs (comma-separated list accepted by the API) */
-    createdBy?: number[];
+    createdBy?: number | readonly number[];
     /** Include runs that belong to test plans as well as standalone runs */
     includePlanRuns?: boolean;
     /** `true` to return only completed runs, `false` for active runs */
@@ -521,11 +521,11 @@ export interface GetPlansOptions {
     /** Only return plans created before this Unix timestamp */
     createdBefore?: number;
     /** Only return plans created by these user IDs */
-    createdBy?: number[];
+    createdBy?: number | readonly number[];
     /** `true` to return only completed plans, `false` for active plans */
     isCompleted?: boolean;
     /** Only return plans with these milestone IDs */
-    milestoneId?: number[];
+    milestoneId?: number | readonly number[];
     /** Only return plans matching this reference ID */
     refs?: string;
     /** Maximum number of plans to return */
@@ -537,11 +537,11 @@ export interface GetPlansOptions {
     /** @deprecated use `createdBefore` */
     created_before?: number;
     /** @deprecated use `createdBy` */
-    created_by?: number[];
+    created_by?: number | readonly number[];
     /** @deprecated use `isCompleted` */
     is_completed?: 0 | 1;
     /** @deprecated use `milestoneId` */
-    milestone_id?: number[];
+    milestone_id?: number | readonly number[];
 }
 
 /**
@@ -549,23 +549,23 @@ export interface GetPlansOptions {
  */
 export interface GetTestsOptions {
     /** Only return tests with these status IDs */
-    statusId?: number[];
+    statusId?: number | readonly number[];
     /** Only return tests carrying any of these label IDs */
-    labelId?: number[];
+    labelId?: number | readonly number[];
     /** Maximum number of tests to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
     /** @deprecated use `statusId` */
-    status_id?: number[];
+    status_id?: number | readonly number[];
     /** @deprecated use `labelId` */
-    label_id?: number[];
+    label_id?: number | readonly number[];
 }
 
 /** Filter options shared by `getResults()` and `getResultsForCase()`. */
 export interface GetResultsOptions {
     /** Only return results with these status IDs */
-    statusId?: number[];
+    statusId?: number | readonly number[];
     /** Only return results whose `defects` field contains this string. */
     defectsFilter?: string;
     /** Maximum number of results to return */
@@ -573,7 +573,7 @@ export interface GetResultsOptions {
     /** Offset for pagination */
     offset?: number;
     /** @deprecated use `statusId` */
-    status_id?: number[];
+    status_id?: number | readonly number[];
     /** @deprecated use `defectsFilter` */
     defects_filter?: string;
 }
@@ -588,13 +588,13 @@ export interface GetResultsForRunOptions extends GetResultsOptions {
     /** Only return results created before this Unix timestamp */
     createdBefore?: number;
     /** Only return results created by these user IDs */
-    createdBy?: number[];
+    createdBy?: number | readonly number[];
     /** @deprecated use `createdAfter` */
     created_after?: number;
     /** @deprecated use `createdBefore` */
     created_before?: number;
     /** @deprecated use `createdBy` */
-    created_by?: number[];
+    created_by?: number | readonly number[];
 }
 
 /**

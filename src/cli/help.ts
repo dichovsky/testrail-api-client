@@ -264,7 +264,12 @@ const NO_BODY_WRITES = actionNames((spec) => spec.isWrite && spec.bodySchema ===
 
 const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required
 (--data | --data-file | stdin). Stdin is auto-detected when input is piped
-(process.stdin.isTTY !== true) and neither --data nor --data-file is supplied.
+(stdin is not a terminal) and neither --data nor --data-file is supplied.
+Piped stdin is read until the producer closes it, for at most 30 seconds.
+If stdin may stay open (some CI runners, docker run -i), pass --data or
+--data-file, or redirect </dev/null.
+'dataset update' alone may omit the body: no source, or empty piped stdin,
+sends an empty update.
 The following write actions take NO body
 (explicit --data / --data-file is rejected): ${NO_BODY_WRITES} — they accept only positional id(s) (one for most
 actions; plan delete-entry and attachment add-to-plan-entry take two:

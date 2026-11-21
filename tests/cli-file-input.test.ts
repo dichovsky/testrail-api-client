@@ -13,7 +13,7 @@
  * known bytes; the TTY check is exercised by toggling `inputStream.isTTY`.
  */
 import type { BinaryInputStream } from '../src/cli/stdin.js';
-import { makeBinaryStdin } from './helpers.js';
+import { makeBinaryStdin, makeStdin } from './helpers.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -382,6 +382,24 @@ describe('resolveFile', () => {
             );
             expect(r.ok).toBe(false);
             if (!r.ok) expect(r.error).toContain('mid-iteration Error');
+        });
+
+        it('stringifies a non-Error stdin rejection as structured ok:false (String(e) branch)', async () => {
+            // The false branch of the same handler. `readStdinBinary` wraps
+            // every failure in an Error, so only an injected reader reaches it.
+            const r = await resolveFile(
+                { fileFlag: '-' },
+                { read: true },
+                makeStdin({
+                    isTTY: false,
+                    readBinary: async () => {
+                        // Typed `unknown` so this is an intentional non-Error throw.
+                        const nonError: unknown = 'stdin exploded';
+                        throw nonError;
+                    },
+                }),
+            );
+            expect(r).toEqual({ ok: false, error: 'stdin exploded' });
         });
     });
 

@@ -9,7 +9,6 @@
  *
  * Targets:
  *   - parseId   (src/cli/ids.ts)   — strict positive-integer parser
- *   - optInt    (src/cli/ids.ts)   — lenient non-negative parser, returns undefined on bad input
  *   - dispatch  (src/cli/dispatch.ts) — resource:action router
  *   - resolveAuth (src/cli/auth.ts) — credential resolution from flags + env
  *
@@ -20,7 +19,7 @@
  */
 import { describe, it } from 'vitest';
 import * as fc from 'fast-check';
-import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
+import { parseId, IdParseError } from '../src/cli/ids.js';
 import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { resolveAuth } from '../src/cli/auth.js';
 import type { AuthEnv } from '../src/cli/auth.js';
@@ -195,97 +194,7 @@ describe.skipIf(!RUN_FUZZ)('CLI fuzz: parseId', () => {
     });
 });
 
-// ── 2. optInt ────────────────────────────────────────────────────────────────
-//
-// Invariants:
-//   A. undefined input → undefined output (always).
-//   B. Any string that is NOT a canonical non-negative integer → undefined.
-//   C. Any canonical non-negative integer string ("0" or /^[1-9]\d*$/) →
-//      returns the numeric value.
-//   D. Output is ALWAYS either undefined or a non-negative safe integer;
-//      never a float, NaN, negative, or Infinity.
-
-describe.skipIf(!RUN_FUZZ)('CLI fuzz: optInt', () => {
-    const VALID_NON_NEG_INT = /^(0|[1-9]\d*)$/;
-
-    it('returns undefined for undefined input', () => {
-        const result = optInt(undefined);
-        if (result !== undefined) {
-            throw new Error(`optInt(undefined) returned ${result}, expected undefined`);
-        }
-    });
-
-    it('returns undefined for any non-canonical non-negative integer string', () => {
-        fc.assert(
-            fc.property(
-                fc.string({ minLength: 0, maxLength: 20 }).filter((s) => !VALID_NON_NEG_INT.test(s)),
-                (invalidInput) => {
-                    const result = optInt(invalidInput);
-                    if (result !== undefined) {
-                        throw new Error(
-                            `optInt(${JSON.stringify(invalidInput)}) returned ${result}, expected undefined for non-canonical input`,
-                        );
-                    }
-                },
-            ),
-            { numRuns: 200 },
-        );
-    });
-
-    it('returns undefined for negative integer strings', () => {
-        fc.assert(
-            fc.property(
-                fc.integer({ max: -1 }).map((n) => String(n)),
-                (negStr) => {
-                    const result = optInt(negStr);
-                    if (result !== undefined) {
-                        throw new Error(
-                            `optInt('${negStr}') returned ${result}, expected undefined for negative input`,
-                        );
-                    }
-                },
-            ),
-            { numRuns: 200 },
-        );
-    });
-
-    it('accepts "0" and returns 0', () => {
-        const result = optInt('0');
-        if (result !== 0) {
-            throw new Error(`optInt('0') returned ${result}, expected 0`);
-        }
-    });
-
-    it('accepts canonical positive integer strings and returns the numeric value', () => {
-        fc.assert(
-            fc.property(fc.integer({ min: 1, max: 2147483647 }), (n) => {
-                const result = optInt(String(n));
-                if (result !== n) {
-                    throw new Error(`optInt('${n}') returned ${result}, expected ${n}`);
-                }
-            }),
-            { numRuns: 200 },
-        );
-    });
-
-    it('output is always undefined or a non-negative safe integer (never NaN, float, Infinity, or negative)', () => {
-        fc.assert(
-            fc.property(fc.oneof(fc.string({ minLength: 0, maxLength: 20 }), fc.constant(undefined)), (input) => {
-                const result = optInt(input);
-                if (result === undefined) return;
-                if (!Number.isSafeInteger(result)) {
-                    throw new Error(`optInt(${JSON.stringify(input)}) returned non-safe-integer: ${result}`);
-                }
-                if (result < 0) {
-                    throw new Error(`optInt(${JSON.stringify(input)}) returned negative: ${result}`);
-                }
-            }),
-            { numRuns: 200 },
-        );
-    });
-});
-
-// ── 3. dispatch ──────────────────────────────────────────────────────────────
+// ── 2. dispatch ──────────────────────────────────────────────────────────────
 //
 // Invariants:
 //   A. Every registered HANDLERS key → dispatch returns ok=true with a
@@ -457,7 +366,7 @@ describe.skipIf(!RUN_FUZZ)('CLI fuzz: dispatch', () => {
     });
 });
 
-// ── 4. resolveAuth ───────────────────────────────────────────────────────────
+// ── 3. resolveAuth ───────────────────────────────────────────────────────────
 //
 // Invariants:
 //   A. When ok=true, config has non-empty baseUrl, email, apiKey strings.

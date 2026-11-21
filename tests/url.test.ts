@@ -24,6 +24,12 @@ describe('buildEndpoint', () => {
         expect(buildEndpoint('get_cases/1', { suite_id: 2, section_id: undefined })).toBe('get_cases/1&suite_id=2');
     });
 
+    it('omits params whose value is null instead of sending the text "null"', () => {
+        // An untyped caller (or a JSON-sourced options object) can supply null.
+        const params = { suite_id: 2, filter: null } as unknown as Parameters<typeof buildEndpoint>[1];
+        expect(buildEndpoint('get_cases/1', params)).toBe('get_cases/1&suite_id=2');
+    });
+
     it('returns base unchanged when every param is undefined', () => {
         expect(buildEndpoint('get_cases/1', { suite_id: undefined, section_id: undefined })).toBe('get_cases/1');
     });

@@ -8,6 +8,8 @@ describe('TestRailClient Performance & Memory', () => {
         apiKey: 'api-key',
         enableCache: true,
         maxCacheSize: 2, // Small cache size for testing
+        // Keeps the suite off the real resolver.
+        dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }],
     };
 
     let client: TestRailClient;

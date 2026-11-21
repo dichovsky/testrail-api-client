@@ -75,7 +75,7 @@ export class ProjectModule {
     }
 
     /** Get one response page, preserving TestRail's pagination metadata when present. */
-    async getProjectsPage(options?: GetProjectsPageOptions): Promise<Page<Project>> {
+    async getProjectsPage(options?: GetProjectsOptions): Promise<Page<Project>> {
         return PROJECTS_PAGINATION.page(this.client, {}, options);
     }
 

@@ -92,6 +92,17 @@ describe('live-audit regression — parse-throwers (real wire shapes the schema 
     it('ResultFieldSchema accepts configs whose options omit default_value (get_result_fields)', () => {
         for (const f of fxArr('result-fields')) expect(() => mustParse(ResultFieldSchema, f)).not.toThrow();
     });
+
+    it.each([
+        ['case-types', CaseTypeSchema],
+        ['roles', RoleSchema],
+        ['statuses', StatusSchema],
+        ['templates', TemplateSchema],
+    ])('every captured %s entry parses with its response schema', (name, schema) => {
+        const entries = fxArr(name);
+        expect(entries.length).toBeGreaterThan(0);
+        for (const e of entries) expect(() => mustParse(schema, e)).not.toThrow();
+    });
 });
 
 describe('live-audit regression — bare-array list wrappers (top-level array, status 200)', () => {

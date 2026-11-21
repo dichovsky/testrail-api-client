@@ -5,8 +5,8 @@ import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import type { UpdateTestLabelsPayload, UpdateTestsLabelsPayload, UpdateTestsResponse } from '../schemas.js';
 import { TestSchema, TestWithDataResponseSchema, UpdateTestsResponseSchema } from '../schemas.js';
 import type { Attachment, GetTestsOptions, Result, Test, TestWithData } from '../types.js';
-import { serializeIdList } from '../utils.js';
-import { validateId } from '../validation.js';
+import { serializeIdFilter } from '../utils.js';
+import { validateId, validateIdList } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
 
@@ -60,12 +60,13 @@ export const TESTS_PAGINATION = createPaginatedListExecutor<
         validateId(runId, 'runId');
         const statusId = options?.statusId ?? options?.status_id;
         const labelId = options?.labelId ?? options?.label_id;
-        if (statusId !== undefined) statusId.forEach((id) => validateId(id, 'statusId'));
-        if (labelId !== undefined) labelId.forEach((id) => validateId(id, 'labelId'));
         return {
             operation: 'get_tests',
             pathParameters: [runId],
-            query: { status_id: serializeIdList(statusId), label_id: serializeIdList(labelId) },
+            query: {
+                status_id: serializeIdFilter(statusId, 'statusId'),
+                label_id: serializeIdFilter(labelId, 'labelId'),
+            },
         };
     },
 });
@@ -128,7 +129,7 @@ export class TestModule {
      * @testrail POST update_tests
      */
     async updateTests(payload: UpdateTestsLabelsPayload): Promise<UpdateTestsResponse> {
-        payload.test_ids.forEach((id) => validateId(id, 'testId'));
+        validateIdList(payload.test_ids, 'testIds');
         return this.client.request<UpdateTestsResponse>({
             method: 'POST',
             endpoint: 'update_tests',

@@ -11,7 +11,9 @@ type EndpointParamValue = EndpointParam | readonly EndpointParam[] | undefined;
 export function buildEndpoint(base: string, params: Readonly<Record<string, EndpointParamValue>> = {}): string {
     const parts: string[] = [];
     for (const [key, value] of Object.entries(params)) {
-        if (value === undefined) continue;
+        // `null` is outside the declared type but reaches here from untyped
+        // callers; without this check it is sent as the text "null".
+        if (value === undefined || value === null) continue;
         const values: readonly EndpointParam[] = Array.isArray(value) ? value : [value as EndpointParam];
         for (const item of values) {
             // Encode every repeated value independently to prevent parameter

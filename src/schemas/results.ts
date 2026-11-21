@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject, type KnownResponse } from './common.js';
+import { zObject } from './common.js';
 
 // ── Result Schema ─────────────────────────────────────────────────────────────
 
@@ -38,20 +38,22 @@ export const ResultSchema = zObject({
      */
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
     // Observed response fields on `get_results_for_run` elements that were
-    // previously unmodeled. `case_id` is a numeric id; `quality_rating` a numeric
-    // rating. `defects_data` and the element shape of `attachment_ids` were not
-    // captured on the wire — `defects_data` stays `z.unknown()` and
-    // `attachment_ids` is typed only as an array of `unknown`. All `.nullish()`.
+    // previously unmodeled. `case_id` is a numeric id; `quality_rating` was
+    // observed as a numeric rating, while the Result Fields reference (TestRail
+    // 10.3+) documents an object of per-dimension scores, e.g.
+    // `{ factual_accuracy: 4, relevance: 5 }` — no wire capture of the object
+    // form on a read exists, so both are accepted. `defects_data` and the
+    // element shape of `attachment_ids` were not captured on the wire —
+    // `defects_data` stays `z.unknown()` and `attachment_ids` is typed only as
+    // an array of `unknown`. All `.nullish()`.
     case_id: z.number().nullish(),
-    quality_rating: z.number().nullish(),
+    quality_rating: z.union([z.number(), z.record(z.string(), z.unknown())]).nullish(),
     defects_data: z.unknown().nullish(),
     attachment_ids: z.array(z.unknown()).nullish(),
     // TestRail 10.5+: source-case metadata included on result responses.
     case_title: z.string().nullish(),
     case_refs: z.string().nullish(),
 });
-
-export type Result = KnownResponse<typeof ResultSchema>;
 
 // ── Result write payloads ─────────────────────────────────────────────────────
 
@@ -116,7 +118,7 @@ export const EditResultPayloadSchema = zObject({
     defects: z.string().optional(),
     assignedto_id: z.number().optional(),
     custom_step_results: z.array(z.record(z.string(), z.unknown())).optional(),
-}).refine((payload) => Object.keys(payload).length > 0, {
+}).refine((payload) => Object.values(payload).some((value) => value !== undefined), {
     message: 'At least one result field is required',
 });
 

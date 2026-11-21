@@ -3,7 +3,7 @@ import type { Page, PaginatedRequestOptions, PaginationSafetyOptions } from '../
 import type { AddSharedStepPayload, SharedStep, StepHistoryEntry, UpdateSharedStepPayload } from '../schemas.js';
 import { SharedStepSchema, StepHistoryEntrySchema } from '../schemas.js';
 import { serializeIdFilter } from '../utils.js';
-import { validateId } from '../validation.js';
+import { validateId, validateTimestamp } from '../validation.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
 
 export interface GetSharedStepsOptions {
@@ -49,16 +49,21 @@ export const SHARED_STEPS_PAGINATION = createPaginatedListExecutor<
     requestControls: true,
     prepare: ({ projectId }, options) => {
         validateId(projectId, 'projectId');
+        const { createdAfter, createdBefore, createdBy, updatedAfter, updatedBefore, refs } = options ?? {};
+        validateTimestamp(createdAfter, 'createdAfter');
+        validateTimestamp(createdBefore, 'createdBefore');
+        validateTimestamp(updatedAfter, 'updatedAfter');
+        validateTimestamp(updatedBefore, 'updatedBefore');
         return {
             operation: 'get_shared_steps',
             pathParameters: [projectId],
             query: {
-                created_after: options?.createdAfter,
-                created_before: options?.createdBefore,
-                created_by: serializeIdFilter(options?.createdBy, 'createdBy'),
-                updated_after: options?.updatedAfter,
-                updated_before: options?.updatedBefore,
-                refs: options?.refs,
+                created_after: createdAfter,
+                created_before: createdBefore,
+                created_by: serializeIdFilter(createdBy, 'createdBy'),
+                updated_after: updatedAfter,
+                updated_before: updatedBefore,
+                refs,
             },
         };
     },

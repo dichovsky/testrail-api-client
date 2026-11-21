@@ -17,7 +17,7 @@ import {
     type OutputFormat,
 } from '../src/cli/output.js';
 import { captureOutput } from './helpers.js';
-import { parseId, optInt, parseEntryId, parseAttachmentId, IdParseError } from '../src/cli/ids.js';
+import { parseId, parseEntryId, parseAttachmentId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import {
     dispatch,
@@ -432,63 +432,6 @@ describe('parseAttachmentId', () => {
 
     it('error message mentions both accepted forms', () => {
         expect(() => parseAttachmentId('bad', 'attachment_id')).toThrow(/positive integer or a UUID string/);
-    });
-});
-
-describe('optInt', () => {
-    it('returns undefined for undefined input', () => {
-        expect(optInt(undefined)).toBeUndefined();
-    });
-
-    it('returns undefined for non-numeric input', () => {
-        expect(optInt('foo')).toBeUndefined();
-    });
-
-    it('returns undefined for decimal input', () => {
-        expect(optInt('1.5')).toBeUndefined();
-    });
-
-    it('returns undefined for negative input', () => {
-        expect(optInt('-1')).toBeUndefined();
-    });
-
-    it('returns 0 for "0"', () => {
-        expect(optInt('0')).toBe(0);
-    });
-
-    it('returns the parsed integer for positive input', () => {
-        expect(optInt('42')).toBe(42);
-    });
-
-    // Boundary cases: parity with parseId's tightening (SEC #27). These
-    // inputs are silently dropped to undefined — the caller (pagination
-    // resolver) simply omits the param so the request goes through with
-    // server defaults rather than coercing a smuggled value.
-    it.each([
-        ['scientific notation', '1e2'],
-        ['hex prefix', '0x1'],
-        ['hex prefix (larger)', '0x10'],
-        ['leading zero', '01'],
-        ['whitespace-padded', ' 5 '],
-        ['explicit positive sign', '+1'],
-        ['decimal (control)', '1.5'],
-    ])('returns undefined for non-decimal form: %s (%s)', (_label, raw) => {
-        expect(optInt(raw)).toBeUndefined();
-    });
-
-    it.each([
-        ['offset boundary "0"', '0', 0],
-        ['typical pagination "100"', '100', 100],
-    ])('accepts valid non-negative decimal: %s', (_label, raw, expected) => {
-        expect(optInt(raw)).toBe(expected);
-    });
-
-    it('returns undefined for values exceeding Number.MAX_SAFE_INTEGER (silent drop on unsafe-int)', () => {
-        // 2^53 + 1 = 9007199254740993 — passes the regex but Number.isSafeInteger
-        // returns false. Exercises the `Number.isSafeInteger(n) ? n : undefined`
-        // false branch. Without this guard a smuggled bigger value would
-        // silently round-trip with precision loss to the API.
-        expect(optInt('9007199254740993')).toBeUndefined();
     });
 });
 
@@ -1872,7 +1815,7 @@ describe('renderYaml — additional edge cases for branch coverage', () => {
     });
 
     it('renders a stand-alone YAML carriage-return string with the \\r escape', () => {
-        // Hits the `s.includes('\r')` branch in needsQuoting.
+        // CR alone is whitespace, so needsQuoting's trim check quotes it.
         expect(renderYaml('\r')).toBe('"\\r"');
     });
 

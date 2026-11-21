@@ -3,7 +3,7 @@ import { serializeIdFilter } from '../utils.js';
 import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
 import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
 import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { validateId } from '../validation.js';
+import { validateId, validateTimestamp } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
@@ -34,6 +34,8 @@ export const RUNS_PAGINATION = createPaginatedListExecutor<
             refsFilter,
             suiteId,
         } = options ?? {};
+        validateTimestamp(createdAfter, 'createdAfter');
+        validateTimestamp(createdBefore, 'createdBefore');
         return {
             operation: 'get_runs',
             pathParameters: [projectId],

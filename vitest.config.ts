@@ -16,23 +16,42 @@ export default defineConfig({
             include: ['src/**/*.ts'],
             exclude: ['src/**/*.d.ts', 'src/**/types.ts'],
             // Per-metric floor: 99% on lines/statements/functions, 98% on
-            // branches. Branches is intentionally one point lower because
-            // 28 branches are genuinely unreachable defensive code (type-
-            // guaranteed Zod.parse/JSON.parse arms, runtime-guaranteed Node
-            // invariants like process.on/O_NOFOLLOW, dead-by-construction
-            // checks where the map is built from its own consumer's keys,
-            // and TOCTOU races that can't be reliably engineered). See PR
-            // #156 for the original catalog of 27. Do NOT lower below these
-            // floors without similar documented justification.
+            // branches. Do NOT lower these floors without documented
+            // justification.
             //
-            // #28: the `signal.aborted` guard in `raceAttemptDeadline`
-            // (src/client-core.ts). Its one call site passes a controller
-            // constructed three lines earlier, and a `setTimeout` cannot fire
-            // before the next synchronous statement, so the signal is never
-            // already aborted there. The guard stays because removing it would
-            // make a future second call site hang silently rather than fail:
-            // `addEventListener('abort')` on an already-aborted signal never
-            // invokes its listener.
+            // Unreachable-branch catalog (10.0.0 release audit, 2026-11-21).
+            // The remaining uncovered arms are defensive code that tests cannot
+            // reach. List any new one here, by file and construct, with the
+            // reason. Run `npm run test:coverage` and read coverage-final.json
+            // for current line numbers.
+            //
+            // - body-reader.ts: the `!timedOut` latch in the streaming
+            //   deadline, and `timeoutId !== undefined` in the fallback reader
+            //   (the Promise executor always assigns it).
+            // - client-core.ts: the private-literal check in validatePublicHost
+            //   (the constructor runs the same check first); the
+            //   `process.on` guard in registerProcessHandlers (Node always has
+            //   it); `requests[0] ?? now` in the rate limiter (index type);
+            //   the `signal.aborted` guard in raceAttemptDeadline (its one
+            //   caller passes a controller created three lines earlier, and a
+            //   timer cannot fire before the next statement; the guard stays so
+            //   a second caller cannot hang silently).
+            // - config-validation.ts: `firstIssue?.path ?? []` (a failed parse
+            //   always has an issue).
+            // - pinned-dispatcher.ts: `validatedAddressKey ?? ''` x2 (always
+            //   supplied); the sparse-header-list throw; the `!finished` race
+            //   guard on late data; `statusCode ?? 0` and
+            //   `statusMessage ?? ''` (Node always sets them).
+            // - upload-source.ts: `if (finished)` in the cancel path.
+            // - cli/body.ts, cli/file-input.ts (stat), cli/index.ts x2:
+            //   `String(e)` fallbacks where fs, JSON.parse, parseArgs, and the
+            //   ID parsers always throw Error.
+            // - cli/diagnostics.ts: `?? '[OMITTED]'` (the regex admits only the
+            //   five mapped entities) and the staged-fd narrowing guard.
+            // - cli/output.ts: the `?? k`, `?? ''`, and `?? 0` index fallbacks in
+            //   renderTable and the width scan, `codePointAt(0) ?? 0`,
+            //   `firstNested ?? ''` (split always returns an element), and
+            //   `cell === undefined` (projectRecord fills every column).
             thresholds: {
                 lines: 99,
                 statements: 99,

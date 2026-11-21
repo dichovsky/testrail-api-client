@@ -394,3 +394,15 @@ describe('action invocation contract', () => {
         }
     });
 });
+
+describe('flags module surface', () => {
+    it('keeps the raw flag catalog private; consumers read the derived projections', async () => {
+        // Nothing outside `src/cli/flags.ts` ever imported the catalog itself,
+        // and the package `exports` map never exposed the module. An exported
+        // catalog only invites a second reader that bypasses the projections.
+        const surface = Object.keys(await import('../src/cli/flags.js'));
+
+        expect(surface).not.toContain('FLAG_CATALOG');
+        expect(surface).toEqual(expect.arrayContaining(['CLI_OPTIONS', 'CLI_OPTION_DOCUMENTATION', 'KNOWN_FLAGS']));
+    });
+});

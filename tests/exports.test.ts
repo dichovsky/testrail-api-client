@@ -1,5 +1,34 @@
-import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { describe, it, expect, expectTypeOf } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailLicenseError, TestRailValidationError } from '../src/index.js';
+import type {
+    AttachmentModule,
+    BddModule,
+    CaseModule,
+    ConfigurationModule,
+    DatasetModule,
+    KnownResponse,
+    LabelModule,
+    MetadataModule,
+    MilestoneModule,
+    PlanModule,
+    Project,
+    ProjectModule,
+    ReportModule,
+    RequestBody,
+    RequestIntent,
+    RequestSpec,
+    ResultModule,
+    RunModule,
+    SectionModule,
+    SharedStepModule,
+    SuiteModule,
+    TestModule,
+    UsersModule,
+    VariableModule,
+} from '../src/index.js';
+import * as root from '../src/index.js';
+import * as schemas from '../src/schemas.js';
 
 describe('Index exports', () => {
     it('should export TestRailClient', () => {
@@ -44,8 +73,12 @@ describe('Index exports', () => {
             'reports',
             'labels',
         ] as const;
+        // The class JSDoc ships in the .d.ts; it must name every module field.
+        const source = readFileSync(new URL('../src/client.ts', import.meta.url), 'utf8');
+        const classDoc = /\/\*\*\n \* TestRail API Client[\s\S]*?\*\//.exec(source)?.[0] ?? '';
         for (const name of modules) {
             expect(client[name], `client.${name} should be defined`).toBeDefined();
+            expect(classDoc, `TestRailClient JSDoc should name \`${name}\``).toContain(`\`${name}\``);
         }
         // v5.0.0: the flat facade is gone — endpoint methods live only on the
         // module fields, never directly on the client.
@@ -79,6 +112,60 @@ describe('Index exports', () => {
             expect(rec(view)[key]).toBeDefined();
             expect(rec(view)[key]).not.toBe(rec(client)[key]);
         }
+    });
+
+    it('re-exports every schema of src/schemas.ts from the package root', () => {
+        const missing = Object.keys(schemas).filter((name) => name.endsWith('Schema') && !(name in root));
+        expect(missing).toEqual([]);
+    });
+
+    it('exports every type a declaration-emitting consumer has to name (npm-packaging#1)', () => {
+        // `export const projects = client.projects` in a consumer built with
+        // `declaration: true` fails with TS2883 unless the package root exports
+        // the inferred type. Type-only exports do not exist at runtime, so the
+        // names are read from the source.
+        const indexSource = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
+        const exportedTypes = new Set(
+            Array.from(indexSource.matchAll(/^export type \{([^}]*)\}/gm), (match) => match[1] ?? '')
+                .flatMap((names) => names.split(','))
+                .map((name) => name.trim()),
+        );
+        const clientSource = readFileSync(new URL('../src/client.ts', import.meta.url), 'utf8');
+        const moduleClasses = Array.from(
+            clientSource.matchAll(/^ {4}public readonly \w+: (\w+Module);$/gm),
+            (match) => match[1] ?? '',
+        );
+        expect(moduleClasses).toHaveLength(19);
+        const required = [...moduleClasses, 'KnownResponse', 'RequestSpec', 'RequestBody', 'RequestIntent'];
+        expect(required.filter((name) => !exportedTypes.has(name))).toEqual([]);
+
+        // Compile-time witnesses: `npm run typecheck` fails when a name stops resolving.
+        interface ModuleTypes {
+            projects: ProjectModule;
+            suites: SuiteModule;
+            sections: SectionModule;
+            cases: CaseModule;
+            plans: PlanModule;
+            runs: RunModule;
+            tests: TestModule;
+            results: ResultModule;
+            milestones: MilestoneModule;
+            users: UsersModule;
+            metadata: MetadataModule;
+            configurations: ConfigurationModule;
+            attachments: AttachmentModule;
+            bdd: BddModule;
+            sharedSteps: SharedStepModule;
+            variables: VariableModule;
+            datasets: DatasetModule;
+            reports: ReportModule;
+            labels: LabelModule;
+        }
+        expectTypeOf<{ [K in keyof ModuleTypes]: TestRailClient[K] }>().toEqualTypeOf<ModuleTypes>();
+        expectTypeOf<KnownResponse<typeof schemas.ProjectSchema>>().toEqualTypeOf<Project>();
+        expectTypeOf<Parameters<TestRailClient['request']>[0]>().toEqualTypeOf<RequestSpec<unknown>>();
+        expectTypeOf<NonNullable<RequestSpec<unknown>['body']>>().toEqualTypeOf<RequestBody>();
+        expectTypeOf<NonNullable<RequestSpec<unknown>['intent']>>().toEqualTypeOf<RequestIntent>();
     });
 
     it('should export and create TestRailApiError instances', () => {

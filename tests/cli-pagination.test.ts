@@ -5,6 +5,7 @@ import {
     getPaginatedRequestOptions,
     getPaginationSafetyOptions,
     outputPaginated,
+    parseCliPagination,
     validateCliPagination,
 } from '../src/cli/pagination.js';
 
@@ -74,23 +75,46 @@ describe('CLI pagination modes', () => {
         });
     });
 
-    it('keeps legacy limit/offset compatible but rejects their ambiguous all-page meaning', () => {
+    it('accepts default-mode limit/offset but rejects their ambiguous all-page meaning', () => {
         expect(validateCliPagination(undefined, { limit: '10', offset: '20' })).toEqual({
             ok: true,
             parsed: { mode: 'items', limit: 10, offset: 20 },
         });
-        expect(validateCliPagination(undefined, { limit: '10x', offset: '-1' })).toEqual({
+        expect(validateCliPagination(paginatedAction(true), { limit: '250', offset: '0' })).toEqual({
             ok: true,
-            parsed: { mode: 'items' },
-        });
-        expect(validateCliPagination(undefined, { limit: '0' })).toEqual({
-            ok: true,
-            parsed: { mode: 'items', limit: 0 },
+            parsed: { mode: 'items', limit: 250, offset: 0 },
         });
         expect(validateCliPagination(paginatedAction(true), { all: true, limit: '10' })).toEqual({
             ok: false,
             error: '--all cannot be combined with --limit or --offset; use --page-size and --start-offset.',
         });
+    });
+
+    // Default mode used to drop a malformed value and send the request without
+    // it, so a typo exited 0 and a script paging on a garbled --offset fetched
+    // offset 0 forever. It now applies the --page parser.
+    it.each([
+        [{ limit: 'abc' }, '--limit must be a positive safe integer (got: abc)'],
+        [{ limit: '10x' }, '--limit must be a positive safe integer (got: 10x)'],
+        [{ limit: '-5' }, '--limit must be a positive safe integer (got: -5)'],
+        [{ limit: '1e2' }, '--limit must be a positive safe integer (got: 1e2)'],
+        [{ limit: '010' }, '--limit must be a positive safe integer (got: 010)'],
+        [{ limit: '10.5' }, '--limit must be a positive safe integer (got: 10.5)'],
+        [{ limit: ' 5' }, '--limit must be a positive safe integer (got:  5)'],
+        [{ limit: '' }, '--limit must be a positive safe integer (got: (empty))'],
+        [{ limit: '0' }, '--limit must be a positive safe integer (got: 0)'],
+        [{ limit: '251' }, '--limit must not exceed 250 (got: 251)'],
+        [{ limit: '99999999999999999999' }, '--limit must be a safe integer (got: 99999999999999999999)'],
+        [{ limit: true }, '--limit requires a value.'],
+        [{ offset: 'ten' }, '--offset must be a non-negative safe integer (got: ten)'],
+        [{ offset: '-1' }, '--offset must be a non-negative safe integer (got: -1)'],
+        [{ offset: '' }, '--offset must be a non-negative safe integer (got: (empty))'],
+        [{ offset: '99999999999999999999' }, '--offset must be a safe integer (got: 99999999999999999999)'],
+        [{ limit: '10', offset: 'x' }, '--offset must be a non-negative safe integer (got: x)'],
+    ])('rejects malformed default-mode request control %j', (args, error) => {
+        for (const spec of [undefined, paginatedAction(true), itemsControlsOnlyAction()]) {
+            expect(validateCliPagination(spec, args)).toEqual({ ok: false, error });
+        }
     });
 
     it('rejects legacy request controls on a known unpaginated action', () => {
@@ -185,6 +209,18 @@ describe('CLI pagination modes', () => {
         const result = validateCliPagination(paginatedAction(true), args);
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.error).toContain(message);
+    });
+
+    // The digit pattern accepts these, so the safe-integer check is the only
+    // thing between the value and a precision-losing Number().
+    it.each(['9007199254740993', '99999999999999999999'])('rejects the unsafe integer %s for --max-pages', (raw) => {
+        expect(() => parseCliPagination({ all: true, maxPages: raw })).toThrow(
+            `--max-pages must be a safe integer (got: ${raw})`,
+        );
+        expect(parseCliPagination({ all: true, maxPages: '9007199254740991' })).toEqual({
+            mode: 'all',
+            maxPages: Number.MAX_SAFE_INTEGER,
+        });
     });
 
     it('dispatches from the normalized pagination mode', async () => {

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { performance } from 'node:perf_hooks';
 import {
     MAX_NODE_TIMER_DELAY_MS,
     MAX_PAGINATION_LIMIT,
     MAX_RESPONSE_BYTES_LIMIT,
     MAX_TIMEOUT_MS,
+    TESTRAIL_CONFIG_EMAIL_PATTERN,
 } from '../src/constants.js';
 import { validateTestRailConfig } from '../src/config-validation.js';
 import { TestRailValidationError } from '../src/errors.js';
@@ -187,8 +189,54 @@ describe('TestRailConfig validation authority', () => {
         expect(() => validateTestRailConfig(config)).toThrow(message);
     });
 
+    it.each([
+        ['a fragment', 'https://example.testrail.io/#/dashboard'],
+        ['a bare fragment delimiter', 'https://example.testrail.io/#'],
+        ['a query string', 'https://example.testrail.io/index.php?/dashboard'],
+        ['a bare query delimiter', 'https://example.testrail.io/?'],
+    ])('rejects a baseUrl carrying %s', (_label, baseUrl) => {
+        // `{baseUrl}/index.php?/api/v2/...` cannot survive either delimiter: a
+        // fragment drops the whole API path (the request goes to the site root)
+        // and a query string swallows it as a parameter value.
+        expect(() => validateTestRailConfig({ ...REQUIRED_CONFIG, baseUrl })).toThrow(TestRailValidationError);
+        expect(() => validateTestRailConfig({ ...REQUIRED_CONFIG, baseUrl })).toThrow(
+            'baseUrl must not contain a query string or fragment',
+        );
+    });
+
+    it('accepts a baseUrl with a path prefix and percent-encoded delimiters', () => {
+        expect(() =>
+            validateTestRailConfig({ ...REQUIRED_CONFIG, baseUrl: 'https://example.testrail.io/testrail%3F' }),
+        ).not.toThrow();
+    });
+
     it('normalizes a non-object constructor argument through the stable required-field error', () => {
         expect(() => validateTestRailConfig(null)).toThrow('baseUrl is required and must be a string');
+    });
+
+    it('rejects an array that carries the required fields with the generic message', () => {
+        // The pre-checks read the three properties and pass; only the schema
+        // sees that the container is not a plain object, and its issue has no
+        // field path to name.
+        expect(() => validateTestRailConfig(Object.assign([], REQUIRED_CONFIG))).toThrow(
+            new TestRailValidationError('configuration contains an invalid value'),
+        );
+    });
+
+    it('lets the schema reject a baseUrl that changes after the URL pre-check', () => {
+        let reads = 0;
+        const config = {
+            ...REQUIRED_CONFIG,
+            get baseUrl(): unknown {
+                reads += 1;
+                return reads === 1 ? REQUIRED_CONFIG.baseUrl : 42;
+            },
+        };
+
+        expect(() => validateTestRailConfig(config)).toThrow(
+            new TestRailValidationError('baseUrl must be a valid URL'),
+        );
+        expect(reads).toBe(2);
     });
 
     it('uses the schema authority during client construction and accepts every zero sentinel', () => {
@@ -217,6 +265,78 @@ describe('TestRailConfig validation authority', () => {
         const config = { ...REQUIRED_CONFIG, ...override } as unknown as TestRailConfig;
         expect(() => new TestRailClient(config)).toThrow(TestRailValidationError);
         expect(() => new TestRailClient(config)).toThrow(message);
+    });
+});
+
+describe('TESTRAIL_CONFIG_EMAIL_PATTERN', () => {
+    // The quadratic pattern this one replaced, kept as the reference language:
+    // the rewrite must not narrow or widen what the constructor accepts.
+    const PREVIOUS = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // 64 KiB of dots behind an '@', with a trailing space so the anchor fails
+    // and a backtracking engine has to try every split of the dots.
+    const PATHOLOGICAL = `a@${'.'.repeat(65536)} `;
+    // The rewritten pattern needs well under a millisecond; the one it replaced
+    // takes seconds. Generous enough that a loaded CI machine cannot flake it.
+    const LINEAR_BUDGET_MS = 1000;
+
+    it.each([
+        'agent@example.com',
+        'a@b.c',
+        'first.last@sub.example.co.uk',
+        'agent@.example.com',
+        'agent@..example.com',
+        'agent@example..com',
+        '.agent.@a.b',
+    ])('accepts %j, as the pattern it replaced did', (email) => {
+        expect(PREVIOUS.test(email)).toBe(true);
+        expect(TESTRAIL_CONFIG_EMAIL_PATTERN.test(email)).toBe(true);
+    });
+
+    it.each(['agent@example', 'agent@.com', 'agent@com.', 'agent@.', 'agent@..', '@example.com', 'agent example.com'])(
+        'refuses %j, as the pattern it replaced did',
+        (email) => {
+            expect(PREVIOUS.test(email)).toBe(false);
+            expect(TESTRAIL_CONFIG_EMAIL_PATTERN.test(email)).toBe(false);
+        },
+    );
+
+    it('accepts exactly the same strings as the pattern it replaced (differential, generated inputs)', () => {
+        // Deterministic LCG over the alphabet that drives both patterns'
+        // structure: the local/domain separator, the dot the domain must carry,
+        // an ordinary character, and the whitespace both classes exclude.
+        const alphabet = [...'ab.@ \t'];
+        let seed = 0x2f6e2b1;
+        const next = (): number => {
+            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            return seed;
+        };
+        const disagreements: string[] = [];
+
+        for (let i = 0; i < 300_000; i += 1) {
+            let candidate = '';
+            for (let length = next() % 13; length > 0; length -= 1) {
+                candidate += alphabet[next() % alphabet.length];
+            }
+            if (PREVIOUS.test(candidate) !== TESTRAIL_CONFIG_EMAIL_PATTERN.test(candidate)) {
+                disagreements.push(candidate);
+            }
+        }
+
+        expect(disagreements).toEqual([]);
+    });
+
+    it('rejects a pathological non-match in linear time', () => {
+        const started = performance.now();
+        expect(TESTRAIL_CONFIG_EMAIL_PATTERN.test(PATHOLOGICAL)).toBe(false);
+        expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+    });
+
+    it('does not let a pathological email block the constructor path', () => {
+        const started = performance.now();
+        expect(() => validateTestRailConfig({ ...REQUIRED_CONFIG, email: PATHOLOGICAL })).toThrow(
+            'email must be a valid email address',
+        );
+        expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
     });
 });
 

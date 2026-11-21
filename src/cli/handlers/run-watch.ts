@@ -133,7 +133,8 @@ function parseInterval(raw: string | undefined): number {
  * never reach stderr.
  *
  * `--once` short-circuits the recursion after the first poll, useful for CI
- * scripts that want the diff/render but not a long-running process.
+ * scripts that want the diff/render but not a long-running process. A failed
+ * poll rejects, transient or not, so the process exits 1 instead of retrying.
  *
  * Output is routed through the normal CLI formatter: `--format json` emits
  * structured JSON events, while `--format table` renders the same event
@@ -170,7 +171,9 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
     // which is not the argv `runCli` was handed — an embedded caller passing
     // `--quiet` got status lines anyway, and a test runner's argv decided the
     // behaviour under test.
-    const writeStatus = (line: string): void => ctx.errRaw(sanitizeForTerminal(line));
+    // The newline is appended after sanitizing: sanitization strips every C0
+    // control character, a caller-supplied line feed included.
+    const writeStatus = (line: string): void => ctx.errRaw(`${sanitizeForTerminal(line)}\n`);
 
     const onSignal = (): void => {
         if (cancelled) return;
@@ -183,7 +186,7 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
         // watcher's own status text is constant, but defense-in-depth keeps
         // the path uniform with `createOutput().err`.
         const lastStr = lastSnapshot !== undefined ? JSON.stringify(lastSnapshot) : '(no successful poll)';
-        writeStatus(`run watch: interrupted at runId=${runId}; lastSnapshot=${lastStr}\n`);
+        writeStatus(`run watch: interrupted at runId=${runId}; lastSnapshot=${lastStr}`);
         // Settle the loop so the handler's `await` returns. The client's
         // SIGINT handler still runs after this (we use prependListener so
         // ours runs first) and calls process.exit(130); without that the
@@ -243,12 +246,14 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
                             resolve();
                             return;
                         }
-                        if (isTransientError(e)) {
+                        if (!once && isTransientError(e)) {
                             // Transient failure (network blip, 5xx, 429): log to
                             // stderr and continue polling on the next interval.
+                            // `--once` never retries: its single poll failed, so
+                            // the error propagates below.
                             const msg = e instanceof Error ? e.message : String(e);
                             writeStatus(
-                                `run watch: transient error for runId=${runId}; retrying in ${intervalSeconds}s: ${msg}\n`,
+                                `run watch: transient error for runId=${runId}; retrying in ${intervalSeconds}s: ${msg}`,
                             );
                             pendingTimer = setTimeout(poll, intervalSeconds * 1000);
                         } else {

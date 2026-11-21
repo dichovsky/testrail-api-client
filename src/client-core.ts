@@ -1,6 +1,13 @@
 import type { TestRailConfig, SchemaMismatch } from './types.js';
 import { base64Encode } from './utils.js';
-import { TestRailApiError, TestRailLicenseError, TestRailValidationError, isLicenseRestriction } from './errors.js';
+import {
+    TestRailApiError,
+    TestRailLicenseError,
+    TestRailValidationError,
+    isLicenseRestriction,
+    networkError,
+    sanitizedCause,
+} from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { type ZodType } from 'zod';
@@ -42,7 +49,13 @@ import {
     DEFAULT_MAX_JSON_RESPONSE_BYTES,
     DEFAULT_MAX_BINARY_RESPONSE_BYTES,
 } from './constants.js';
-import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
+import {
+    readBodyWithLimits,
+    readBodyAsText,
+    isBodyReadTimeout,
+    isBodyTransportFailure,
+    type BodyLimits,
+} from './body-reader.js';
 import { validateTimeout } from './validation.js';
 import { createPinnedDispatcher, type PinnedAddress } from './pinned-dispatcher.js';
 
@@ -80,6 +93,12 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
     // fetch's lookup (different timeouts/resolvers) would otherwise yield a
     // one-step SSRF. Callers operating in environments without DNS must set
     // allowPrivateHosts: true to bypass this check entirely.
+    //
+    // A resolver that fails or answers with nothing is a network condition,
+    // not a verdict about the host, so it is reported as a network error (and
+    // retried like one by the pipeline) without advising the caller to disable
+    // this guard. Nothing is sent, and every retry validates again.
+    const lookupFailed = `DNS lookup failed for "${hostname}": `;
     let lookups: { address: string; family: number }[];
     try {
         if (dnsLookup) {
@@ -90,18 +109,11 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
         }
     } catch (err) {
         if (err instanceof TestRailValidationError) throw err;
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        throw new TestRailValidationError(
-            `baseUrl DNS validation failed for "${hostname}": ${message}. ` +
-                'Set allowPrivateHosts: true to allow deployments where DNS validation is not desired.',
-        );
+        throw networkError(err, lookupFailed);
     }
 
     if (lookups.length === 0) {
-        throw new TestRailValidationError(
-            `baseUrl DNS validation returned no addresses for "${hostname}". ` +
-                'Set allowPrivateHosts: true to allow deployments where DNS validation is not applicable.',
-        );
+        throw networkError(new Error('no addresses returned'), lookupFailed);
     }
 
     for (const lookup of lookups) {
@@ -168,6 +180,31 @@ interface ResolvedTimeouts {
 }
 
 /**
+ * Reads a response body within what is left of the call's allowance.
+ *
+ * The body timer is armed with the aggregate remainder whenever that is the
+ * stricter bound, and Node timers can fire before `Date.now()` agrees. Capture
+ * which deadline owns the timer up front, as the header phase does, so its
+ * expiry is reported as the aggregate's own rather than as a `Body read
+ * timeout` that the caller who supplied the deadline cannot attribute.
+ */
+async function readWithinBudget<T>(
+    read: (response: Response, limits: BodyLimits) => Promise<T>,
+    response: Response,
+    maxBytes: number,
+    { bodyTimeout, budget }: Pick<ResolvedTimeouts, 'bodyTimeout' | 'budget'>,
+    sanitizeCause: boolean,
+): Promise<T> {
+    const deadlineMs = budget.allowanceFor(bodyTimeout);
+    const aggregateOwnsDeadline = budget.expiredBy(Date.now() + deadlineMs);
+    try {
+        return await read(response, { maxBytes, deadlineMs, sanitizeCause });
+    } catch (error) {
+        throw aggregateOwnsDeadline && isBodyReadTimeout(error) ? budgetExpiredError() : error;
+    }
+}
+
+/**
  * Installs `fn` as an own, non-enumerable override of `obj[key]`. Typing `fn`
  * as `T[K]` (instead of the `value: any` a bare `Object.defineProperty` would
  * accept) keeps the override checked against the base method's signature, so a
@@ -186,7 +223,10 @@ export class TestRailClientCore {
     private readonly baseUrl: string;
     // Declared non-readonly so it can be zeroed in destroy() to reduce
     // the window during which the credential is recoverable from a heap dump.
-    private auth: string;
+    // Definitely assigned: the constructor installs it with
+    // `Object.defineProperty`, which strict property initialization does not
+    // recognise as an assignment.
+    private auth!: string;
     private readonly timeout: number;
     private readonly maxRetries: number;
     private readonly requestCache: RequestCache;
@@ -224,7 +264,17 @@ export class TestRailClientCore {
         // URL already validated by validateTestRailConfig — this parse cannot throw.
         this.hostname = new URL(config.baseUrl).hostname;
         this.allowPrivateHosts = config.allowPrivateHosts === true;
-        this.auth = base64Encode(`${config.email}:${config.apiKey}`);
+        // `private` is erased at runtime, so an ordinary field would put the
+        // Basic credential in `util.inspect`/`console.log` of the client — or
+        // of any module or context object holding it. Non-enumerable hides it
+        // from those, while keeping it readable through the prototype chain (a
+        // withTimeout view) and writable for `destroy()`.
+        Object.defineProperty(this, 'auth', {
+            value: base64Encode(`${config.email}:${config.apiKey}`),
+            writable: true,
+            configurable: true,
+            enumerable: false,
+        });
         this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
         this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
         const enableCache = config.enableCache ?? true;
@@ -669,7 +719,6 @@ export class TestRailClientCore {
         retryPolicy: RetryPolicy,
         timeouts: ResolvedTimeouts,
     ): Promise<T> {
-        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
         const pipelineSpec: PipelineSpec<T> = {
             method,
             endpoint,
@@ -680,10 +729,13 @@ export class TestRailClientCore {
             budget: timeouts.budget,
             retryPolicy,
             parseSuccess: async (response: Response) => {
-                const responseText = await readBodyAsText(response, {
-                    ...jsonLimits,
-                    deadlineMs: timeouts.budget.allowanceFor(timeouts.bodyTimeout),
-                });
+                const responseText = await readWithinBudget(
+                    readBodyAsText,
+                    response,
+                    this.maxJsonResponseBytes,
+                    timeouts,
+                    this.fetchOverride !== undefined,
+                );
                 if (!responseText) return {} as T;
                 try {
                     return JSON.parse(responseText) as T;
@@ -698,17 +750,14 @@ export class TestRailClientCore {
 
     /**
      * Cache-invalidation hook shared by the JSON and text pipelines. Any write
-     * (non-GET) or multipart upload flushes the entire GET cache before the
-     * response is parsed; a plain GET returns an empty spread so reads never
-     * clear the cache.
+     * (non-GET) or multipart upload that was dispatched flushes the entire GET
+     * cache, whatever its outcome and before any response body is read; a
+     * plain GET returns an empty spread so reads never clear the cache.
      */
-    private cacheInvalidationHook(
-        method: string,
-        body: RequestSpec<unknown>['body'],
-    ): { onSuccessBeforeParse?: () => void } {
+    private cacheInvalidationHook(method: string, body: RequestSpec<unknown>['body']): { onWriteOutcome?: () => void } {
         return method !== 'GET' || body?.kind === 'multipart'
             ? {
-                  onSuccessBeforeParse: (): void => {
+                  onWriteOutcome: (): void => {
                       this.clearCache();
                   },
               }
@@ -729,7 +778,6 @@ export class TestRailClientCore {
         retryPolicy: RetryPolicy,
         timeouts: ResolvedTimeouts,
     ): Promise<T> {
-        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
         return this.executePipeline<T>({
             method,
             endpoint,
@@ -740,10 +788,13 @@ export class TestRailClientCore {
             budget: timeouts.budget,
             retryPolicy,
             parseSuccess: async (response: Response) =>
-                (await readBodyAsText(response, {
-                    ...jsonLimits,
-                    deadlineMs: timeouts.budget.allowanceFor(timeouts.bodyTimeout),
-                })) as T,
+                (await readWithinBudget(
+                    readBodyAsText,
+                    response,
+                    this.maxJsonResponseBytes,
+                    timeouts,
+                    this.fetchOverride !== undefined,
+                )) as T,
             ...this.cacheInvalidationHook(method, body),
         });
     }
@@ -764,10 +815,13 @@ export class TestRailClientCore {
             budget: timeouts.budget,
             retryPolicy,
             parseSuccess: async (response: Response) => {
-                const bytes = await readBodyWithLimits(response, {
-                    maxBytes: this.maxBinaryResponseBytes,
-                    deadlineMs: timeouts.budget.allowanceFor(timeouts.bodyTimeout),
-                });
+                const bytes = await readWithinBudget(
+                    readBodyWithLimits,
+                    response,
+                    this.maxBinaryResponseBytes,
+                    timeouts,
+                    this.fetchOverride !== undefined,
+                );
                 const buf =
                     bytes.byteLength === bytes.buffer.byteLength
                         ? (bytes.buffer as ArrayBuffer)
@@ -797,10 +851,18 @@ export class TestRailClientCore {
      * error-body read, retry (via spec.retryPolicy), and success parsing.
      * Request caching and coalescing live entirely in {@link RequestCache}.
      */
-    private async executePipeline<TParsed>(spec: PipelineSpec<TParsed>, retryCount = 0): Promise<TParsed> {
+    private async executePipeline<TParsed>(
+        spec: PipelineSpec<TParsed>,
+        retryCount = 0,
+        alreadyAdmitted = false,
+    ): Promise<TParsed> {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
+        // Whether the rate limiter has admitted this request on any attempt. A
+        // retry is not proof of that: one that follows a DNS failure never
+        // reached admission.
+        let admitted = alreadyAdmitted;
 
         const url = `${this.baseUrl}/index.php?/api/v2/${spec.endpoint}`;
         const headers: Record<string, string> = {
@@ -847,6 +909,19 @@ export class TestRailClientCore {
             );
         } catch (error) {
             clearTimeout(timeoutId);
+            // A status-0 failure in this phase can only be the resolver itself:
+            // deadlines surface as 408 and address verdicts as validation
+            // errors. Nothing was sent, so it follows the network-error retry
+            // policy, and the retry resolves and validates the host again.
+            if (
+                error instanceof TestRailApiError &&
+                error.status === 0 &&
+                spec.retryPolicy.isNetworkErrorRetryable(spec.method) &&
+                retryCount < this.maxRetries
+            ) {
+                await spec.budget.delay(this.getRetryDelay(retryCount));
+                return this.executePipeline<TParsed>(spec, retryCount + 1, admitted);
+            }
             throw error;
         }
 
@@ -857,6 +932,15 @@ export class TestRailClientCore {
                     ? undefined
                     : createPinnedDispatcher(new URL(this.baseUrl).origin, pinnedAddresses);
             let parsingResponse = false;
+            // Set once `fetch` is invoked. From then on a write may have
+            // committed upstream whatever this attempt goes on to observe, so
+            // every exit path below reports its outcome, exactly once.
+            let outcomeDue = false;
+            const reportOutcome = (): void => {
+                if (!outcomeDue) return;
+                outcomeDue = false;
+                spec.onWriteOutcome?.();
+            };
             try {
                 const options: RequestInit & { readonly method: string } = {
                     method: spec.method,
@@ -899,12 +983,14 @@ export class TestRailClientCore {
                     controller.abort();
                     throw timeoutError();
                 }
-                // Enforce admission only on the initial attempt. A retry of an
-                // already-admitted request is still recorded (so the
+                // Enforce admission until the request has been admitted once. A
+                // retry of an already-admitted request is still recorded (so the
                 // sliding-window count stays accurate and server-side limits
                 // are respected) but must not be rejected by a local 429.
-                this.checkRateLimit(retryCount === 0, admissionTime);
+                this.checkRateLimit(!admitted, admissionTime);
+                admitted = true;
 
+                outcomeDue = true;
                 const response: Response = await spec.budget.bound(
                     send().then((received) => {
                         receivedResponse = received;
@@ -924,30 +1010,32 @@ export class TestRailClientCore {
 
                 this.assertNotRedirect(response);
 
-                // A successful write may already have committed upstream.
-                // Invalidate GET state before clipping or reading the body can
-                // throw, otherwise stale cached reads can survive a mutation.
-                if (response.ok) {
-                    spec.onSuccessBeforeParse?.();
-                }
-
-                const jsonLimits = {
-                    maxBytes: this.maxJsonResponseBytes,
-                    deadlineMs: spec.budget.allowanceFor(spec.bodyTimeout),
-                };
+                // A dispatched write may already have committed upstream, even
+                // when the status says it failed. Invalidate GET state before
+                // clipping or reading the body can throw, otherwise stale cached
+                // reads can survive a mutation.
+                reportOutcome();
 
                 if (!response.ok) {
                     // Error bodies inherit the same cap so an attacker cannot OOM
                     // the client by responding 4xx/5xx with a 10 GiB payload.
                     // If the body read itself hits a limit (cap or timeout), surface
-                    // that TestRailApiError immediately — no retry, since repeating
-                    // the request would compound the wait by (maxRetries+1)×bodyTimeout.
-                    // Only generic decode errors fall back to 'Unknown error'.
+                    // that TestRailApiError immediately — no retry, since repeating the
+                    // request would compound the wait by (maxRetries+1)×bodyTimeout.
+                    // A transport that drops mid-body does not change what the
+                    // server answered: keep the HTTP status, and its retry, and
+                    // fall back to 'Unknown error' for the unreadable text.
                     let errorText: string;
                     try {
-                        errorText = await readBodyAsText(response, jsonLimits);
-                    } catch (bodyErr) {
-                        if (bodyErr instanceof TestRailApiError) throw bodyErr;
+                        errorText = await readWithinBudget(
+                            readBodyAsText,
+                            response,
+                            this.maxJsonResponseBytes,
+                            spec,
+                            this.fetchOverride !== undefined,
+                        );
+                    } catch (bodyError) {
+                        if (!isBodyTransportFailure(bodyError)) throw bodyError;
                         errorText = 'Unknown error';
                     }
 
@@ -956,7 +1044,7 @@ export class TestRailClientCore {
                         const retryAfterMs = this.parseRetryAfterMs(response);
                         const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                         await spec.budget.delay(delay);
-                        return this.executePipeline<TParsed>(spec, retryCount + 1);
+                        return this.executePipeline<TParsed>(spec, retryCount + 1, admitted);
                     }
 
                     // The raw server body may contain stack traces, internal paths,
@@ -978,6 +1066,9 @@ export class TestRailClientCore {
                 return await spec.parseSuccess(response);
             } catch (error) {
                 clearTimeout(timeoutId);
+                // A dispatched write that ended in a redirect, a network error,
+                // or a timeout has an unknown outcome; see `reportOutcome`.
+                reportOutcome();
 
                 // Success-body parsing historically returned its promise
                 // directly; its failures must not become network retries.
@@ -998,10 +1089,16 @@ export class TestRailClientCore {
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {
                     await spec.budget.delay(this.getRetryDelay(retryCount));
-                    return this.executePipeline<TParsed>(spec, retryCount + 1);
+                    return this.executePipeline<TParsed>(spec, retryCount + 1, admitted);
                 }
 
-                throw new TestRailApiError(0, `Network error: ${cause.message}`, cause.message);
+                // A custom fetch is caller code: copy only the safe fields of
+                // what it threw (it may hold the request and its headers).
+                throw networkError(
+                    error,
+                    '',
+                    this.fetchOverride === undefined ? undefined : { cause: sanitizedCause(error) },
+                );
             } finally {
                 // A recursive retry is returned without awaiting it here. Release
                 // this attempt's unread response before waiting for that retry.

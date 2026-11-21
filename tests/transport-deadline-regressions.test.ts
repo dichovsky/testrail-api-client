@@ -135,6 +135,35 @@ describe('transport deadline regressions', () => {
         expect(fetch).toHaveBeenCalledOnce();
     });
 
+    it('neither fetches nor consumes a rate-limit slot when the attempt deadline passes before admission', async () => {
+        vi.useFakeTimers();
+        const fetch = vi.fn().mockResolvedValue(new Response('{"id":1}', { status: 200 }));
+        const client = new TestRailClient({
+            baseUrl: 'https://example.test',
+            email: 'agent@example.test',
+            apiKey: 'key',
+            timeout: 5_000,
+            maxRetries: 0,
+            // The wall clock passes the deadline while the lookup is pending,
+            // but the attempt timer has not fired: only the admission guard
+            // can stop this attempt.
+            dnsLookup: async () => {
+                vi.setSystemTime(Date.now() + 6_000);
+                return [{ address: '93.184.216.34', family: 4 }];
+            },
+            fetch,
+        });
+        clients.push(client);
+
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({
+            name: 'TestRailApiError',
+            status: 408,
+            statusText: 'Request timeout after 5000ms',
+        });
+        expect(fetch).not.toHaveBeenCalled();
+        expect((client as unknown as { rateLimiter: { requests: number[] } }).rateLimiter.requests).toHaveLength(0);
+    });
+
     it('preserves the collector deadline through a public adapter and its synchronous setup', async () => {
         const fetch = vi.fn();
         const client = new TestRailClient({
@@ -362,5 +391,96 @@ describe('transport deadline regressions', () => {
             id: 1,
         });
         expect(fetch).toHaveBeenCalledOnce();
+    });
+
+    describe('deadline owner of a body read', () => {
+        // Headers arrive at once; the body never finishes.
+        const stalledBody = (): globalThis.ReadableStream<Uint8Array> =>
+            new globalThis.ReadableStream<Uint8Array>({ pull: () => new Promise<void>(() => undefined) });
+
+        const createStalledClient = (status: number, bodyTimeout?: number): TestRailClient => {
+            const client = new TestRailClient({
+                baseUrl: 'https://example.test',
+                email: 'agent@example.test',
+                apiKey: 'key',
+                cacheCleanupInterval: 0,
+                allowPrivateHosts: true,
+                maxRetries: 0,
+                ...(bodyTimeout !== undefined && { bodyTimeout }),
+                fetch: vi.fn<typeof globalThis.fetch>(async () => new Response(stalledBody(), { status })),
+            });
+            clients.push(client);
+            return client;
+        };
+
+        it.each([
+            { site: 'JSON', status: 200, responseKind: 'json' },
+            { site: 'text', status: 200, responseKind: 'text' },
+            { site: 'binary', status: 200, responseKind: 'binary' },
+            { site: 'error', status: 503, responseKind: 'json' },
+        ] as const)(
+            'reports the aggregate deadline when it expires during the $site body read before the wall clock',
+            async ({ status, responseKind }) => {
+                vi.useFakeTimers();
+                const now = vi.spyOn(Date, 'now').mockReturnValue(0);
+                const client = createStalledClient(status);
+                const result = client
+                    .request({
+                        method: 'GET',
+                        endpoint: 'get_stalled',
+                        intent: 'fresh-read',
+                        responseKind,
+                        deadlineAt: 20,
+                    })
+                    .catch((error: unknown) => error);
+                await vi.advanceTimersByTimeAsync(0);
+
+                // The body timer is armed with the aggregate remainder and can
+                // fire while Date.now still reads one millisecond short.
+                now.mockReturnValue(19);
+                await vi.advanceTimersByTimeAsync(20);
+
+                expect(await result).toMatchObject({
+                    name: 'TestRailApiError',
+                    status: 408,
+                    statusText: 'Aggregate request deadline exceeded',
+                });
+            },
+        );
+
+        it('maps an aggregate that expires during a page body read to max_duration', async () => {
+            vi.useFakeTimers();
+            const now = vi.spyOn(Date, 'now').mockReturnValue(0);
+            const client = createStalledClient(200);
+            const result = client.projects.getAllProjects({ maxDurationMs: 20 }).catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(0);
+
+            now.mockReturnValue(19);
+            await vi.advanceTimersByTimeAsync(20);
+
+            expect(await result).toMatchObject({
+                name: 'TestRailPaginationError',
+                reason: 'max_duration',
+                pagesFetched: 0,
+                itemsFetched: 0,
+            });
+        });
+
+        it('keeps the body timeout when the configured body deadline is the stricter one', async () => {
+            vi.useFakeTimers();
+            vi.spyOn(Date, 'now').mockReturnValue(0);
+            const client = createStalledClient(200, 10);
+            const result = client
+                .request({ method: 'GET', endpoint: 'get_stalled', intent: 'fresh-read', deadlineAt: 1_000 })
+                .catch((error: unknown) => error);
+
+            await vi.advanceTimersByTimeAsync(10);
+
+            expect(await result).toMatchObject({
+                name: 'TestRailApiError',
+                status: 0,
+                statusText: 'Body read timeout',
+            });
+        });
     });
 });

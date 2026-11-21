@@ -199,6 +199,35 @@ describe('runUninstallSkill', () => {
         expect(lstatSync(join(skillDir, 'reference')).isSymbolicLink()).toBe(true);
     });
 
+    // install-skill refuses to write through a symlinked `testrail-cli/`
+    // (requireRealDirectory). Uninstall has to refuse the same path: lstat on
+    // the final SKILL.md component alone follows the directory link, so a
+    // repository that commits `.claude/skills/testrail-cli -> other-skill`
+    // would get that other skill's SKILL.md and same-named reference files
+    // deleted, with exit code 0.
+    it('refuses to remove through a symlinked testrail-cli directory (install parity)', () => {
+        const victim = join(tmp, 'home', '.claude', 'skills', 'other-skill');
+        mkdirSync(join(victim, 'reference'), { recursive: true });
+        writeFileSync(join(victim, 'SKILL.md'), 'OTHER SKILL BODY', 'utf-8');
+        // Same name as a reference file this package bundles, so the
+        // owned-names filter does not protect it.
+        writeFileSync(join(victim, 'reference', 'commands.md'), 'OTHER SKILL REFERENCE', 'utf-8');
+        const project = join(tmp, 'proj-dir-symlink');
+        mkdirSync(join(project, '.claude', 'skills'), { recursive: true });
+        const linked = join(project, '.claude', 'skills', 'testrail-cli');
+        symlinkSync(victim, linked);
+
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
+
+        expect(code).toBe(1);
+        expect(stderrChunks.join('')).toContain('not a directory');
+        expect(stdoutChunks.join('')).toBe('');
+        expect(readFileSync(join(victim, 'SKILL.md'), 'utf-8')).toBe('OTHER SKILL BODY');
+        expect(readFileSync(join(victim, 'reference', 'commands.md'), 'utf-8')).toBe('OTHER SKILL REFERENCE');
+        // The link itself is left for the user to resolve.
+        expect(lstatSync(linked).isSymbolicLink()).toBe(true);
+    });
+
     it('refuses to remove a symlink at the install target (TOCTOU defense)', () => {
         const project = join(tmp, 'proj');
         const target = join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
@@ -276,6 +305,36 @@ describe('runUninstallSkill', () => {
         // Sanity: only the sibling remains.
         expect(readdirSync(parent)).toEqual(['NOTES.md']);
     });
+
+    // Mirrors the install-skill case: the success line echoes a path derived
+    // from HOME / the working directory through `outRaw`, which does not
+    // sanitize, so the command strips control characters itself.
+    it.skipIf(process.platform === 'win32')(
+        'strips terminal control characters from the path in the success message',
+        () => {
+            const project = join(tmp, 'proj-\u001b]0;pwned\u0007\u001b[2J');
+            runInstallSkill(
+                {
+                    global: false,
+                    force: false,
+                    printPath: false,
+                    output: quietOutput,
+                    sourceOverride: source,
+                    cwdOverride: project,
+                },
+                'file:///irrelevant',
+            );
+            const target = join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
+            expect(existsSync(target)).toBe(true);
+
+            const code = runUninstallSkill({ global: false, output, cwdOverride: project });
+
+            expect(code).toBe(0);
+            expect(existsSync(target)).toBe(false);
+            const shown = join(tmp, 'proj-]0;pwned[2J', '.claude', 'skills', 'testrail-cli', 'SKILL.md');
+            expect(stdoutChunks[0]).toBe(`Uninstalled testrail-cli skill ← ${shown}\n`);
+        },
+    );
 
     it('mentions .continue / AGENTS.md as NOT touched and does not mention .cursor', () => {
         const project = join(tmp, 'proj');

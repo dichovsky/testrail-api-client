@@ -44,8 +44,6 @@ export const TestSchema = zObject({
     case_title: z.string().nullish(),
 });
 
-export type Test = KnownResponse<typeof TestSchema>;
-
 /** Wire wrapper returned by `get_test/{test_id}&with_data=1`. */
 export const TestWithDataResponseSchema = zObject({
     test: TestSchema,
@@ -58,8 +56,6 @@ export const TestWithDataResponseSchema = zObject({
         .nullish()
         .transform((items) => items ?? []),
 });
-
-export type TestWithDataResponse = z.infer<typeof TestWithDataResponseSchema>;
 
 // ── Test label-write payloads (TestRail Labels API, 2025) ─────────────────────
 // `update_test/{test_id}` and `update_tests` are label-only mutations on a test
@@ -83,7 +79,7 @@ export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSche
 // TestRail rejects an empty body, and the module validates each ID before the
 // network call.
 export const UpdateTestsLabelsPayloadSchema = zObject({
-    test_ids: z.array(z.number()),
+    test_ids: z.array(z.number().int().positive()).min(1),
     labels: z.array(z.union([z.number(), z.string()])),
 });
 

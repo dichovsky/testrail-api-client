@@ -16,7 +16,9 @@ class OperationScope {
     readonly settled: Promise<void>;
 
     constructor() {
-        let finish: () => void = () => undefined;
+        // Definitely assigned: the executor runs synchronously, so a
+        // placeholder initializer here could never be called.
+        let finish!: () => void;
         this.settled = new Promise<void>((resolve) => {
             finish = resolve;
         });

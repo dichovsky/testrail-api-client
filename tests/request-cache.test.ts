@@ -37,6 +37,11 @@ describe('RequestCache', () => {
         source.nested.value = 2;
         first.nested.value = 3;
 
+        const second = await resolve(cache, 'project:1', load);
+        expect(second).toEqual({ nested: { value: 1 } });
+
+        // A value handed out by a cache hit is a copy too, not the stored entry.
+        second.nested.value = 9;
         await expect(resolve(cache, 'project:1', load)).resolves.toEqual({ nested: { value: 1 } });
         expect(load).toHaveBeenCalledTimes(1);
         cache.dispose();
@@ -91,6 +96,30 @@ describe('RequestCache', () => {
         await expect(Promise.all([first, second])).resolves.toEqual([7, 7]);
         expect(load).toHaveBeenCalledTimes(1);
         await resolve(cache, 'project:1', async () => ({ value: 8, cacheable: true }));
+        cache.dispose();
+    });
+
+    it.each([true, false])('isolates a joiner from the initiator (storage enabled: %s)', async (enableStorage) => {
+        const cache = createCache({ enableStorage });
+        let release: ((value: CacheLoadResult<{ nested: { value: number } }>) => void) | undefined;
+        const load = vi.fn(
+            () =>
+                new Promise<CacheLoadResult<{ nested: { value: number } }>>((resolveLoad) => {
+                    release = resolveLoad;
+                }),
+        );
+
+        const first = resolve(cache, 'project:1', load);
+        const second = resolve(cache, 'project:1', load);
+        release?.({ value: { nested: { value: 1 } }, cacheable: true });
+        const [initiator, joiner] = await Promise.all([first, second]);
+
+        expect(load).toHaveBeenCalledTimes(1);
+        // Coalescing is a transport optimisation; it must not hand two callers
+        // the same object, so one mutating its result cannot reach the other.
+        expect(joiner).not.toBe(initiator);
+        initiator.nested.value = 99;
+        expect(joiner).toEqual({ nested: { value: 1 } });
         cache.dispose();
     });
 

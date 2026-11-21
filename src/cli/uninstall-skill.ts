@@ -39,7 +39,9 @@ import { lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { requireRealDirectory } from './install-skill.js';
 import type { Output } from './output.js';
+import { sanitizeForTerminal } from './sanitize.js';
 
 export interface UninstallSkillOptions {
     global: boolean;
@@ -54,12 +56,6 @@ export interface UninstallSkillOptions {
     homeOverride?: string;
 }
 
-/**
- * Compute the canonical install target for a given option set. Exposed
- * for tests + symmetry with install-skill (so anyone debugging the pair
- * can ask "where would install put it?" and "where would uninstall
- * look?" from the same surface).
- */
 /**
  * Names of the reference files this package bundles — the only entries under
  * an installed `reference/` that `install-skill` could have written, and so
@@ -82,6 +78,11 @@ function bundledReferenceNames(): readonly string[] {
     }
 }
 
+/**
+ * Compute the canonical install target for a given option set, for symmetry
+ * with install-skill (so anyone debugging the pair can ask "where would
+ * install put it?" and "where would uninstall look?" from the same surface).
+ */
 export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string {
     const targetRoot = opts.global ? (opts.homeOverride ?? homedir()) : (opts.cwdOverride ?? process.cwd());
     return join(targetRoot, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
@@ -94,6 +95,20 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
     const writeOut = (message: string): void => opts.output.outRaw(`${message}\n`);
 
     const target = getInstallTarget(opts);
+    const parent = dirname(target);
+
+    // install-skill refuses to write through a `testrail-cli/` that is not a
+    // real directory, so nothing this command may remove can sit behind one.
+    // The lstat below describes only the final `SKILL.md` component: it would
+    // follow a symlinked directory into whatever it targets and unlink that
+    // directory's SKILL.md and same-named reference files. An absent directory
+    // passes here and reaches the ordinary "not found" below.
+    try {
+        requireRealDirectory(parent);
+    } catch (e: unknown) {
+        writeErr(`Refusing to remove ${target}: ${e instanceof Error ? e.message : String(e)}`);
+        return 1;
+    }
 
     // TOCTOU-aware: lstat (NOT existsSync) so a symlink at the target path is
     // detected without following it. existsSync follows symlinks and returns
@@ -165,7 +180,6 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
     // ever removed. Same residual window as SEC #5 above.
     //
     // Every failure here is non-fatal — the SKILL.md removal has succeeded.
-    const parent = dirname(target);
     const referenceDir = join(parent, 'reference');
     try {
         if (lstatSync(referenceDir).isDirectory()) {
@@ -203,7 +217,9 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
         // the empty parent dir is cosmetic.
     }
 
-    writeOut(`Uninstalled testrail-cli skill ← ${target}`);
+    // `outRaw` writes verbatim, unlike `err`; the target carries HOME / the
+    // working directory, so strip control characters here.
+    writeOut(`Uninstalled testrail-cli skill ← ${sanitizeForTerminal(target)}`);
     writeOut(
         'Note: .continue/rules/testrail.md and AGENTS.md are NOT touched (separate lifecycle); remove manually if desired.',
     );

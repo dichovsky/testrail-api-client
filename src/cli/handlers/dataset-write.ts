@@ -12,7 +12,8 @@ export const handleDatasetAdd = createWriteHandler({
  * Update a dataset. `UpdateDatasetPayloadSchema` makes every field optional
  * (rename-only at the moment), so an absent body is a legitimate no-op:
  * `allowEmptyBody` resolves it to `{}` with source `'default'` rather than
- * erroring with "Body required".
+ * erroring with "Body required". Empty piped stdin counts as absent, so the
+ * command behaves the same at a terminal and in CI.
  */
 export const handleDatasetUpdate = createWriteHandler({
     action: 'dataset update',
