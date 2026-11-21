@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "10.0.0"
   },
-  "sourceHash": "0f1f1376873670148c90194c26fdc9ba9fc00f42d781f9c2497d779db479ab91",
+  "sourceHash": "3b26c8c67531e40ee4adae08a7955f2f33de14d2f628f2fa980a14b4c64c72d2",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5100,56 +5100,56 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "HEADER",
           "kind": "const",
-          "line": 292,
+          "line": 293,
           "exported": false,
           "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
         },
         {
           "name": "RESOURCE_LINE_WIDTH",
           "kind": "const",
-          "line": 294,
+          "line": 295,
           "exported": false,
           "signature": "const RESOURCE_LINE_WIDTH = 74"
         },
         {
           "name": "resourceNames",
           "kind": "function",
-          "line": 297,
+          "line": 298,
           "exported": false,
           "signature": "function resourceNames(): readonly string[]"
         },
         {
           "name": "isKnownResource",
           "kind": "function",
-          "line": 302,
+          "line": 303,
           "exported": true,
           "signature": "export function isKnownResource(resource: string): boolean"
         },
         {
           "name": "wrapIndented",
           "kind": "function",
-          "line": 320,
+          "line": 321,
           "exported": true,
           "signature": "export function wrapIndented(words: readonly string[]): string"
         },
         {
           "name": "renderResourcesBlock",
           "kind": "function",
-          "line": 341,
+          "line": 342,
           "exported": false,
           "signature": "function renderResourcesBlock(): string"
         },
         {
           "name": "buildResourceHelpText",
           "kind": "function",
-          "line": 360,
+          "line": 361,
           "exported": true,
           "signature": "export function buildResourceHelpText(resource: string): string"
         },
         {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 375,
+          "line": 376,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }

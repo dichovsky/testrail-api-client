@@ -341,7 +341,7 @@ Do not repeat a failed write command only to capture a diagnostic file.
 - **No coercion on write payloads:** The CLI does not convert `"5"` to `5`. This rule catches type errors before sending an API request.
 - **`custom_*` fields:** Zod `.passthrough()` schemas preserve custom fields. Only `Case`, `Test`, and `Result` expose flat `custom_*` bracket access as `unknown`. Narrow these values before use.
 - **Terminal output sanitization (v3.0):** The CLI strips C0, C1, and DEL control bytes from stderr messages and `--format table` cells. This prevents terminal escape-sequence injection. As a result, `--format table` removes literal `\n` and `\t` characters from cell values. Use `--format json` to keep them: JSON output writes each C0, C1, and DEL control character as an escape such as `\n`, `\t`, or `\u009b`, so the parsed value is unchanged and no control byte reaches the terminal.
-- **Input bounds:** JSON stdin, API-key stdin, and `--data-file` have a 1 MiB limit. Binary `--file -` uploads have a 100 MiB limit and a 30-second timeout. Stdin reads wait for the pipe to close, for at most 30 seconds. If stdin might stay open, use `--data` or `--data-file`, or redirect `</dev/null`.
+- **Input bounds:** JSON stdin, API-key stdin, and `--data-file` have a 1 MiB limit. Binary `--file -` uploads have a 100 MiB limit and a 30-second timeout. Stdin reads wait for the pipe to close (on Linux and macOS, for at most 30 seconds). If stdin might stay open, use `--data` or `--data-file`, or redirect `</dev/null`.
 - **Strict flag parsing (v3.0):** Unknown or misspelled flags (such as `--dryrun`) cause the CLI to exit with code 1.
 
 ## Falling back to the programmatic SDK

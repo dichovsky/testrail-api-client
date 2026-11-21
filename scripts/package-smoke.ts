@@ -915,8 +915,16 @@ function verifyInternalMembersStripped(consumerDirectory: string): void {
         path.join(consumerDirectory, 'node_modules', PACKAGE_NAME, 'dist', 'http-pipeline-types.d.ts'),
         'utf8',
     );
-    const leaked = ['cacheVariant', 'deadlineAt', '__t'].filter((member) =>
-        new RegExp(`\\breadonly ${member}\\??:`).test(declarations),
+    // Scope the check to RequestSpec: `timeout` and `bodyTimeout` are also
+    // legitimate members of other interfaces in the same file.
+    const start = declarations.indexOf('export interface RequestSpec<');
+    const end = declarations.indexOf('\n}', start);
+    if (start < 0 || end < 0) {
+        fail('published http-pipeline-types.d.ts does not declare RequestSpec.');
+    }
+    const requestSpec = declarations.slice(start, end);
+    const leaked = ['__t', 'cacheVariant', 'deadlineAt', 'timeout', 'bodyTimeout'].filter((member) =>
+        new RegExp(`\\breadonly ${member}\\??:`).test(requestSpec),
     );
     if (leaked.length > 0) {
         fail(`published RequestSpec declares @internal member(s): ${leaked.join(', ')}.`);
