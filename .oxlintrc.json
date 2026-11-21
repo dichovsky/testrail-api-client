@@ -22,8 +22,7 @@
         "AbortController": "readonly",
         "AbortSignal": "readonly",
         "URL": "readonly",
-        "Buffer": "readonly",
-        "btoa": "readonly"
+        "Buffer": "readonly"
     },
     "options": {
         "typeAware": true,

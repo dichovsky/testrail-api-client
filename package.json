@@ -7,7 +7,11 @@
         "api",
         "client",
         "typescript",
-        "testing"
+        "testing",
+        "test-management",
+        "cli",
+        "zod",
+        "esm"
     ],
     "homepage": "https://github.com/dichovsky/testrail-api-client#readme",
     "bugs": {
@@ -33,13 +37,17 @@
         "./cli": {
             "import": "./dist/cli.js",
             "default": "./dist/cli.js"
-        }
+        },
+        "./package.json": "./package.json"
     },
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "bin": {
         "testrail": "dist/cli.js"
     },
+    "sideEffects": [
+        "./dist/cli.js"
+    ],
     "files": [
         "dist",
         "skill",
@@ -75,16 +83,16 @@
     },
     "devDependencies": {
         "@types/node": "^26.6.6",
-        "@vitest/coverage-v8": "^5.1.0",
+        "@vitest/coverage-v8": "^5.1.1",
         "audit-ci": "7.1.0",
-        "fast-check": "^4.10.2",
+        "fast-check": "^4.10.3",
         "lockfile-lint": "^5.1.0",
         "oxlint": "^1.94.0",
-        "oxlint-tsgolint": "^7.0.2007",
+        "oxlint-tsgolint": "^7.0.2008",
         "prettier": "~3.10.1",
         "tsx": "^4.23.15",
         "typescript": "~7.0.2",
-        "vitest": "^5.1.0"
+        "vitest": "^5.1.1"
     },
     "engines": {
         "node": ">=26"
