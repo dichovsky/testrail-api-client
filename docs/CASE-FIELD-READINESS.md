@@ -47,11 +47,19 @@ The following example checks the project-1, template-1 Dropdown from Recipe 45.
 Adjust the comparison if your server normalizes option formatting. Do not skip
 the verification check. Set the timing limits to match your application.
 
+The snippet uses `config` and `client` from
+[Create a client](SDK.md#create-a-client). `created` is the retained result of
+the one successful `addCaseField()` call. `caseId` identifies the case that the
+dependent write updates.
+
 ```typescript
 // In this repository, import waitForCaseField from the example. If copying it
 // into an application, change its SDK import to '@dichovsky/testrail-api-client'
 // and replace the repository timer constant with your application's limit.
 import { waitForCaseField } from '../examples/case-field-readiness.js';
+
+// Call controller.abort() to cancel polling.
+const controller = new AbortController();
 
 // `created` is the retained result of the one successful addCaseField(payload).
 const readiness = await waitForCaseField(config, created, {

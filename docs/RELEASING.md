@@ -33,6 +33,7 @@ The package requires Node 26 or newer. CI covers Node 26 on Linux, Windows, and 
     Publication must succeed before this list becomes final.
 11. Check the README, user guides, architecture docs, agent instructions, examples, CLI help, and manual skill sections against the release changes.
     Dated audits and archived plans remain historical records.
+    For a major release, also update the supported-versions table in `SECURITY.md`.
 12. Verify that every SDK endpoint has a CLI action and every CLI action has a skill recipe.
 13. Install the locked dependencies without lifecycle scripts:
 
@@ -80,6 +81,9 @@ RUN_FUZZ=1 npx vitest run tests/cli-fuzz.test.ts
 npm audit --omit=dev --audit-level=moderate
 npm run audit:dependencies
 ```
+
+If `audit-ci.jsonc` has allowlist entries, check that every `expiry` date is later than the planned publish date.
+The `Publish` workflow runs the same audit after the tag exists.
 
 1. Open a release pull request with the version, scope, compatibility notes, and validation results.
 2. Wait for all CI jobs to pass.

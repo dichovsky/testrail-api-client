@@ -54,14 +54,14 @@ Version 2.1 omitted destructive operations so agents could not run irreversible 
 - [x] **`suite delete` / `section delete` / `milestone delete` / `project delete`** — Shipped in the same PR. `suite delete` and `section delete` accept `[--soft]`. `milestone delete` and `project delete` reject `--soft` because TestRail does not support `?soft=1` on those endpoints. `project delete` uses the same `--yes` gate because TestRail provides no extra server-side confirmation parameter.
 - [x] **`plan close` / `plan delete` / `plan delete-entry` / `plan delete-run-from-entry`** — Shipped in PR6 ("CLI destructive plan ops + lifecycle recipe"). Each command requires `--yes`, lets `--dry-run` override `--yes`, and rejects non-positive path-parameter IDs before checking `--yes`. `plan close` is irreversible because TestRail has no `open_plan` endpoint. All four commands reject `--soft` because none of the endpoints support `?soft=1`. `delete-entry` validates the UUID-style `entry_id` string in the handler and returns `entry_id must be a non-empty string` on invalid input. `tests/cli-helpers.test.ts` pins all four actions in the destructive-action set.
 - [x] **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env-var gate (BREAKING)** — Shipped in PR4 of the v4.0.0 batch ("CLI destructive env-var gate"). Destructive CLI actions now require both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1` (exact string `'1'`; values such as `'true'`, `'yes'`, `'on'`, and `'1 '` fail). `checkDestructiveEnvGate` in `src/cli/dispatch.ts` runs before authentication and handler execution so no destructive handler can bypass the check. A missing or invalid environment variable exits with code **2** instead of `1` so CI pipelines can detect the missing unlock. `--dry-run` bypasses both `TESTRAIL_ALLOW_DESTRUCTIVE` and `--yes`. The programmatic API (`TestRailClient`) is unchanged. `tests/cli.test.ts` sets `TESTRAIL_ALLOW_DESTRUCTIVE: '1'` in `AUTH_ENV` by default and tests all combinations of `(destructive?, dryRun, env value)`. `tests/cli-helpers.test.ts` tests `checkDestructiveEnvGate` and verifies that every `destructive: true` action in `ACTIONS` is gated. See `CHANGELOG.md` (v4.0.0), `README.md`, and `docs/ARCHITECTURE.md` §6.6.
-- [ ] **`result delete`** — Not applicable. The TestRail API does not support deleting individual results. Won't implement.
+- [!] **`result delete`** — Not applicable. The TestRail API does not support deleting individual results. Won't implement.
 
 ## CLI write surface — bulk operations
 
 Version 2.1 shipped `result add-bulk` because test runs produce many results. Other bulk endpoints were deferred.
 
 - [x] **`case add-bulk`** — Shipped in the "CLI bulk-case + run watch + attachment pagination (P2)" PR as `testrail case add-bulk <section_id> --data '[{...},{...}]'`. `AddCasesBulkPayloadSchema` rejects empty arrays and invalid case items before any network call. The TestRail 10.7 audit removed the 7.5 version-error rewrite because TestRail 7.0 already supports `add_cases`. The CLI accepts a JSON array, and the module wraps it in `{ cases: [...] }` and decodes the response envelope. `--dry-run` outputs `count` to preview large imports.
-- [ ] **`run add-bulk`** — Not applicable. The TestRail API does not support bulk run creation. Won't implement.
+- [!] **`run add-bulk`** — Not applicable. The TestRail API does not support bulk run creation. Won't implement.
 
 ## CLI feature extensions
 
@@ -77,11 +77,11 @@ Version 2.1 shipped `result add-bulk` because test runs produce many results. Ot
 
 The v2.2 attachment-surface PR shipped 11 read, write, and download actions plus `attachment delete` (gated by `--yes`, where `--dry-run` overrides `--yes`).
 
-- [ ] **Binary stdin upload** — `cat foo.png | attachment add-to-case 42 --filename foo.png`. **Effort:** S (handle binary `stdin` across platforms and require `--filename`). **Trigger:** agents that pipe artifacts without temporary files.
-- [ ] **Binary stdout download** — `attachment get 42 --out -` to stream binary output to `stdout` (for example, `| sha256sum`). **Effort:** S. **Trigger:** shell pipeline use cases. Must refuse when `stdout.isTTY` is true.
+- [x] **Binary stdin upload** — `cat foo.png | attachment add-to-case 42 --filename foo.png`. **Effort:** S (handle binary `stdin` across platforms and require `--filename`). **Trigger:** agents that pipe artifacts without temporary files. **Shipped:** `--file -` reads the upload from binary stdin (`src/cli/file-input.ts`, `readStdinBinary` in `src/cli/stdin.ts`). `--filename` is optional.
+- [x] **Binary stdout download** — `attachment get 42 --out -` to stream binary output to `stdout` (for example, `| sha256sum`). **Effort:** S. **Trigger:** shell pipeline use cases. Must refuse when `stdout.isTTY` is true. **Shipped:** `--out -` writes the payload to stdout (`STDOUT_SENTINEL` in `src/cli/file-output.ts`). A terminal gets a warning for binary payloads instead of a refusal.
 - [x] **Pagination on `attachment list-for-*`** — Shipped in the "CLI bulk-case + run watch + attachment pagination (P2)" PR. `getAttachmentsForCase`, `getAttachmentsForRun`, and `getAttachmentsForTest` now accept `GetAttachmentsOptions { limit?, offset? }` (exported from the package root). The CLI passes `--limit` and `--offset` to TestRail's `&limit=` and `&offset=` query parameters (server default page size: 250). `list-for-plan` and `list-for-plan-entry` do not paginate because TestRail returns the full plan attachment tree. `validatePaginationParams` rejects `limit <= 0` and `offset < 0` before any network call, and `optInt` (`NON_NEG_INT_RE`) converts malformed tokens to `undefined`.
-- [ ] **Streaming upload for very large files** — `--file` buffers the entire file into a `Uint8Array`. TestRail accepts files up to 256 MB. **Effort:** M (update `requestMultipart` to stream instead of requiring `Blob | Uint8Array`). **Trigger:** memory pressure on CI runners.
-- [ ] **Destructive-ops env-var alternative** — Accept `TESTRAIL_ALLOW_DESTRUCTIVE=1` as an alternative to `--yes`. **Effort:** S. **Trigger:** user request from CI environments.
+- [x] **Streaming upload for very large files** — `--file` buffers the entire file into a `Uint8Array`. TestRail accepts files up to 256 MB. **Effort:** M (update `requestMultipart` to stream instead of requiring `Blob | Uint8Array`). **Trigger:** memory pressure on CI runners. **Shipped:** path uploads stream from disk through `openAsBlob` (`src/upload-source.ts`).
+- [!] **Destructive-ops env-var alternative** — Accept `TESTRAIL_ALLOW_DESTRUCTIVE=1` as an alternative to `--yes`. **Effort:** S. **Trigger:** user request from CI environments. **Superseded:** destructive commands require both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`. The variable is an additional gate, not an alternative.
 
 ## Skill scope expansion
 
@@ -92,28 +92,25 @@ The v2.2 attachment-surface PR shipped 11 read, write, and download actions plus
 - [x] **Cursor rules file (`.cursor/rules/testrail.mdc`)** — Shipped in PR5. `scripts/generate-cursor-rules.js` generates `.cursor/rules/testrail.mdc` from `src/cli/metadata.ts` and `scripts/rules-content.mjs` with YAML frontmatter (`description`, `globs`, `alwaysApply`). This format follows the [Cursor rules specification](https://docs.cursor.com/context/rules-for-ai). Added `cursor-rules` and `cursor-rules:check` npm scripts and wired `cursor-rules:check` into `pretest`.
 - [x] **Continue rules** — Shipped in PR5. `scripts/generate-continue-rules.js` generates `.continue/rules/testrail.md` from `src/cli/metadata.ts` and `scripts/rules-content.mjs` as plain Markdown. This format follows the [Continue rules specification](https://docs.continue.dev/customization/rules). Added `continue-rules` and `continue-rules:check` npm scripts and wired `continue-rules:check` into `pretest`.
 - [x] **Generic `AGENTS.md`** — Shipped in PR5. `scripts/generate-agents-md.js` generates `AGENTS.md` at the repository root with the shared rules content and a `Build / verify commands` section. Added `agents-md` and `agents-md:check` npm scripts and wired `agents-md:check` into `pretest`. The file follows the [agents.md specification](https://agents.md/). All three rule generators share `scripts/rules-content.mjs`.
-- [ ] **Localization (non-English)** — Translate the skill file. **Effort:** L (translation and per-language generator). **Trigger:** documented non-English user base.
 
 ## `install-skill` enhancements
 
 - [!] **Symlink install option** — **Won't do** (Q11). Causes permission issues on Windows and broken-symlink edge cases. Copying the file is fast enough to rerun on update.
 - [!] **`postinstall` auto-install hook** — **Won't do** (Q11). Runs without user consent, breaks CI pipelines, and affects users who do not use Claude Code.
 - [x] **`testrail uninstall-skill`** — Shipped in PR5 ("Skill expansion"). `src/cli/uninstall-skill.ts` exports `runUninstallSkill()` and `getInstallTarget()`. It removes the skill file from `./.claude/skills/testrail-cli/` (default) or `~/.claude/skills/testrail-cli/` (`--global`), and removes the `testrail-cli/` directory if it is empty without modifying `.claude/skills/`. To prevent TOCTOU attacks, it checks the target with `lstat` and refuses to remove symlinks or non-regular files. `src/cli/index.ts` dispatches `uninstall-skill` alongside `install-skill`. `uninstall-skill` does not modify `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`, or `AGENTS.md`. SEC #5 tracks the remaining TOCTOU symlink issue on `install-skill`. `tests/uninstall-skill.test.ts` (12 tests) and `tests/cli.test.ts` verify this command.
-- [ ] **Multi-version skill management** — Support side-by-side skill installations for multiple package versions. **Effort:** M. **Trigger:** monorepos that pin multiple versions.
-- [ ] **Claude Code plugin marketplace publish** — Publish to a separate distribution channel. **Effort:** M (process and metadata). **Trigger:** launch of an official Claude Code marketplace.
 
 ## Drift detection — beyond generator diff
 
 The v2.1 plan uses hybrid generation with `<!-- GENERATED -->` sentinels and a `prepublishOnly` diff check.
 
-- [ ] **Snapshot test for recipe code blocks** — Parse `SKILL.md` and extract fenced `bash` blocks. Run each block against the CLI with mocked `fetch`. Verify the exit codes. **Effort:** M. **Trigger:** recipe drift that bypasses the schema-level generator.
-- [ ] **Generator runs in CI separately from `pretest`** — Add a GitHub Action that fails pull requests with a clear "run `npm run skill`" message. **Effort:** S. **Trigger:** contributor confusion from `pretest` failure messages.
+- [~] **Snapshot test for recipe code blocks** — Parse `SKILL.md` and extract fenced `bash` blocks. Run each block against the CLI with mocked `fetch`. Verify the exit codes. **Effort:** M. **Trigger:** recipe drift that bypasses the schema-level generator. **Partially shipped:** `tests/skill-recipes.test.ts` pins the command text of selected recipes. No test runs each recipe command through the CLI. `BACKLOG.md` tracks the remaining work.
+- [x] **Generator runs in CI separately from `pretest`** — Add a GitHub Action that fails pull requests with a clear "run `npm run skill`" message. **Effort:** S. **Trigger:** contributor confusion from `pretest` failure messages. **Shipped:** `.github/workflows/ci.yml` runs `codemap:check`, `skill:check`, `mapping:check`, and `agents-md:check` as separate steps.
 
 ## Quality / verification
 
-- [ ] **Coverage delta enforcement** — Fail CI if test coverage drops below 98%. **Effort:** S (Vitest configuration). **Trigger:** a pull request that reduces coverage.
-- [ ] **CLI fuzz tests** — Pass random JSON payloads to write actions and verify that Zod rejects invalid shapes. **Effort:** M. **Trigger:** payload-validation bugs.
-- [ ] **Stricter numeric parsing in `parseId` / `optInt`** — `Number(raw)` + `Number.isInteger` currently accepts non-decimal literals such as `'1e3'` (1000) and `'0x10'` (16). Validate inputs with `/^[1-9]\d*$/` (or `/^\d+$/` for `optInt`) so the CLI accepts only decimal positive integers. **Effort:** S. **Trigger:** Copilot review on PR #53, deferred to a release that documents stricter input validation.
+- [x] **Coverage delta enforcement** — Fail CI if test coverage drops below 98%. **Effort:** S (Vitest configuration). **Trigger:** a pull request that reduces coverage. **Shipped:** `vitest.config.ts` enforces 99% for lines, statements, and functions and 98% for branches. CI runs `npm run test:coverage`.
+- [x] **CLI fuzz tests** — Pass random JSON payloads to write actions and verify that Zod rejects invalid shapes. **Effort:** M. **Trigger:** payload-validation bugs. **Shipped:** `tests/cli-fuzz.test.ts`. The CI `fuzz` job runs it with `RUN_FUZZ=1`.
+- [x] **Stricter numeric parsing in `parseId` / `optInt`** — `Number(raw)` + `Number.isInteger` currently accepts non-decimal literals such as `'1e3'` (1000) and `'0x10'` (16). Validate inputs with `/^[1-9]\d*$/` (or `/^\d+$/` for `optInt`) so the CLI accepts only decimal positive integers. **Effort:** S. **Trigger:** Copilot review on PR #53, deferred to a release that documents stricter input validation. **Shipped:** `src/cli/ids.ts` accepts only decimal integers through `POSITIVE_INT_RE` and `NON_NEG_INT_RE`.
 
 ## TestRail API methods — not yet implemented
 
@@ -2284,3 +2281,16 @@ ARCH #6 shipped in two phases on 2026-05-30: Phase 1 was a backward-compatible r
   1. Replaced 29 `.slice(a, b)` calls with separate read and write exports per resource. `defineActions()` preserves literal `apiEndpoint` types. The `.d.ts` bundle grew by 19 KB instead of the proposed 203 KB.
   2. Removed `ActionSpec.pagination`, `PaginationSpec`, and drift Gate E by moving pagination metadata into `src/cli/metadata/paginated-endpoints.ts` keyed by `apiEndpoint`, verified by `_PaginatedEndpointsAreSurfaced`, `_ActionEndpointsAreLiterals`, and a runtime test.
   Also hardened `scripts/action-metadata-parser.ts` to unwrap `satisfies` expressions and throw on unreadable initializers, non-literal `resource`/`action`/`apiEndpoint` fields, or array spread elements.
+
+## BACKLOG sync — 2026-11-21 (status cleanup)
+
+This sync updated the status of the items that were still marked open in this file.
+Each item was checked against the source code at the 10.0.0 release preparation.
+
+- Shipped items are now marked `[x]`. Rejected and superseded items are now marked `[!]`.
+- Three open items moved back to `BACKLOG.md`: localization, multi-version skill management, and marketplace publication.
+- The recipe code-block test is marked `[~]`. `BACKLOG.md` tracks its remaining work.
+
+### Architecture — moved from `BACKLOG.md`
+
+- [x] **2026-09-18 architecture review.** All tasks are complete. The changes are internal and do not modify the public API. Version `8.0.0` includes them. That version is a major release because PR #285 increased the minimum runtime to Node 24. ARCH #4 has a reduced scope; see its entry above. Gate D remains a script check because `docs/testrail-endpoints.json` uses manual maintenance.

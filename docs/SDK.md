@@ -87,27 +87,27 @@ Only `baseUrl`, `email`, and `apiKey` are required.
 The constructor validates configuration before any request.
 Defaults come from [`src/constants.ts`](../src/constants.ts).
 
-| Option                    | Type                | Default            | Meaning                                                                                    |
-| ------------------------- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------ |
-| `baseUrl`                 | `string`            | Required           | HTTPS TestRail URL; HTTP requires `allowInsecure`                                          |
-| `email`                   | `string`            | Required           | TestRail account email                                                                     |
-| `apiKey`                  | `string`            | Required           | TestRail API key                                                                           |
-| `timeout`                 | `number`            | `30000`            | Per-attempt timeout in milliseconds, including DNS; maximum 5 minutes                      |
-| `maxRetries`              | `number`            | `3`                | Retry attempts; integer from 0 through 10                                                  |
-| `enableCache`             | `boolean`           | `true`             | Store GET responses in memory                                                              |
-| `cacheTtl`                | `number`            | `300000`           | Cache lifetime in milliseconds                                                             |
-| `cacheCleanupInterval`    | `number`            | `60000`            | Cleanup interval in milliseconds; integer from 0 through 2,147,483,647; 0 disables cleanup |
-| `maxCacheSize`            | `number`            | `1000`             | Maximum cache entries; 0 removes the limit                                                 |
-| `rateLimiter`             | `RateLimiterConfig` | 100 / 60 seconds   | `{ maxRequests, windowMs }` sliding window                                                 |
-| `allowInsecure`           | `boolean`           | `false`            | Allow cleartext HTTP                                                                       |
-| `allowPrivateHosts`       | `boolean`           | `false`            | Allow private, loopback, and link-local hosts                                              |
-| `maxJsonResponseBytes`    | `number`            | `10485760`         | JSON, text, and error body limit: 10 MiB; maximum 1 GiB                                    |
-| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Successful binary body limit: 100 MiB; maximum 1 GiB                                       |
-| `bodyTimeout`             | `number`            | `timeout`          | Body-read deadline in milliseconds; 0 disables it; maximum 5 minutes                       |
-| `registerProcessHandlers` | `boolean`           | `false`            | Register cleanup handlers for `exit`, `SIGINT`, and `SIGTERM`                              |
-| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Custom transport; must honor the supplied dispatcher or enforce equivalent checks          |
-| `dnsLookup`               | `function`          | System DNS         | Custom resolver for host validation and connection pinning                                 |
-| `onSchemaMismatch`        | `function`          | None; silent       | Synchronous callback for a response schema mismatch                                        |
+| Option                    | Type                | Default            | Meaning                                                                                                                                                                            |
+| ------------------------- | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `baseUrl`                 | `string`            | Required           | HTTPS TestRail URL with no query string or fragment; HTTP requires `allowInsecure`                                                                                                 |
+| `email`                   | `string`            | Required           | TestRail account email                                                                                                                                                             |
+| `apiKey`                  | `string`            | Required           | TestRail API key                                                                                                                                                                   |
+| `timeout`                 | `number`            | `30000`            | Per-attempt timeout in milliseconds, including DNS; maximum 5 minutes                                                                                                              |
+| `maxRetries`              | `number`            | `3`                | Retry attempts; integer from 0 through 10                                                                                                                                          |
+| `enableCache`             | `boolean`           | `true`             | Store GET responses in memory                                                                                                                                                      |
+| `cacheTtl`                | `number`            | `300000`           | Cache lifetime in milliseconds                                                                                                                                                     |
+| `cacheCleanupInterval`    | `number`            | `60000`            | Cleanup interval in milliseconds; integer from 0 through 2,147,483,647; 0 disables cleanup                                                                                         |
+| `maxCacheSize`            | `number`            | `1000`             | Maximum cache entries; 0 removes the limit                                                                                                                                         |
+| `rateLimiter`             | `RateLimiterConfig` | 100 / 60 seconds   | `{ maxRequests, windowMs }` sliding window                                                                                                                                         |
+| `allowInsecure`           | `boolean`           | `false`            | Allow cleartext HTTP                                                                                                                                                               |
+| `allowPrivateHosts`       | `boolean`           | `false`            | Allow private, loopback, and link-local hosts                                                                                                                                      |
+| `maxJsonResponseBytes`    | `number`            | `10485760`         | JSON, text, and error body limit: 10 MiB; maximum 1 GiB                                                                                                                            |
+| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Successful binary body limit: 100 MiB; maximum 1 GiB                                                                                                                               |
+| `bodyTimeout`             | `number`            | `timeout`          | Body-read deadline in milliseconds; 0 disables it; maximum 5 minutes                                                                                                               |
+| `registerProcessHandlers` | `boolean`           | `false`            | Register cleanup handlers for `exit`, `SIGINT`, and `SIGTERM`                                                                                                                      |
+| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Custom transport; must honor the supplied dispatcher or enforce equivalent checks. On a failure, `error.cause` is a copy of only `name`, `message`, `code`, `errno`, and `syscall` |
+| `dnsLookup`               | `function`          | System DNS         | Custom resolver for host validation and connection pinning                                                                                                                         |
+| `onSchemaMismatch`        | `function`          | None; silent       | Synchronous callback for a response schema mismatch                                                                                                                                |
 
 `timeout` covers DNS resolution, connection, upload, and response headers for each attempt.
 `bodyTimeout` separately limits the response-body read. Body byte or time limits throw `TestRailApiError` without retrying.
@@ -179,21 +179,21 @@ Multipart uploads never retry automatically.
 | `getAll*()`               | No cache reads, writes, or shared requests             | 429, 5xx, and network errors, within aggregate limits |
 | Text or binary GET        | No cache                                               | 429, 5xx, and network errors                          |
 | Report-generation GET     | No cache or shared requests                            | 429 only                                              |
-| JSON POST, PUT, or DELETE | Clears the cache on success                            | 429 only                                              |
-| Multipart upload          | Clears the cache on success                            | Never                                                 |
+| JSON POST, PUT, or DELETE | Clears the cache once dispatched, whatever the outcome | 429 only                                              |
+| Multipart upload          | Clears the cache once dispatched, whatever the outcome | Never                                                 |
 
-Successful writes invalidate stored and in-flight cache entries before response parsing.
+Every dispatched write attempt invalidates stored and in-flight cache entries once: before response parsing when the response is successful, and as soon as the attempt fails for an error status, a network failure, a timeout, or a blocked redirect. Writes rejected before dispatch leave the cache intact.
 Schema mismatches never enter the cache.
 Concurrent JSON GETs share work only when their header and body timeouts match, even when `enableCache` is `false`.
 Completed entries remain shared across timeout views. Call `client.clearCache()` to clear the cache explicitly.
 
-The cache copies values on storage and retrieval. Changing a returned object cannot alter a cached entry.
+The cache copies values on storage and retrieval, and callers that join an in-flight request each receive their own copy. Changing a returned object cannot alter a cached entry or another caller's result.
 Copying costs increase with payload size, and `maxCacheSize` counts entries rather than bytes.
 Reduce `maxCacheSize` or `maxJsonResponseBytes` for large responses; setting `maxCacheSize` to 0 removes its memory bound.
 
 Retries use exponential backoff, starting at 1 second and capped at 10 seconds.
 A valid `Retry-After` header overrides backoff up to that cap, including on retryable GET 5xx responses.
-Missing, zero, past, or invalid values use backoff. Other 4xx responses, abort timeouts, body-limit failures, and redirects never retry.
+Missing, zero, past, or invalid values use backoff. Other 4xx responses, abort timeouts, body-limit failures, a transport failure while a successful response body is read, and redirects never retry. A DNS resolver failure is a network error and follows the network-error retry policy.
 All requests reject HTTP redirects with `TestRailApiError`.
 
 The local sliding-window limiter rejects excess new calls before `fetch`; adjust `rateLimiter` to match your TestRail quota.
@@ -250,8 +250,11 @@ They also include labels, shared steps and their history, case/run/plan attachme
 Shared-step history, datasets, variables, roles, groups, and case statuses use server-provided pagination controls.
 Their aggregate methods accept safety bounds but do not accept `pageSize` or `startOffset`.
 Test attachments, plan-entry attachments, users, and ordinary metadata, configuration, and report lists return one response only.
+TestRail 10.10 documents `get_users` as paginated, so `users.getUsers()` can return only the first 250 users on such a server.
+This truncation is not verified on a live server; see the [compatibility audit](TESTRAIL-10.7.0-COMPATIBILITY.md#known-gaps-against-testrail-108-1010-checked-2026-11-21).
 A method accepting `limit` or `offset` does not necessarily provide `get*Page()` or `getAll*()`.
 See the [API mapping](API-MAPPING.md) for endpoint coverage and the [CLI guide](CLI.md#pagination) for equivalent flags.
+The [bounded pagination example](../examples/bounded-pagination.ts) reads one page and a bounded aggregate, then handles `TestRailPaginationError` by its `reason`.
 
 ## Response validation
 
@@ -323,11 +326,13 @@ The [schema audit](schema-audit-2026-06-22.md) records observed differences from
 | Error                     | Meaning                                                       | Useful properties                        |
 | ------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
 | `TestRailApiError`        | HTTP, network, or protocol failure                            | `status`, `statusText`, `response`       |
+| `TestRailLicenseError`    | HTTP 403 that reports an Enterprise-license restriction       | `status`, `statusText`, `response`       |
 | `TestRailPaginationError` | Invalid pagination or an exceeded aggregate limit             | `reason`, `pagesFetched`, `itemsFetched` |
 | `TestRailValidationError` | Invalid configuration, ID, parameter, or strict-hook response | `message`                                |
 | Standard `Error`          | Request after `client.destroy()`                              | `message`                                |
 
 `TestRailPaginationError` extends `TestRailValidationError`; catch it first when you need pagination details.
+`TestRailLicenseError` extends `TestRailApiError`; catch it first when you need to detect a feature that the TestRail license does not include.
 Raw API bodies appear in `error.response`, never in `error.message`. They can contain sensitive data; avoid logging them.
 
 ```typescript
@@ -351,6 +356,7 @@ try {
 Numeric IDs and numeric list filters must contain positive integers.
 Invalid arrays such as `createdBy`, `statusId`, or `milestoneId` throw `TestRailValidationError` before any request.
 The [CLI guide](CLI.md#diagnostic-files) explains redacted diagnostic files.
+The [CI results example](../examples/publish-ci-results.ts) publishes a run with one bulk write and does not retry an uncertain write.
 
 ## Custom fields
 

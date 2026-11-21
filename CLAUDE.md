@@ -27,10 +27,16 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | File                                                                 | Purpose                                                                                                                                                                            |
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/client-core.ts`                                                 | Request orchestration, HTTP pipeline, rate limiter, retry logic, and lifecycle management                                                                                          |
+| `src/http-pipeline-types.ts`                                         | Internal pipeline types: `RequestSpec`, `RequestBody`, `RequestIntent`, and `RetryPolicy`                                                                                          |
+| `src/retry-policy.ts`                                                | `deriveRetryPolicy()`: selects the retry policy from the body kind, response kind, and intent                                                                                      |
+| `src/pinned-dispatcher.ts`                                           | DNS-pinned dispatcher: connects only to the validated IP addresses and keeps the hostname for TLS                                                                                  |
+| `src/url.ts`                                                         | `buildEndpoint(base, params)`: endpoint path with `&`-joined, percent-encoded query parameters                                                                                     |
+| `src/validation.ts`                                                  | Preflight checks: `validateId`, `validateIdList`, `validateEntryId`, `validateAttachmentId`, `validateTimestamp`, `validateTimeout`, and `validatePaginationParams`                |
 | `src/request-cache.ts`                                               | GET cache protocol: TTL/LRU storage, cloning, in-flight request sharing, cache invalidation, and cleanup                                                                           |
 | `src/client.ts`                                                      | `TestRailClient` composition root: 19 `public readonly` module fields, module composition only, no flat wrapper methods                                                            |
 | `src/modules/*.ts`                                                   | Domain endpoint methods (cases, runs, results, projects, suites, sections, plans, tests, milestones, and others)                                                                   |
-| `src/types.ts`                                                       | Schema-derived response type aliases, custom-field types, client configuration types, and `Get*Options` DTOs                                                                       |
+| `src/modules/{list,paginated-list,pagination-options}.ts`            | Shared list support: wrapper schemas and `unwrapList()`, `createPaginatedListExecutor()`, and option snapshots for aggregate reads                                                 |
+| `src/types.ts`                                                       | Schema-derived response type aliases, custom-field types, client configuration types, and seven `Get*Options` DTOs; `src/modules/*.ts` declares the other `Get*Options` DTOs       |
 | `src/schemas.ts`                                                     | Zod schemas for API responses and write payloads; source of truth for public response and payload types                                                                            |
 | `src/pagination.ts`                                                  | `Page<T>` decoding, continuation link parsing, and bounded multi-page collection                                                                                                   |
 | `src/errors.ts`                                                      | API, validation, license, and pagination error classes, plus `handleZodError`                                                                                                      |
@@ -38,18 +44,29 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `src/operation-tracking.ts`                                          | `AsyncLocalStorage` operation scopes for `trackOperation`: resource tracking, scope binding, and settlement                                                                        |
 | `src/upload-lifetime.ts`                                             | Multipart ownership from SDK method entry, deferred body preparation, transport observation, and cleanup                                                                           |
 | `src/upload-source.ts`                                               | Upload source mechanics: path mapping, `openAsBlob`, FormData construction, stream ownership, and file descriptor cleanup                                                          |
+| `src/upload-transport.ts`                                            | `observeUploadTransport()`: observes the native transport of one upload attempt so cleanup can confirm that sending stopped                                                        |
 | `src/request-budget.ts`                                              | Wall-clock time budget for one call: deadline tracking, timeout clipping, retry delays, and HTTP 408 timeout errors                                                                |
 | `src/constants.ts`                                                   | Default values, limits, pagination bounds, transport bounds, and email validation patterns                                                                                         |
 | `src/config-validation.ts`                                           | `TestRailConfigSchema` validation adapter: URL and SSRF checks with consistent `TestRailValidationError` messages                                                                  |
-| `src/utils.ts`                                                       | `base64Encode` and `sleep` helper functions                                                                                                                                        |
+| `src/utils.ts`                                                       | `base64Encode`, `sleep`, and `serializeIdFilter` helper functions                                                                                                                  |
 | `src/cli.ts`                                                         | CLI binary entrypoint (`bin: testrail`, `./cli` subpath): builds `CliRuntime` and sets `process.exitCode`. Only this file in `src/` can reference `process.stdout`/`stderr`/`argv` |
 | `src/cli/index.ts`                                                   | `runCli(runtime)`: parses arguments, dispatches commands, resolves auth, and runs handlers                                                                                         |
 | `src/cli/output.ts`                                                  | CLI output module: `createOutput({quiet, format, stdout, stderr, stdoutIsTTY})` for formatting, sanitization, `--quiet`, and `--out -`                                             |
+| `src/cli/sanitize.ts`                                                | `sanitizeForTerminal()`: removes terminal control characters from text before output                                                                                               |
+| `src/cli/{flags,action-invocation}.ts`                               | `FLAG_CATALOG`, argv token checks (`validateSuppliedFlagTypes`), and `resolveActionInvocation()` for allowed and required flags                                                    |
+| `src/cli/metadata.ts`, `src/cli/metadata/*.ts`                       | `ACTIONS`: one `ActionSpec` for each command. `types.ts` defines `ActionSpec`; `paginated-endpoints.ts` maps paginated endpoints                                                   |
+| `src/cli/help.ts`                                                    | `--help` text rendered from `ACTIONS` and `CLI_OPTION_DOCUMENTATION`                                                                                                               |
+| `src/cli/pagination.ts`                                              | CLI pagination flag validation and `outputPaginated()` for item, page, and aggregate output                                                                                        |
+| `src/cli/filters.ts`                                                 | Parsers for optional ID, ID-list, boolean, and `--refs` list filters                                                                                                               |
+| `src/cli/{body,stdin}.ts`                                            | `resolveBody()` for `--data`, `--data-file`, and stdin payloads; bounded text and binary stdin readers                                                                             |
+| `src/cli/write-handler-factory.ts`                                   | `createWriteHandler` and `createDestructiveHandler` factories for write commands                                                                                                   |
 | `src/cli/{auth,ids,dispatch,handler-context,response-validation}.ts` | CLI core helpers: environment and flag resolution, ID parsing, handler routing, and schema mismatch handling                                                                       |
 | `src/cli/{file-input,file-output}.ts`                                | Upload source resolver (`--file`) and download destination resolver (`--out`)                                                                                                      |
+| `src/cli/safe-write.ts`                                              | `safeWriteBinary` and `safeWriteText`: write download output through a held file descriptor                                                                                        |
 | `src/cli/{upload,download}.ts`                                       | Shared upload and attachment/BDD download workflows: dry-run previews, lazy transfer, and safe output                                                                              |
 | `src/cli/destructive.ts`                                             | Shared delete and close workflow: soft-mode checks, dry-run, confirmation, and successful output                                                                                   |
 | `src/cli/diagnostics.ts`                                             | Redacted CLI error records and private diagnostic file creation, writing, and cleanup                                                                                              |
+| `src/cli/{install-skill,uninstall-skill}.ts`                         | `testrail install-skill` and `testrail uninstall-skill`: copy or remove the bundled skill files                                                                                    |
 | `src/cli/handlers/*.ts`                                              | Async command handlers for each resource and action                                                                                                                                |
 | `src/index.ts`                                                       | Public package exports                                                                                                                                                             |
 | `skill/SKILL.md`                                                     | Bundled agent skill body: usage rules, authentication, safety gates, output and pagination rules, and links to reference files                                                     |
@@ -64,6 +81,13 @@ npx vitest run tests/client-endpoints.test.ts    # Run a single test file
 | `scripts/generate-mapping.ts`                                        | Generates `docs/API-MAPPING.md` and runs validation gates A, B, C, C2, and D                                                                                                       |
 | `scripts/mapping-renderer.ts`                                        | Helper functions for the mapping generator: Zod schemas, path normalization, tag parsers, and Markdown renderers                                                                   |
 | `scripts/ts-source.ts`                                               | TypeScript 7 parsing adapter for the code generators; the only module that may import `typescript/unstable/*`                                                                      |
+| `scripts/action-metadata-parser.ts`                                  | Reads `ActionSpec` entries from source for the mapping generator                                                                                                                   |
+| `scripts/generate-skill.ts`, `scripts/skill-renderer.ts`             | Generate the skill command table, option reference, and `skill/reference/payload-schemas.yaml`                                                                                     |
+| `scripts/generate-agents-md.ts`, `scripts/rules-content.ts`          | Generate `AGENTS.md`; `rules-content.ts` contains its prose                                                                                                                        |
+| `scripts/build.ts`                                                   | Production build: removes `dist/`, then compiles `tsconfig.prod.json`                                                                                                              |
+| `scripts/check-published-versions.ts`                                | `npm run published:check`: checks the published-version list in `CHANGELOG.md`                                                                                                     |
+| `scripts/package-smoke.ts`                                           | Installs the packed tarball in a temporary consumer and tests the SDK and CLI binary                                                                                               |
+| `scripts/release-preflight.ts`                                       | Release identity and registry checks that the publish workflow runs before `npm publish`                                                                                           |
 
 ## API Symbol Index
 
@@ -91,7 +115,7 @@ Read **[docs/API-MAPPING.md](docs/API-MAPPING.md)** to see the mapping between T
 
 **Class hierarchy:** `TestRailClientCore` (`client-core.ts`) is the base class for `TestRailClient` (`client.ts`). Core contains the HTTP infrastructure. Domain modules contain the endpoint methods. `client.ts` contains module composition only (19 `public readonly` fields, no flat wrappers). Call methods through their module namespace, such as `client.projects.getProject(id)`. `tests/exports.test.ts` verifies the module count and timeout-view parity.
 
-**Configuration validation:** `TestRailConfigSchema` in `src/schemas/common.ts` defines the runtime configuration schema and matches every key of `TestRailConfig`. `validateTestRailConfig()` checks the URL protocol, credentials, and private hosts, and throws `TestRailValidationError`. Both schema validation and constructor validation use `TESTRAIL_CONFIG_EMAIL_PATTERN`. `users.getUserByEmail()`, `UserAddPayloadSchema`, and `UserUpdatePayloadSchema` use `TESTRAIL_USER_EMAIL_PATTERN` (#236). Values of `0` for `maxCacheSize`, `cacheCleanupInterval`, `maxRetries`, and `bodyTimeout` disable those features. `cacheCleanupInterval` must be an integer from `0` to `MAX_NODE_TIMER_DELAY_MS` (`2_147_483_647`). `PaginationRequestSchema` validates strict single-request `limit` and `offset` values. The deprecated `PaginationSchema` keeps its earlier permissive behavior.
+**Configuration validation:** `TestRailConfigSchema` in `src/schemas/common.ts` defines the runtime configuration schema and matches every key of `TestRailConfig`. `validateTestRailConfig()` checks the URL protocol, credentials, query-string and fragment delimiters, and private hosts, and throws `TestRailValidationError`. Both schema validation and constructor validation use `TESTRAIL_CONFIG_EMAIL_PATTERN`. `users.getUserByEmail()`, `UserAddPayloadSchema`, and `UserUpdatePayloadSchema` use `TESTRAIL_USER_EMAIL_PATTERN` (#236). A value of `0` disables periodic cleanup (`cacheCleanupInterval`), retries (`maxRetries`), and the body deadline (`bodyTimeout`). `maxCacheSize: 0` removes the entry limit and emits a process warning. Use `enableCache: false` to disable caching. `cacheCleanupInterval` must be an integer from `0` to `MAX_NODE_TIMER_DELAY_MS` (`2_147_483_647`). `PaginationRequestSchema` validates strict single-request `limit` and `offset` values. The deprecated `PaginationSchema` keeps its earlier permissive behavior.
 
 The user-email pattern requires one `@` and non-empty parts without whitespace. It accepts single-label and domain-literal addresses. The cleanup interval bound prevents Node.js from converting an overflowing timer to a 1 ms loop.
 
@@ -106,7 +130,7 @@ Hostnames with private-looking prefixes still require DNS classification. The cl
 - Raw JSON GET requests use the key `GET:{endpoint}`.
 - Page requests use the key `PAGE:PARSED:GET:{endpoint}`.
 - Non-GET requests, text responses, binary responses, and multipart uploads bypass the cache.
-- Any successful write clears all stored and in-flight cache entries before parsing the write response.
+- Any dispatched write attempt clears all stored and in-flight cache entries once: on a successful response before parsing it, and otherwise as soon as the attempt fails (error status, network error, timeout, blocked redirect). A write rejected before dispatch clears nothing. The hook is `PipelineSpec.onWriteOutcome`.
 - `getAll*()` bypasses cache reads, cache writes, and in-flight sharing so multi-page reads do not mix cached pages from different times.
 - Concurrent GET requests share an in-flight request only when their header and body timeouts match.
 - Completed entries remain shared across timeout views.
@@ -134,7 +158,7 @@ The client extracts only the validated `offset` and optional `limit` from `_link
 
 **CLI pagination:** The CLI validates pagination flags before authentication:
 
-- Default mode outputs the item array from one response.
+- Default mode outputs the item array from one response. Its `--limit` and `--offset` use the same strict parser as `--page`; a malformed value fails before authentication.
 - `--page` outputs `Page<T>`.
 - `--all` collects all pages within safety bounds.
 - `--page` cannot be used with `--all`.
@@ -165,7 +189,7 @@ Request diagnostics on the original command. Never repeat a write only to obtain
 
 **Retry:** Uses exponential backoff `min(1000 * 2^n, 10000)` ms.
 
-- **GET** retries on 5xx, 429, and network errors (except side-effecting report reads).
+- **GET** retries on 5xx, 429, and network errors, including a DNS resolver failure (except side-effecting report reads). A transport failure while a successful response body is read is reported as a network error (`status: 0`, original error in `cause`) but never retried. An error response whose body cannot be read keeps its HTTP status and retry policy.
 - **POST/PUT/DELETE** retries only on 429. It never retries 5xx or network errors to avoid duplicate writes.
 - **Multipart uploads** never retry.
 - `deriveRetryPolicy()` (`src/retry-policy.ts`) derives the retry policy from `body.kind`, `responseKind`, and `intent`.
@@ -188,7 +212,7 @@ Enabled handlers destroy every active client. `SIGINT` exits with code 130; `SIG
 Installed handlers persist for the process lifetime. Keep registration outside `runCli`, so in-process tests do not install permanent handlers.
 Library callers should call `destroy()` from their own shutdown hook.
 
-**Input ownership:** `CliRuntime.stdin` supplies the terminal status, synchronous text reader, and asynchronous binary reader. Upload handlers receive the binary input capability through `HandlerContext`. Only `src/cli.ts` can reference `process.stdin`. Bounded text reads require an explicit file descriptor. Binary reads require an explicit stream and retain their byte and time limits. Dry-run does not read binary stdin.
+**Input ownership:** `CliRuntime.stdin` supplies the terminal status, synchronous text reader, and asynchronous binary reader. Upload handlers receive the binary input capability through `HandlerContext`. Only `src/cli.ts` can reference `process.stdin`. Bounded text reads require an explicit file descriptor. The entrypoint uses `isatty(0)` for the terminal check and creates `process.stdin` lazily. The text read creates it first, which switches descriptor 0 to non-blocking mode, so `readBoundedStdin` polls on `EAGAIN` and fails after `STDIN_READ_TIMEOUT_MS` instead of blocking forever on a pipe that never closes. Binary reads require an explicit stream and retain their byte and time limits. Dry-run does not read binary stdin.
 
 **Output ownership:** `src/cli/output.ts` controls all CLI output. Only `src/cli.ts` can reference `process.stdout`, `process.stderr`, or `process.argv`. All other files must use the writers on `HandlerContext` (`out`, `outRaw`, `outPayload`, `err`, `errRaw`).
 
@@ -202,14 +226,16 @@ Binary payloads trigger the TTY warning. Text payloads, including `bdd get --out
 
 ## Error Model
 
-| Class                     | Thrown when                                                                     | Properties                               |
-| ------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------- |
-| `TestRailApiError`        | HTTP, network, or protocol error, including invalid outer structure on list GET | `status`, `statusText`, `response`       |
-| `TestRailPaginationError` | Invalid pagination metadata/continuation or exceeded aggregate safety limit     | `reason`, `pagesFetched`, `itemsFetched` |
-| `TestRailValidationError` | Invalid configuration, ID, or parameter                                         | —                                        |
-| `Error`                   | Method called after `destroy()`                                                 | —                                        |
+| Class                     | Thrown when                                                                                   | Properties                               |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `TestRailApiError`        | HTTP, network, or protocol error, including invalid outer structure on list GET               | `status`, `statusText`, `response`       |
+| `TestRailLicenseError`    | HTTP 403 whose body reports an Enterprise-license restriction; subclass of `TestRailApiError` | `status`, `statusText`, `response`       |
+| `TestRailPaginationError` | Invalid pagination metadata/continuation or exceeded aggregate safety limit                   | `reason`, `pagesFetched`, `itemsFetched` |
+| `TestRailValidationError` | Invalid configuration, ID, or parameter                                                       | —                                        |
+| `Error`                   | Method called after `destroy()`                                                               | —                                        |
 
 Catch `TestRailPaginationError` before `TestRailValidationError` when you need to inspect `error.reason`.
+Catch `TestRailLicenseError` before `TestRailApiError` when you need to detect a license restriction.
 
 List and page structure checks remain strict when entity-field validation is advisory.
 Default list methods reject missing or scalar collections with `TestRailApiError`.
@@ -228,7 +254,7 @@ Follow these five rules when writing Zod schemas (`src/schemas/results.ts` is th
 
 `tests/schema-conventions.test.ts` enforces rules 2, 3, and 4 automatically. It also rejects format and length validators on responses.
 
-Define request and response fields separately with `zObject = z.object(shape).passthrough()`. Shared inheritance can change both inferred types and unknown-field behavior. Separate result payload schemas are intentional. Define request sub-schemas such as `AddPlanEntryRunPayloadSchema` even when response fields look similar.
+Define request and response fields separately with `zObject = z.object(shape).passthrough()`. Shared inheritance can change both inferred types and unknown-field behavior. Separate result payload schemas are intentional. Define request sub-schemas such as `PlanEntryRunPayloadSchema` even when response fields look similar.
 
 Use observed response differences to justify a separate write-response schema. For example, `add_case_field` returns `configs` as a JSON string; `get_case_fields` returns an array. `AddCaseFieldResponseSchema` preserves that distinction.
 
@@ -310,21 +336,23 @@ Shared test helpers live in `tests/helpers.ts`. Use the test output for current 
 
 **Add API endpoint:**
 
-1. Add the response Zod schema and inferred type to `src/schemas/{domain}.ts`.
-2. Re-export them from `src/schemas.ts`.
-3. For a write endpoint, add a payload schema in the same domain file.
-4. Add the method to its domain module in `src/modules/`. Do not add a flat facade wrapper.
-5. Validate numeric IDs with `validateId(id, 'paramName')` from `../validation.js` before any request.
-6. For UUID plan-entry IDs, use `validateEntryId`.
-7. Call `this.client.request<ReturnType>({ method, endpoint, schema, body, responseKind?, intent? })`.
+1. Add the endpoint record to `docs/testrail-endpoints.json`. For a paginated endpoint, include its `pagination` descriptor.
+2. Add the response Zod schema and inferred type to `src/schemas/{domain}.ts`.
+3. Re-export them from `src/schemas.ts`.
+4. For a write endpoint, add a payload schema in the same domain file.
+5. Add the method to its domain module in `src/modules/`. Do not add a flat facade wrapper.
+6. Tag the method with `/** @testrail METHOD path */`. Use the `method` and `path` values of the inventory record.
+7. Validate numeric IDs with `validateId(id, 'paramName')` from `../validation.js` before any request.
+8. For UUID plan-entry IDs, use `validateEntryId`.
+9. Call `this.client.request<ReturnType>({ method, endpoint, schema, body, responseKind?, intent? })`.
    Omit `intent` for standard requests. Retry policy comes from the request structure.
-8. Export public schemas and types from `src/index.ts`.
-9. Add unit tests to the matching `tests/client-*.test.ts` file.
-10. Add the CLI command and its handler.
-11. Add a numbered recipe with `<!-- recipe-for: resource:action -->` in `skill/reference/recipes.md`.
-12. For a paginated endpoint, register it in `src/cli/metadata/paginated-endpoints.ts`.
-13. Regenerate the codemap, skill, mapping, and agent instructions with their `npm run` commands.
-14. Run `npm run verify`.
+10. Export public schemas and types from `src/index.ts`.
+11. Add unit tests to the matching `tests/client-*.test.ts` file.
+12. Add the CLI command and its handler. Set `apiEndpoint` on the `ActionSpec` to the same `METHOD path`.
+13. Add a numbered recipe with `<!-- recipe-for: resource:action -->` in `skill/reference/recipes.md`.
+14. For a paginated endpoint, register it in `src/cli/metadata/paginated-endpoints.ts`.
+15. Regenerate the codemap, skill, mapping, and agent instructions with their `npm run` commands.
+16. Run `npm run verify`.
 
 **Add CLI write action:**
 

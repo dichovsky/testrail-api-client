@@ -6,7 +6,8 @@ Other documents describe the repository structure:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains the system layers.
 - [`CODEMAP.md`](CODEMAP.md) contains the symbol index.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) defines contributor workflows and conventions.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) defines setup, verification, and code conventions.
+- [`CLAUDE.md`](CLAUDE.md) defines the schema-authoring rules and the endpoint and CLI procedures.
 
 ---
 

@@ -15,14 +15,22 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [10.0.0] — 2026-11-21 — Node 26, upload ownership, and response validation
 
 This major release requires Node.js 26 and changes upload cleanup and custom response validation.
-It includes #310–#317, plus release preparation and removal of the obsolete dependency audit exception.
+It includes #310–#317, plus release preparation, removal of the obsolete dependency audit exception, and the fixes from a pre-release audit of the SDK, CLI, and skill.
 See the [upgrade checklist](README.md#upgrading-to-1000) before updating existing applications.
 
 ### Changed — BREAKING
 
-- **Node.js 26 is now the minimum supported runtime.** Upgrade application, CLI, and CI runtimes before installing this release. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
+- **Node.js 26 is now the minimum supported runtime.** Upgrade application, CLI, and CI runtimes before installing this release. Users on Node 24 must remain on 9.0.0 or upgrade Node.js. The package declares `engines.node: >=26`, and `.nvmrc` selects Node 26.
 - **SDK upload methods own supplied file descriptors from the call onward.** This includes calls rejected by ID validation, request validation, or a destroyed client. Remove caller cleanup after early rejection, and do not close or reuse a descriptor after passing it to an upload method. See [SDK upload ownership](docs/SDK.md#upload-files).
 - **Internal response checks no longer call public `parse()`.** This affects previews from `cases.deleteCase()`, `cases.deleteCases()`, `runs.deleteRun()`, `sections.deleteSection()`, and `suites.deleteSuite()`. It also affects `bdd.addBdd()` and `bdd.updateBdd()`. Subclass or instance overrides of `parse()` no longer run for these replies. Direct `client.parse()` calls retain their behavior. Move mismatch reporting or strict validation to `onSchemaMismatch`. Apply response transformations after awaiting the method. See [SDK response validation](docs/SDK.md#response-validation).
+- **A DNS resolver failure is now a network `TestRailApiError`, not a `TestRailValidationError`.** A lookup that rejects or returns no addresses throws `TestRailApiError` with `status: 0` and `statusText: 'Network error: DNS lookup failed for "<host>": <reason>'`. The resolver error is the `cause`. Retryable reads retry it like other network errors; writes do not. The message no longer suggests `allowPrivateHosts: true`, because the resolver failed, not the host check. The client sends no request, and each retry validates the host again. Private-address verdicts and invalid resolver answers remain `TestRailValidationError`. Code that catches `TestRailValidationError` for DNS outages must catch `TestRailApiError` with `status === 0`.
+- **A `baseUrl` with a query string or fragment is rejected at construction.** The client appends `/index.php?/api/v2/...` to `baseUrl`. A fragment sent the authenticated request to the site root, and a query string absorbed the API path. Pass the instance origin, with an optional path prefix.
+- **`Result.quality_rating` can be an object.** The `Result` type and `ResultSchema` now use `number | Record<string, unknown> | null | undefined`. TestRail 10.3 and later document one score per rating dimension, for example `{ factual_accuracy: 4, relevance: 5 }`. Check `typeof result.quality_rating === 'number'` before numeric use. No live response with this field was captured.
+- **Bulk case and test writes validate their ID lists before sending.** `cases.updateCases()`, `cases.deleteCases()`, `cases.copyCasesToSection()`, `cases.moveCasesToSection()`, and `tests.updateTests()` throw `TestRailValidationError` for a missing, empty, sparse, or non-array list. The four case methods also reject an ID that is not a positive integer; `tests.updateTests()` already did. `cases.addCases()` rejects an empty array. The matching payload schemas (`case_ids`, `test_ids`) require a non-empty array of positive integers, so CLI `--data` input fails the same way. The client previously sent these values to TestRail, or threw a raw `TypeError` for a missing list. The `updateTests()` message for an invalid ID changed from `testId must be a positive integer` to `testIds[<index>] must be a positive integer`.
+- **Published declarations omit members marked `@internal`.** `RequestSpec` no longer declares `cacheVariant`, `deadlineAt`, `timeout`, or `bodyTimeout`, so passing them to `client.request()` no longer compiles. Use `client.withTimeout(ms)` for a per-request timeout.
+- **CLI: `--limit` and `--offset` are strict in every mode.** A malformed or out-of-range value (`abc`, `-5`, `1e2`, `010`, an empty value, `--limit 0`, `--limit` above 250, or a value above 2^53-1) exits 1 before authentication. Previously, the default mode dropped the value, sent the request without it, and exited 0.
+- **CLI: an empty `--timeout` is rejected.** `--timeout ''` and `--timeout=` fail with `--timeout must be a positive integer`. Previously they selected `TESTRAIL_TIMEOUT` or the default. An empty `TESTRAIL_TIMEOUT` still counts as unset.
+- **CLI: `install-skill` and `uninstall-skill` reject positional arguments.** Previously, `install-skill ./elsewhere --force` ignored the path and overwrote the skill in the current directory, and `uninstall-skill junk` uninstalled the skill.
 
 ### Changed
 
@@ -37,14 +45,59 @@ See the [upgrade checklist](README.md#upgrading-to-1000) before updating existin
 - CI tests Node 26 on Linux, Windows, and macOS. Both publish jobs pin Node 26.13.1. CI uses `macos-latest` after retirement of the `macos-14` runner image.
 - Updated Zod to `^4.6.7`. Zod remains the only runtime dependency.
 - Updated `@types/node` to `^26.6.6`.
-- Updated Vitest and its V8 coverage provider to `^5.1.0` and `lockfile-lint` to `^5.1.0`.
+- Updated Vitest and its V8 coverage provider to `^5.1.1`, `fast-check` to `^4.10.3`, `oxlint-tsgolint` to `^7.0.2008`, and `lockfile-lint` to `^5.1.0`.
 - Updated Prettier to `~3.10.1` and refreshed transitive dependencies.
 - Simplified repository documentation and split user guidance into SDK, CLI, and networking guides. Historical runtime requirements, commands, issue references, and evidence remain preserved.
+- ID-list filter options accept `number | readonly number[]` in `GetPlansOptions`, `GetTestsOptions`, `GetResultsOptions`, `GetResultsForRunOptions`, and `GetRunsOptions.createdBy`, including their deprecated `snake_case` aliases. A single ID and a `readonly` array now compile.
+- The package root exports the types that a consumer with `declaration: true` must name: the 19 module classes (types only), `KnownResponse`, `RequestSpec`, `RequestBody`, and `RequestIntent`. Unannotated wrappers such as `export const projects = client.projects` no longer fail with TS2883 or TS2742. `TestWithDataResponseSchema` is also exported.
+- `TestRailApiError` accepts an optional `ErrorOptions` fourth constructor argument. The client uses it to attach the original failure as `cause`.
+- `projects.getProjectsPage()` now declares `GetProjectsOptions` instead of the identical deprecated alias `GetProjectsPageOptions`.
+- `--format yaml` now double-quotes the string `<<`, binary, signed hexadecimal, and signed octal literals such as `0b11`, `+0x1F`, and `+0o17`, strings that start with a date such as `2026-01-01`, sexagesimal numbers such as `1:30`, underscore digit groups such as `1_000`, and `=`. It escapes U+2028 and U+2029. YAML 1.1 parsers read the bare forms as a merge key, a value key, a number, or a timestamp. Parsed values do not change under YAML 1.2.
+- `package.json` declares `"sideEffects": ["./dist/cli.js"]`, exports `./package.json`, and lists the `cli`, `zod`, `test-management`, and `esm` keywords.
+- The TestRail 10.7.0 compatibility audit has a new section, "Known gaps against TestRail 10.8-10.10". It lists nine missing operations, the 500-item page size, cursor pagination, new list filters, and new response fields. On TestRail 10.10, `users.getUsers()` can return only the first 250 users. This behavior is not verified on a live server.
+- The SDK guide and the agent instructions now list `TestRailLicenseError`. The README links the runnable examples and a new documentation index (`docs/README.md`).
+
+### Fixed
+
+- A connection failure while the client reads a successful response body now throws `TestRailApiError` with `status: 0`, `statusText: 'Network error: <reason>'`, and the original error as `cause` (a copy for a custom `fetch`, as described below). Previously, a reset after the response headers escaped as a raw `TypeError: terminated`. The client does not retry this failure. An error response whose body cannot be read keeps its HTTP status and retry policy.
+- Every write attempt sent to TestRail now clears the GET cache, whatever its outcome. Previously, a write that failed with a 5xx status, a network error, a timeout, or a blocked redirect left the cache intact. A server-state check after an uncertain write could then read cached pre-write data. Writes rejected before dispatch (local rate limit, DNS failure) leave the cache intact.
+- An aggregate deadline that expires during a page-body read now always throws `TestRailPaginationError` with `reason: 'max_duration'`. Previously, it sometimes surfaced as `TestRailApiError(0, 'Body read timeout')`.
+- Callers that join an in-flight GET each receive their own copy of the result. Previously, they shared one object with the first caller.
+- Network errors keep their reason. Node reports most connection and TLS failures as `fetch failed`; the original error is now the `cause` of the thrown `TestRailApiError`. For a custom `fetch`, `cause` (for a failed request or a failed response body) is a copy of only `name`, `message`, `code`, `errno`, and `syscall`, with nested causes and `AggregateError` members copied the same way, because adapter errors can carry the request headers, including `Authorization`.
+- `labels.addLabel()` and `labels.updateLabel()` return the flat label when TestRail wraps the response as `{ label: {...} }` and a label field does not match the schema. Previously, they returned the wrapper, and `label.id` was `undefined` after a successful write.
+- `plans.getPlans()`, `tests.getTests()`, `results.getResults()`, and `results.getResultsForRun()` accept one ID for `createdBy`, `milestoneId`, `statusId`, and `labelId`. A scalar previously threw a raw `TypeError`. An ID filter that is not a number or an array now throws `TestRailValidationError` on every list method.
+- IDs above `Number.MAX_SAFE_INTEGER` are rejected. The SDK throws `TestRailValidationError` for numeric IDs, numeric attachment IDs, and the pagination `offset`. The CLI rejects them in path parameters, ID-list filters, numeric filters, and attachment IDs. Previously, `1e21` reached the URL as `delete_run/1e+21`, and `run delete 9007199254740993 --yes` addressed run 9007199254740992.
+- Timestamp filters (`createdAfter`, `createdBefore`, `updatedAfter`, `updatedBefore`, and their deprecated aliases) must be non-negative integers. `NaN`, `Infinity`, negative, and fractional values throw `TestRailValidationError`. A `null` timestamp or ID-list filter from an untyped caller is treated as not supplied. 9.0.0 sent it as the text `null`.
+- `results.editResult()` and `EditResultPayloadSchema` reject a payload whose fields are all `undefined`. The client previously sent an empty body.
+- CLI: piped stdin is no longer truncated. A JSON body or `--api-key-stdin` key that arrived late, or a body larger than one pipe buffer, was cut short and reported as `Invalid JSON` or an empty key. The CLI now reads until the producer closes the pipe, for at most 30 seconds, then fails with `stdin read timed out`. If stdin might stay open (some CI runners, `docker run -i`), pass `--data` or `--data-file`, or redirect `</dev/null`. Ctrl-C and `SIGTERM` take effect when the wait ends. An oversized body now reports the 1 MiB limit.
+- CLI: `run watch --once` exits 1 with the API error when its poll fails with a network error, 429, or 5xx. Previously, it retried and never exited. `run watch` status lines on stderr now end with a newline.
+- CLI: `dataset update` without a body no longer fails on empty piped stdin. Empty piped stdin (for example `</dev/null`) now sends the empty update, as a terminal already did.
+- CLI: a reader that closes stdout or stderr early (`testrail case list --all 2>&1 | head`) no longer causes an unhandled `EPIPE` stack trace, and a recorded exit code is kept.
+- CLI: `--format table` no longer fails with `Maximum call stack size exceeded` above approximately 124,000 rows. `--format table` and `--format csv` now render a response field named `__proto__`; table output previously failed with a `TypeError` after the request completed.
+- CLI `--help` and the skill now state that `--quiet` also suppresses error messages.
+- Skill Recipe 47: the CI delete guard reads `preview.affected_tests` and stops when the count is missing or above the limit. The earlier sample read a key that the CLI does not emit and continued to the delete.
+- Skill Recipe 44: the bulk-update pattern selects cases by `priority_id`. The earlier filter used `assigned_to_id`, which cases do not have, and selected every case in the suite.
+- Skill Recipes 35, 48, 50, and 53: removed `attachment add-to-test`, which is not a CLI action; `section move` uses `after_id`; shared-step examples use the real field names; `result add-bulk-by-test` sends `{"results": [...]}`.
+- Skill sample outputs, the skill SDK reference snippets, and the skill error list now match the schemas and the real CLI output.
+- README links to sections that moved to the guides, including the 9.0.0 proxy and DNS resolver migration links, now reach the current guide. The networking guide no longer describes resolver input for IP-literal hosts; a custom `dnsLookup` receives hostnames only.
 
 ### Security
 
 - Removed the temporary picomatch audit exception. GitHub [withdrew GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf) on 2026-11-18 because it was not a security issue.
 - Production and full dependency audits reported zero vulnerabilities during release preparation on 2026-11-21.
+- `--format json` (the default) now writes DEL and C1 control characters (U+007F–U+009F) from server strings as `\uXXXX` escapes. Previously, they reached the terminal raw. The output remains valid JSON and parses to the same value.
+- `--format yaml`, `--diagnostic-file` redaction, and the credential email check no longer use regular expressions with quadratic time. One long server string, or a long `email` value, could block the process for many seconds. Accepted inputs and rendered output do not change.
+- `uninstall-skill` refuses to remove files when the `testrail-cli` skill directory is a symlink or not a directory, as `install-skill` already does. Previously, it deleted files inside the link target and exited 0.
+- `install-skill` and `uninstall-skill` remove terminal control characters from the path in success messages. `install-skill --print-path` still prints the path unchanged.
+- `util.inspect()` and `console.log()` of a client, a module, or a `withTimeout` view no longer print the Basic credential. `destroy()` still overwrites it.
+- `lockfile-lint` now also checks that each lockfile entry resolves to its own package and has an integrity hash.
+
+### Internal
+
+- Tests no longer use the real DNS resolver. New tests cover the SSRF check of every DNS answer, retries after `destroy()`, the retry backoff schedule, cache copy-on-read, and diagnostic redaction. Branch coverage is 98.94%.
+- Removed unreachable code: the `btoa` fallback in `base64Encode`, unused configuration-message arms, `serializeIdList`, the lenient `optInt` parser, 28 duplicate response type aliases, and unreachable output guards.
+- Removed codemap exclude patterns and tool options that had no effect.
+- Corrected contributor documentation: `maxCacheSize: 0` semantics, the endpoint procedure, the CLAUDE.md file map, document ownership, the `./cli` subpath description, and backlog statuses. `SECURITY.md` lists 10.x as the supported line, and the release runbook names that step.
 
 ## [9.0.0] — 2026-10-04 — pinned connections, comment-only results, and a split skill
 

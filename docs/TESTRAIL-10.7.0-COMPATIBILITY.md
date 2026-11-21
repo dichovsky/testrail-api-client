@@ -8,6 +8,9 @@ supplements the generated endpoint matrix in [`API-MAPPING.md`](API-MAPPING.md).
 That matrix remains the primary reference for exact method, CLI action, and
 recipe mappings.
 
+This document is a snapshot of the audit date. Later TestRail releases changed
+the upstream documentation. [Known gaps](#known-gaps-against-testrail-108-1010-checked-2026-11-21) lists the differences found on 2026-11-21.
+
 TestRail does not publish a versioned OpenAPI specification for 10.7.0.
 Therefore, this client targets the cumulative official Help Center reference. It
 also uses TestRail release notes and the official `gurock/trcli` source code
@@ -45,11 +48,12 @@ The field and filter comparison also checked the official articles for
 
 ## Inventory result
 
-The current reference lists 125 operations. Release notes and auxiliary official
-references add eight operations, for a total of **133 unique HTTP-verb/path
-operations**. The eight additional operations are `get_bdds`, `update_bdd`,
-`get_case_titles`, `add_cases`, `add_label`, `delete_label`, `delete_labels`,
-and `get_version`.
+On the audit date, the reference listed 125 operations. Release notes and auxiliary
+official references added eight operations, for a total of **133 unique
+HTTP-verb/path operations**. The eight additional operations were `get_bdds`,
+`update_bdd`, `get_case_titles`, `add_cases`, `add_label`, `delete_label`,
+`delete_labels`, and `get_version`. The reference has since added `add_cases` and
+nine newer operations; see [Known gaps](#known-gaps-against-testrail-108-1010-checked-2026-11-21).
 
 The repository provides:
 
@@ -70,8 +74,9 @@ helpers or `run watch` as separate TestRail endpoints.
 
 ## Missing, incorrect, and obsolete result
 
-- **Missing routes:** none. All 133 cumulative 10.7 operations have a public
-  client method, CLI action, and SKILL entry.
+- **Missing routes:** none for TestRail 10.7.0. All 133 cumulative 10.7 operations
+  have a public client method, CLI action, and SKILL entry. Nine operations from
+  later TestRail releases are missing; see [Known gaps](#known-gaps-against-testrail-108-1010-checked-2026-11-21).
 - **Extra or obsolete routes:** none. No official 10.7 source marks any of the
   133 operations as obsolete or deprecated. The client defines no unverified
   route or verb pairs.
@@ -89,7 +94,8 @@ helpers or `run watch` as separate TestRail endpoints.
 - Results list filters now match each endpoint. The client supports
   `defects_filter` where documented and removes run-only creator and time
   filters from the other result routes. CLI `--page` and `--all` modes preserve
-  these filters.
+  these filters. TestRail 10.8 later documented `created_by` on `get_results` and
+  `get_results_for_case`; see [Known gaps](#known-gaps-against-testrail-108-1010-checked-2026-11-21).
 - Shared-step lists now expose the documented created, updated, user, and
   reference filters. Shared-step deletion now supports the `keep_in_cases`
   request field through `--keep-in-cases`.
@@ -102,7 +108,8 @@ helpers or `run watch` as separate TestRail endpoints.
   wrapper into a single test object with `results` and `attachments` arrays. The
   CLI exposes this option as `--with-data 1`.
 - `get_users` now supports its optional project path parameter and no longer
-  declares unsupported pagination. The `--user-email` flag is separate from the
+  declares unsupported pagination. TestRail 10.10 later documented `get_users` as
+  paginated; see [Known gaps](#known-gaps-against-testrail-108-1010-checked-2026-11-21). The `--user-email` flag is separate from the
   authentication `--email` flag. User create and update payloads match the
   documented fields. Only `name` and `email` are required on creation, and the
   schemas omit `password` and `language`.
@@ -176,6 +183,101 @@ error so callers do not repeat a completed write.
 ## Verification contract
 
 Generated-artifact checks verify the codemap, API mapping, CLI and SKILL docs,
-and `AGENTS.md`. `npm run verify` also runs the TypeScript check, oxlint, the build, and Vitest. Run `npm run test:coverage` to execute the full coverage
-check. The repository enforces 99% coverage for statements, lines, and functions
-and 98% for branches, which exceeds the 95% compatibility target.
+and `AGENTS.md`. `npm run verify` runs the build, the TypeScript check, oxlint,
+every drift check, the coverage suite, and the package smoke test. The repository
+enforces 99% coverage for statements, lines, and functions and 98% for branches,
+which exceeds the 95% compatibility target.
+
+## Known gaps against TestRail 10.8-10.10 (checked 2026-11-21)
+
+This section compares the client with the upstream documentation on 2026-11-21.
+The sources were the API reference (27 articles, 135 operations), the
+"Introduction to the TestRail API" article, and the release notes after 10.7.0.
+Those notes cover Cloud 10.7.1 through 10.10.2 and Server 10.7.1 through 10.9.0.
+No TestRail 10.8, 10.9, or 10.10 server was contacted. The statements about
+server behavior are not verified on a live instance.
+
+### Missing operations
+
+The reference documents nine operations that the endpoint inventory, SDK, CLI,
+and skill do not provide:
+
+| Resource    | Operations                                                  |
+| ----------- | ----------------------------------------------------------- |
+| Attachments | `delete_attachments_for_plan`, `delete_attachments_for_run` |
+| BDDs        | `get_bdds_count`                                            |
+| Cases       | `get_cases_count`                                           |
+| Plans       | `rerun_plan`                                                |
+| Results     | `get_test_states_for_run`, `update_results`                 |
+| Runs        | `add_cases_to_run`, `rerun_run`                             |
+
+The 10.8.0 release notes introduce `update_results`. The 10.9.0 release notes
+introduce `get_cases_count`, `get_bdds_count`, and the operations for rerunning
+tests, updating runs, and reading current test states.
+`client.request()` can send these operations, but it supplies no typed method or
+response schema for them.
+
+The reference now documents `add_cases`. It states that `add_cases` requires
+TestRail 10.4 or later and accepts a maximum of 500 cases per request. Seven
+inventory operations remain outside the reference: `add_label`, `delete_label`,
+`delete_labels`, `get_bdds`, `get_case_titles`, `get_version`, and `update_bdd`.
+
+### Page size and cursor pagination
+
+TestRail 10.10 accepts a `limit` from 1 through 500. The default page size stays
+at 250. TestRail 10.10 also adds cursor pagination (`use_cursor` and `cursor`).
+The introduction article also documents a compact view (`view=compact`) for
+several list endpoints.
+
+- The client rejects a `limit` or `pageSize` above 250 before it sends a request.
+- `get*Page()` and `getAll*()` reject a response envelope whose `limit` exceeds 250. They also reject a cursor page that has no `offset`. Both cases throw
+  `TestRailPaginationError` with the reason `invalid_page`.
+- The client has no option for cursor pagination or the compact view.
+
+Offset pagination with the default page size is unchanged upstream, so
+`getAll*()` continues to work with a page size of 250 or less.
+
+### List filters
+
+The reference documents these filters for TestRail 10.8 or 10.9. The client does
+not send them:
+
+| Endpoint                              | Filters that the client does not send                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `get_cases`                           | `fields`, `status_id`, `assignedto_id`                                                           |
+| `get_runs`                            | `fields`, `status_id`, `label_id`, `priority_id`, `assignedto_id`, `updated_after`, `updated_by` |
+| `get_milestones`                      | `updated_after`, `updated_by`                                                                    |
+| `get_results`, `get_results_for_case` | `fields`, `assignedto_id`, `created_by`, `updated_by`                                            |
+| `get_results_for_run`                 | `fields`, `assignedto_id`, `updated_by`                                                          |
+
+`results.getResults()` and `results.getResultsForCase()` do not send `createdBy`.
+Only `results.getResultsForRun()` sends `created_by`.
+`delete_attachment` also documents `delete_attachments_from_closed` for TestRail
+10.9. `attachments.deleteAttachment()` sends no request body.
+
+The upstream sources conflict for three more filters, so the client does not
+model them. The release notes list `updated_after` for `get_plans` and for the
+BDD routes, but the reference does not. The Tests article lists `assigned_to_id`
+under `get_test`, not `get_tests`.
+
+### Response fields
+
+The reference documents these fields for TestRail 10.9:
+
+- Cases: `is_ai_automated`, `is_ai_generated`, and `version`.
+- Runs: `version`. The `add_run` request also accepts `version`.
+
+The `Case` and `Run` types do not declare these fields, so typed access does not
+compile. The values stay in the returned objects at runtime. Write payload types
+accept `version` because payload schemas keep unknown fields.
+
+### User list pagination
+
+The "Introduction to the TestRail API" article and the 10.10.1 release notes list
+`get_users` as a paginated endpoint. The Users article still shows a bare array
+without `limit` or `offset`. These sources conflict.
+
+`users.getUsers()` sends one request and returns the items of that response. The
+client has no `getUsersPage()` or `getAllUsers()` method. If TestRail 10.10
+paginates `get_users`, `getUsers()` can return only the first 250 users. This
+behavior is not verified on a live server.

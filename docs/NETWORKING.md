@@ -33,7 +33,7 @@ The [architecture guide](ARCHITECTURE.md) explains the host checks and transport
 
 Use `dnsLookup` when system DNS cannot resolve your TestRail hostname or when you need a static mapping.
 Each returned record must contain a valid IP address string and a matching numeric `family`: `4` for IPv4 or `6` for IPv6.
-Missing families, `family: 0`, or mismatched families throw `TestRailValidationError` before dispatch, even if another record is valid.
+Missing families, `family: 0`, or mismatched families throw `TestRailValidationError` before dispatch, even if another record is valid. A resolver that rejects, or that returns an empty answer, throws `TestRailApiError` with `status: 0` instead, and is retried like any other network error; no request is sent.
 Private-address checks still apply to every answer.
 
 This configuration extends the `config` from [Create a client](SDK.md#create-a-client):
@@ -51,7 +51,8 @@ const resolvedConfig = {
 ```
 
 Pass `resolvedConfig` to `new TestRailClient(...)` and use the same `try`/`finally` cleanup pattern.
-The resolver receives the bare hostname, without brackets for IPv6 literals.
+The resolver receives hostnames only.
+The client classifies an IP-literal `baseUrl` directly and never calls `dnsLookup` for it.
 `timeout` bounds DNS resolution even when the underlying lookup cannot be cancelled.
 
 ## Proxies and custom certificate authorities

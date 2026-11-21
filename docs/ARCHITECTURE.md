@@ -5,8 +5,9 @@ This guide explains the implementation boundaries and invariants of
 Zod as its only runtime dependency.
 
 For usage, read the [SDK guide](SDK.md), [CLI guide](CLI.md), or
-[networking guide](NETWORKING.md). For contributor procedures, read
-[CONTRIBUTING.md](../CONTRIBUTING.md). [CODEMAP.md](../CODEMAP.md) indexes symbols;
+[networking guide](NETWORKING.md). For setup, verification, and code conventions,
+read [CONTRIBUTING.md](../CONTRIBUTING.md). For schema rules and endpoint or CLI
+procedures, read [CLAUDE.md](../CLAUDE.md). [CODEMAP.md](../CODEMAP.md) indexes symbols;
 [CONTEXT.md](../CONTEXT.md) defines domain terms.
 
 - [Layers](#1-layered-view)
@@ -48,11 +49,13 @@ if it gains an independent admission policy.
 
 ### 2.1 Public surface
 
-| Method                             | Purpose                                                                                   |
-| ---------------------------------- | ----------------------------------------------------------------------------------------- |
-| `request<T>(spec: RequestSpec<T>)` | HTTP entry point for JSON, text, binary, and multipart requests; owns response validation |
-| `parse<T>()`                       | Public compatibility helper for separately validating response data                       |
-| `clearCache()` / `destroy()`       | Invalidate cached data or dispose the client                                              |
+| Method                             | Purpose                                                                                                         |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `request<T>(spec: RequestSpec<T>)` | HTTP entry point for JSON, text, binary, and multipart requests; owns response validation                       |
+| `parse<T>()`                       | Public compatibility helper for separately validating response data                                             |
+| `clearCache()` / `destroy()`       | Invalidate cached data or dispose the client                                                                    |
+| `trackOperation<T>(callback)`      | Separate the callback `result` from the `settled` promise for transport cleanup; see [Lifecycle](#26-lifecycle) |
+| `withTimeout(timeoutMs)`           | Declared on `TestRailClient` in `src/client.ts`: return a view with other timeouts that shares this core        |
 
 Domain modules pass response schemas to `request()`. It reports mismatches with
 the originating method and endpoint. A mismatch returns raw data unless the hook throws.
@@ -75,7 +78,7 @@ delays, and produces HTTP 408 errors; retries never reset the elapsed budget.
 
 The core checks the request and consults the cache before starting a loader.
 Each network attempt has its own timer, DNS validation, and rate-limit
-admission. Successful writes invalidate the cache before response decoding.
+admission, and is admitted by the limiter once. Dispatched writes invalidate the cache: before response decoding when the response succeeds, and as soon as the attempt fails otherwise.
 A cacheable result is stored only if no intervening write changed the generation.
 
 ```mermaid
@@ -102,7 +105,7 @@ redirects, timeouts, and body-limit failures leave the pipeline without retrying
 | Admission        | A full sliding window rejects an initial attempt with synthetic `TestRailApiError(429, …)`. Retries are recorded but not rejected by the local limiter                                          |
 | Redirect check   | Set `redirect: 'manual'`; `assertNotRedirect()` rejects every 3xx, stores `Location` in `error.response`, and prevents retries and caching                                                      |
 | HTTP error       | Read the bounded error body, apply retry policy, then throw. Raw body text belongs only in `error.response`, never `error.message`                                                              |
-| Successful write | Clear stored and in-flight cache entries before reading or parsing the response, including empty `204` responses                                                                                |
+| Write outcome    | Once a write is sent, clear stored and in-flight cache entries: before reading a successful response (including empty `204` responses), or as soon as the attempt fails                         |
 | Body read        | `readBodyWithLimits()` enforces bytes and a separate wall-clock deadline. JSON decoding handles empty bodies, then parsing and optional advisory validation                                     |
 | Transport error  | Convert `AbortError` to HTTP 408 without retry; ordinary GET requests can retry network `TypeError` failures                                                                                    |
 
@@ -157,7 +160,7 @@ or an HTTP-date, with the same maximum.
 Missing, malformed, zero, negative, or expired values select exponential backoff.
 Other 4xx responses and timeouts do not retry.
 
-Multipart bodies accept `Blob`, `Uint8Array`, `File`, or `{ path, type? }`.
+Multipart bodies accept `Blob`, `Uint8Array`, `File`, or `{ path, type?, fd? }`.
 File descriptors use `node:fs.openAsBlob`, which streams without buffering the
 whole file. The CLI passes a descriptor for `--file`; file-open failures such as
 `ENOENT`, `EACCES`, and `EISDIR` become `TestRailApiError(0, 'Network error: …')`.
@@ -170,8 +173,10 @@ whole file. The CLI passes a descriptor for `--file`; file-open failures such as
 The constructor rejects private literals and `localhost` synchronously.
 Before each fetch attempt, including retries, `awaitDnsValidation()` calls
 `validatePublicHost()` with `dns.lookup({ all: true })` and validates every
-returned address. DNS failure rejects the request. Cache hits and shared
-waiters return before this lookup.
+returned address. A resolver failure rejects the request as a network
+`TestRailApiError` (`status: 0`) after the network-error retry policy is
+exhausted. The client sends no request. Cache hits and shared waiters return
+before this lookup.
 
 Both checks use one `net.BlockList` through `isPrivateHostLiteral` and
 `isPrivateOrLoopbackIP`:
@@ -220,8 +225,8 @@ for its settlement. DNS, fetch, retry timers, body reads, and cancellation are
 registered before any timeout race, so a caller-visible timeout cannot release
 ownership of unfinished I/O.
 
-The first `trackOperation` call enables tracking for the process lifetime. On
-Node 24+, this activates `AsyncContextFrame` across the process. Before that,
+The first `trackOperation` call enables tracking for the process lifetime. This
+activates `AsyncContextFrame` across the process. Before that call,
 `startOperation().settled` follows only the callback. An already-running request
 can later share its result but cannot retroactively track post-result cleanup.
 Multipart uploads also use an asynchronous context in `src/upload-transport.ts`
@@ -271,7 +276,7 @@ module files to their responsibilities; some group several TestRail resources.
 | `configurations.ts` | Configuration groups and configurations                             |
 | `attachments.ts`    | Binary uploads, lists, downloads, and deletion                      |
 | `bdd.ts`            | BDD scenarios; text responses use `responseKind: 'text'`            |
-| `labels.ts`         | Labels and case/test assignments                                    |
+| `labels.ts`         | Labels                                                              |
 | `sharedSteps.ts`    | Shared steps and history                                            |
 | `variables.ts`      | Project variables                                                   |
 | `datasets.ts`       | Datasets                                                            |
@@ -287,7 +292,7 @@ constructor(private readonly client: TestRailClientCore) {}
 
 Each endpoint validates IDs and filters through `src/validation.ts` and
 `src/url.ts`, then calls `this.client.request<T>({ …, schema })`. Modules own no
-other state. See [contributor conventions](../CONTRIBUTING.md) for adding endpoints.
+other state. See the [endpoint procedure](../CLAUDE.md#common-tasks) for adding endpoints.
 
 <a id="32-composition-root--srcclientts"></a>
 
@@ -313,8 +318,9 @@ bounded aggregate. See [SDK pagination](SDK.md#pagination) for usage and limits.
 
 Each module's typed descriptor has a synchronous `prepare()` adapter that
 validates IDs and filters and returns `{ operation, pathParameters, query }`.
-`createPaginatedListExecutor()` checks the operation, clones and freezes inputs,
-builds paths, and prepares list/page schemas once. Aggregate helpers copy only
+`createPaginatedListExecutor()` in `src/modules/paginated-list.ts` checks the
+operation, clones and freezes inputs, builds paths, and prepares list/page schemas
+once. Aggregate helpers in `src/modules/pagination-options.ts` copy only
 page controls and safety bounds; `requestControls: false` allows only safety
 bounds. Extra properties never enter requests.
 
@@ -338,7 +344,7 @@ and 18/6 `requestControls` split against the endpoint inventory.
 | Write payloads and expected response shapes     | Zod schemas in `src/schemas/*.ts`                                  |
 | Public response aliases and custom-field access | `KnownResponse` aliases in `src/types.ts`, derived from schemas    |
 | Configuration                                   | Types in `src/types.ts`, runtime schema in `src/schemas/common.ts` |
-| Query options (`Get*Options`)                   | DTOs in `src/types.ts`                                             |
+| Query options (`Get*Options`)                   | DTOs in `src/types.ts` and `src/modules/*.ts`                      |
 
 `src/schemas.ts` re-exports domain schemas. Payload types are inferred from Zod
 so SDK types and CLI validation agree. Response aliases expose declared keys,
@@ -354,7 +360,8 @@ alias retains its earlier behavior.
 
 Schemas cover observed fields such as `Test.refs_data`, case titles/references,
 case/result field system flags, writable case-field indexing, and recursive
-`Milestone.milestones`. Follow [schema conventions](../CONTRIBUTING.md) when
+`Milestone.milestones`. Follow the
+[schema conventions](../CLAUDE.md#schema-authoring-conventions-srcschemasts) when
 changing them. [Response validation](SDK.md#response-validation) and
 [custom fields](SDK.md#custom-fields) explain the caller-facing contract.
 
@@ -363,19 +370,26 @@ changing them. [Response validation](SDK.md#response-validation) and
 ## 5. Public barrel: `src/index.ts`
 
 The barrel exports `TestRailClient`, error classes and `handleZodError`, Zod
-schemas, payload/response/option types, pagination types, and public pagination
-limits. [CODEMAP.md](../CODEMAP.md) contains the exact symbol inventory.
+schemas, payload/response/option types, module class types, request-spec types,
+pagination types, and public pagination limits. [CODEMAP.md](../CODEMAP.md) contains the exact symbol inventory.
 
-The core, domain module classes, collector helpers, and internal constants stay
-private. CLI internals use the separate `./cli` export; callers access domain
-modules through client fields.
+The core, collector helpers, and internal constants stay private. The 19
+domain module classes are exported as types only, with `KnownResponse`,
+`RequestSpec`, `RequestBody`, and `RequestIntent`. A consumer that emits
+declarations can then name `client.<module>`, the response types, and the
+argument of `client.request()`. Only `TestRailClient` constructs the module
+classes. CLI internals are not exported. The `./cli` subpath is the executable
+entry point and exports nothing. Importing it runs the CLI in the importing
+process and sets `process.exitCode`. Callers access domain modules through
+client fields.
 
 <a id="6-cli--srccli"></a>
 
 ## 6. CLI: `src/cli/`
 
-`package.json` exposes the `testrail` executable and the `./cli` subpath.
-The [CLI guide](CLI.md) documents command usage and flag behavior.
+`package.json` exposes the `testrail` executable. Its `./cli` subpath resolves to
+the same file, `dist/cli.js`. Do not import that subpath as a library; start the
+executable instead. The [CLI guide](CLI.md) documents command usage and flag behavior.
 
 ### 6.1 Entrypoint chain
 
@@ -449,7 +463,7 @@ attachment uploads/deletion, and group creation. `setupUpload()` passes
 `read: !ctx.dryRun` to `resolveFile()` so previews do not drain binary stdin.
 Download handlers parse IDs, then call `outputDownload()` with a lazy SDK callback.
 It validates the destination before fetching, handles previews, and routes text or binary content through the existing output and safe-write functions.
-Contributor recipes belong in [CONTRIBUTING.md](../CONTRIBUTING.md).
+Contributor procedures for new handlers are in [CLAUDE.md](../CLAUDE.md#common-tasks).
 
 `CliRuntime.stdin` supplies terminal status and separate text and binary readers.
 Text reads stay synchronous; binary reads enforce their own byte cap and deadline.
@@ -463,6 +477,8 @@ Tests provide independent input streams without replacing process globals.
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `auth.ts`, `ids.ts`                      | Authentication resolution and integer parsing                                                             |
 | `flags.ts`, `action-invocation.ts`       | Flag catalog, token checks, capability projections, and allowed/required flags before auth or file writes |
+| `help.ts`                                | Render global and per-resource `--help` text from `ACTIONS` and the option catalog                        |
+| `filters.ts`                             | Parse optional ID, ID-list, boolean, and `--refs` list filters for read handlers                          |
 | `pagination.ts`                          | Validate modes/controls before client construction and select item, page, or aggregate output             |
 | `body.ts`, `stdin.ts`                    | Select JSON input, bound explicit text and binary readers, and validate write payloads                    |
 | `file-input.ts`                          | Require regular upload files and select file or injected binary stdin input                               |
@@ -540,6 +556,7 @@ order. The implementation keeps entity mismatches separate from protocol errors:
 | -------------------------------------------------------- | --------------------------------------------------------------- |
 | Entity-field mismatch                                    | Advisory raw data and optional hook; never cached               |
 | Missing/scalar default-list collection                   | `TestRailApiError`                                              |
+| HTTP 403 that reports an Enterprise-license restriction  | `TestRailLicenseError`, a `TestRailApiError` subclass           |
 | Invalid page, continuation, progress, or aggregate bound | `TestRailPaginationError`, a `TestRailValidationError` subclass |
 | Invalid caller input                                     | `TestRailValidationError`                                       |
 | Request after disposal                                   | Plain `Error`                                                   |
@@ -570,8 +587,23 @@ CI platforms. [CONTRIBUTING.md](../CONTRIBUTING.md) owns verification commands.
 
 `CODEMAP.md`, `docs/API-MAPPING.md`, `AGENTS.md`, and generated skill sections
 are committed outputs of source-driven generators. Verification and CI compare
-fresh renders to committed files. See [CONTRIBUTING.md](../CONTRIBUTING.md) for
-source ownership, generator commands, and mapping gates.
+fresh renders to committed files.
+
+| Script in `scripts/`                                                      | Responsibility                                                             |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `generate-codemap.ts`                                                     | Render `CODEMAP.md` from the TypeScript AST                                |
+| `generate-mapping.ts`, `mapping-renderer.ts`, `action-metadata-parser.ts` | Render `docs/API-MAPPING.md` and run the mapping gates                     |
+| `generate-skill.ts`, `skill-renderer.ts`                                  | Render the generated skill sections and the payload-schema reference       |
+| `generate-agents-md.ts`, `rules-content.ts`                               | Render `AGENTS.md` from `ACTIONS` and the shared rules text                |
+| `ts-source.ts`                                                            | Parse source for the generators through the TypeScript 7 API               |
+| `build.ts`                                                                | Remove `dist/` and compile the production build                            |
+| `check-published-versions.ts`                                             | Compare the published-version list in `CHANGELOG.md` with `package.json`   |
+| `package-smoke.ts`                                                        | Install the packed tarball in a temporary consumer and run the SDK and CLI |
+| `release-preflight.ts`                                                    | Check release identity and registry state in the publish workflow          |
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md#generated-files) for
+source ownership and generator commands. See [CLAUDE.md](../CLAUDE.md#api-coverage-matrix)
+for the mapping gates.
 
 ## 10. Invariants worth preserving
 
@@ -592,6 +624,7 @@ Use the boundary tables above when reviewing changes:
 
 ## 11. Conventions in one place
 
-[CONTRIBUTING.md](../CONTRIBUTING.md) owns coding and schema conventions,
-endpoint/CLI workflows, and regeneration. [AGENTS.md](../AGENTS.md) and
-[CLAUDE.md](../CLAUDE.md) provide agent entry points to those rules.
+[CONTRIBUTING.md](../CONTRIBUTING.md) owns setup, verification, code conventions,
+and regeneration. [CLAUDE.md](../CLAUDE.md) owns the schema-authoring rules and the
+endpoint and CLI procedures. [AGENTS.md](../AGENTS.md) is the generated summary of
+these rules for coding agents.
