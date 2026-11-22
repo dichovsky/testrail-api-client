@@ -100,7 +100,7 @@ Widen response schemas when live responses include additional shapes or types.
 Do not make a response schema stricter if your only source is the documentation.
 
 [CLAUDE.md](CLAUDE.md#schema-authoring-conventions-srcschemasts) defines five schema rules.
-`tests/schema-conventions.test.ts` applies three of these rules automatically:
+`tests/schema-conventions.test.ts` validates three of these rules automatically:
 
 - Rule 2: Response schemas must use `.nullish()`, not `.optional()`. They must not use format validators.
 - Rule 3: Schemas must not call `.extend()` across request and response directions.
@@ -276,7 +276,7 @@ Do not call a document compliant if it uses an exception or breaks a rule.
 2. Run the test to make sure that it fails.
 3. Write the fix.
 
-`vitest.config.ts` applies minimum coverage thresholds for lines, statements, functions, and branches. If you add an unreachable defensive branch, record it in `vitest.config.ts`.
+`vitest.config.ts` sets minimum coverage thresholds for lines, statements, functions, and branches. The test run fails below these thresholds. If you add an unreachable defensive branch, record it in `vitest.config.ts`.
 
 When possible, add new tests to the existing test file for that module, not to a new test file.
 

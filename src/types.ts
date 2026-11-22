@@ -698,7 +698,7 @@ export type TestWithData = Test & {
 /**
  * A report template returned by GET /get_reports/{project_id}.
  *
- * SPEC #2.1.16: the fields of this type always match `ReportSchema`
+ * SPEC #2.1.16: the fields of this type must stay the same as `ReportSchema`
  * (`src/schemas.ts`). The TestRail documentation shows the six `notify_*`
  * system fields as always included in the response. This type models them
  * as optional and nullable, for defensive back-compat with older TestRail
@@ -715,7 +715,7 @@ export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>;
 /**
  * Result returned by GET /run_report/{report_template_id}.
  *
- * SPEC #2.1.16: the fields of this type always match `ReportResultSchema`
+ * SPEC #2.1.16: the fields of this type must stay the same as `ReportResultSchema`
  * (`src/schemas.ts`). `report_html` and `report_pdf` are documented
  * response fields, as the current doc example shows. `user_report_url` is
  * not in the current doc, but this type keeps it as a legacy-compat

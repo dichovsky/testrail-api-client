@@ -169,7 +169,7 @@ export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024;
 /**
  * CLI stdin wall-clock deadline for the `--file -` binary upload (PR3a;
  * SEC #24 partial mitigation). The byte cap (`MAX_STDIN_UPLOAD_BYTES`)
- * prevents memory exhaustion. But a producer can hold the pipe open and never
+ * protects against memory exhaustion. But a producer can hold the pipe open and never
  * send more than the cap, for example a stalled `curl`, `tail -f`, or an
  * unclosed FIFO. Without a deadline, such a producer would leave the CLI
  * blocked on stdin indefinitely.

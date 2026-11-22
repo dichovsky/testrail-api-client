@@ -24,7 +24,7 @@ These two values replace the older `retry` and `bypassCache` fields.
 
 ## Side-effecting read
 
-A side-effecting read is a GET request that changes server state. The client retries this request only on HTTP `429` responses. The TestRail rate limiter rejects a request with `429` before the server executes it. Thus, the server does not generate a report or send an email. The client never retries `5xx` or network errors because the server state is unknown. The client never reads this response from the cache because a cached response hides the new report generation.
+A side-effecting read is a GET request that changes server state. The client retries this request only on HTTP `429` responses. A `429` rejection occurs before the server executes the request. Thus, the server does not generate a report or send an email. The client never retries `5xx` or network errors because the server state is unknown. The client never reads this response from the cache because a cached response hides the new report generation.
 
 The `runReport` and `runCrossProjectReport` methods (`src/modules/reports.ts`) use this intent.
 

@@ -220,7 +220,7 @@ Retries count against the window, but this local check does not reject them.
 TestRail Cloud usually does not send `Retry-After` and `X-RateLimit-*` headers. Thus, local rate limiting stays the primary control.
 
 `reports.runReport()` and `reports.runCrossProjectReport()` generate a new report on each call and can send email.
-An HTTP 429 response means that TestRail rejected the request before execution. After a 5xx or network error, the server state can be unknown.
+An HTTP 429 rejection occurs before the server executes the request. After a 5xx or network error, the server state can be unknown.
 If the server state is unknown, examine it before you start another report or repeat a write.
 
 ## Pagination

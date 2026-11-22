@@ -591,7 +591,7 @@ or hook is never evidence that the server did not execute the write.
 
 ## 8. Testing: `tests/`
 
-Vitest tests apply the boundaries above. In-process CLI tests call `runCli()`.
+Vitest tests validate the boundaries above. In-process CLI tests call `runCli()`.
 `scripts/package-smoke.ts` runs the packed executable in child processes on all
 CI platforms. [CONTRIBUTING.md](../CONTRIBUTING.md) owns verification commands.
 
@@ -636,7 +636,7 @@ Use the boundary tables above when you review changes:
   redirects, bounded body reads, and write invalidation before decoding.
 - [Cache ownership](#23-request-cache): namespace isolation, cloning, matching
   timeout policies, and invalidation generations.
-- [Retry policy](#24-retry-policy-the-get--write-asymmetry): do not duplicate
+- [Retry policy](#24-retry-policy-the-get--write-asymmetry): avoid duplicating
   writes, reports, or partially consumed uploads.
 - [Transport settlement](#26-lifecycle): a returned timeout does not release
   ownership of unfinished I/O.
