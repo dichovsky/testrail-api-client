@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "10.0.0"
   },
-  "sourceHash": "aec942c150e51a3a31cc9c64b4318675f6e907b30f1705fd8b230983ff95ebb6",
+  "sourceHash": "9706c5c7a2a5dcbd37b373877b2a19c6ffc108d199d9aef30caf5859d2af1136",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1121,7 +1121,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 180,
+      "line": 198,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
       "jsdoc": "Utility to convert ZodError into TestRailValidationError."
     },
@@ -1820,7 +1820,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailLicenseError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 89,
+      "line": 107,
       "signature": "export class TestRailLicenseError extends TestRailApiError",
       "jsdoc": "Thrown when TestRail rejects a request because the instance lacks the required Enterprise license/subscription (HTTP 403 with a \"Not an Enterprise license/subscription.\" body — live-audit findings B.22/B.33). A subclass of , so existing `catch (TestRailApiError)` handlers still catch it; callers that want to branch on license gating specifically can use `instanceof TestRailLicenseError`."
     },
@@ -1828,7 +1828,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailPaginationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 164,
+      "line": 182,
       "signature": "export class TestRailPaginationError extends TestRailValidationError",
       "jsdoc": "Thrown when a bounded multi-page read cannot complete safely. HTTP and network failures remain ; this subtype represents client-side page structure, continuation, and aggregation-policy failures."
     },
@@ -1836,7 +1836,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 149,
+      "line": 167,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -7087,21 +7087,21 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 38,
+          "line": 39,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.name.replace(/^@[^/]+\\"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 73,
+          "line": 74,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 75,
+          "line": 76,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<readonly PinnedAddress[]>"
         },
@@ -7991,79 +7991,100 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export function networkError(reason: unknown, context = '', options?: { readonly cause: unknown }): TestRailApiError"
         },
         {
-          "name": "SAFE_CAUSE_FIELDS",
+          "name": "dnsLookupFailures",
           "kind": "const",
           "line": 39,
+          "exported": false,
+          "signature": "const dnsLookupFailures = new WeakSet<object>()"
+        },
+        {
+          "name": "dnsLookupError",
+          "kind": "function",
+          "line": 46,
+          "exported": true,
+          "signature": "export function dnsLookupError(reason: unknown, hostname: string): TestRailApiError"
+        },
+        {
+          "name": "isDnsLookupFailure",
+          "kind": "function",
+          "line": 53,
+          "exported": true,
+          "signature": "export function isDnsLookupFailure(error: unknown): boolean"
+        },
+        {
+          "name": "SAFE_CAUSE_FIELDS",
+          "kind": "const",
+          "line": 57,
           "exported": false,
           "signature": "const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const"
         },
         {
           "name": "sanitizedCause",
           "kind": "function",
-          "line": 50,
+          "line": 68,
           "exported": true,
           "signature": "export function sanitizedCause(reason: unknown, depth = 0): unknown"
         },
         {
           "name": "TestRailLicenseError",
           "kind": "class",
-          "line": 89,
+          "line": 107,
           "exported": true,
           "signature": "export class TestRailLicenseError extends TestRailApiError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 90
+              "line": 108
             }
           ]
         },
         {
           "name": "LICENSE_RESTRICTION_RE",
           "kind": "const",
-          "line": 117,
+          "line": 135,
           "exported": false,
           "signature": "const LICENSE_RESTRICTION_RE = /(?:not an|requires)\\s+enterprise (?:licen|subscription)/i"
         },
         {
           "name": "isLicenseRestriction",
           "kind": "function",
-          "line": 128,
+          "line": 146,
           "exported": true,
           "signature": "export function isLicenseRestriction(status: number, body: unknown): boolean"
         },
         {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 149,
+          "line": 167,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 150
+              "line": 168
             }
           ]
         },
         {
           "name": "TestRailPaginationError",
           "kind": "class",
-          "line": 164,
+          "line": 182,
           "exported": true,
           "signature": "export class TestRailPaginationError extends TestRailValidationError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 165
+              "line": 183
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 180,
+          "line": 198,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }

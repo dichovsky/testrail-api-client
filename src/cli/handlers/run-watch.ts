@@ -1,7 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { sanitizeForTerminal } from '../sanitize.js';
-import { TestRailApiError } from '../../errors.js';
+import { TestRailApiError, isDnsLookupFailure } from '../../errors.js';
 import type { Run } from '../../types.js';
 
 /**
@@ -246,7 +246,12 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
                             resolve();
                             return;
                         }
-                        if (!once && isTransientError(e)) {
+                        // A DNS failure before any poll has succeeded almost
+                        // always means a wrong base URL, not a blip: fail now
+                        // instead of polling until the job times out. The
+                        // client has already retried the lookup by then.
+                        const unreachable = lastSnapshot === undefined && isDnsLookupFailure(e);
+                        if (!once && !unreachable && isTransientError(e)) {
                             // Transient failure (network blip, 5xx, 429): log to
                             // stderr and continue polling on the next interval.
                             // `--once` never retries: its single poll failed, so

@@ -263,6 +263,7 @@ The [bounded pagination example](../examples/bounded-pagination.ts) reads one pa
 
 Response validation is advisory. If an entity field differs from its schema, the SDK returns the raw response unchanged.
 It calls `onSchemaMismatch` when configured and excludes that response from the cache.
+Each caller validates separately, so callers that join an in-flight request each trigger the hook once.
 Response types describe expected shapes; a field typed `number` can hold another server value.
 Types can widen in any release to match observed responses. Pin an exact package version if you need fixed types.
 

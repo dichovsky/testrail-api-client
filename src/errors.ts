@@ -36,6 +36,24 @@ export function networkError(reason: unknown, context = '', options?: { readonly
     return new TestRailApiError(0, `Network error: ${message}`, message, cause === undefined ? undefined : { cause });
 }
 
+const dnsLookupFailures = new WeakSet<object>();
+
+/**
+ * Builds the network error for a DNS lookup that failed or returned no
+ * addresses, and marks it so a caller can tell it from other network failures
+ * (see {@link isDnsLookupFailure}).
+ */
+export function dnsLookupError(reason: unknown, hostname: string): TestRailApiError {
+    const error = networkError(reason, `DNS lookup failed for "${hostname}": `);
+    dnsLookupFailures.add(error);
+    return error;
+}
+
+/** Whether `error` is the client reporting a failed DNS lookup. Identity, not message text. */
+export function isDnsLookupFailure(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && dnsLookupFailures.has(error);
+}
+
 const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const;
 
 /**

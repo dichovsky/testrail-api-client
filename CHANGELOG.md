@@ -70,7 +70,7 @@ See the [upgrade checklist](README.md#upgrading-to-1000) before updating existin
 - Timestamp filters (`createdAfter`, `createdBefore`, `updatedAfter`, `updatedBefore`, and their deprecated aliases) must be non-negative integers. `NaN`, `Infinity`, negative, and fractional values throw `TestRailValidationError`. A `null` timestamp or ID-list filter from an untyped caller is treated as not supplied. 9.0.0 sent it as the text `null`.
 - `results.editResult()` and `EditResultPayloadSchema` reject a payload whose fields are all `undefined`. The client previously sent an empty body.
 - CLI: piped stdin is no longer truncated. A JSON body or `--api-key-stdin` key that arrived late, or a body larger than one pipe buffer, was cut short and reported as `Invalid JSON` or an empty key. The CLI now reads until the producer closes the pipe. On Linux and macOS it waits at most 30 seconds, then fails with `stdin read timed out`. If stdin might stay open (some CI runners, `docker run -i`), pass `--data` or `--data-file`, or redirect `</dev/null`. Ctrl-C and `SIGTERM` take effect when the wait ends. An oversized body now reports the 1 MiB limit.
-- CLI: `run watch --once` exits 1 with the API error when its poll fails with a network error, 429, or 5xx. Previously, it retried and never exited. `run watch` status lines on stderr now end with a newline.
+- CLI: `run watch --once` exits 1 with the API error when its poll fails with a network error, 429, or 5xx. Previously, it retried and never exited. `run watch` also exits 1 when the host cannot be resolved before any poll succeeds, so a mistyped base URL no longer polls until the job times out; DNS failures after a successful poll are still retried. `run watch` status lines on stderr now end with a newline.
 - CLI: `dataset update` without a body no longer fails on empty piped stdin. Empty piped stdin (for example `</dev/null`) now sends the empty update, as a terminal already did.
 - CLI: a reader that closes stdout or stderr early (`testrail case list --all 2>&1 | head`) no longer causes an unhandled `EPIPE` stack trace, and a recorded exit code is kept.
 - CLI: `--format table` no longer fails with `Maximum call stack size exceeded` above approximately 124,000 rows. `--format table` and `--format csv` now render a response field named `__proto__`; table output previously failed with a `TypeError` after the request completed.
@@ -89,12 +89,12 @@ See the [upgrade checklist](README.md#upgrading-to-1000) before updating existin
 - `--format yaml`, `--diagnostic-file` redaction, and the credential email check no longer use regular expressions with quadratic time. One long server string, or a long `email` value, could block the process for many seconds. Accepted inputs and rendered output do not change.
 - `uninstall-skill` refuses to remove files when the `testrail-cli` skill directory is a symlink or not a directory, as `install-skill` already does. Previously, it deleted files inside the link target and exited 0.
 - `install-skill` and `uninstall-skill` remove terminal control characters from the path in success messages. `install-skill --print-path` still prints the path unchanged.
-- `util.inspect()` and `console.log()` of a client, a module, or a `withTimeout` view no longer print the Basic credential. `destroy()` still overwrites it.
+- `util.inspect()` and `console.log()` of a client, a module, or a `withTimeout` view no longer print the Basic credential with their default options. `showHidden: true` and `util.format('%o')` still show it. `destroy()` still overwrites it.
 - `lockfile-lint` now also checks that each lockfile entry resolves to its own package and has an integrity hash.
 
 ### Internal
 
-- Tests no longer use the real DNS resolver. New tests cover the SSRF check of every DNS answer, retries after `destroy()`, the retry backoff schedule, cache copy-on-read, and diagnostic redaction. Branch coverage is 98.99%.
+- Tests no longer use the real DNS resolver. New tests cover the SSRF check of every DNS answer, retries after `destroy()`, the retry backoff schedule, cache copy-on-read, and diagnostic redaction. Branch coverage is 99.00%.
 - Removed unreachable code: the `btoa` fallback in `base64Encode`, unused configuration-message arms, `serializeIdList`, the lenient `optInt` parser, 28 duplicate response type aliases, and unreachable output guards.
 - Removed codemap exclude patterns and tool options that had no effect.
 - Corrected contributor documentation: `maxCacheSize: 0` semantics, the endpoint procedure, the CLAUDE.md file map, document ownership, the `./cli` subpath description, and backlog statuses. `SECURITY.md` lists 10.x as the supported line, and the release runbook names that step.

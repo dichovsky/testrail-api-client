@@ -923,7 +923,7 @@ function verifyInternalMembersStripped(consumerDirectory: string): void {
         fail('published http-pipeline-types.d.ts does not declare RequestSpec.');
     }
     const requestSpec = declarations.slice(start, end);
-    const leaked = ['__t', 'cacheVariant', 'deadlineAt', 'timeout', 'bodyTimeout'].filter((member) =>
+    const leaked = ['cacheVariant', 'deadlineAt', 'timeout', 'bodyTimeout'].filter((member) =>
         new RegExp(`\\breadonly ${member}\\??:`).test(requestSpec),
     );
     if (leaked.length > 0) {

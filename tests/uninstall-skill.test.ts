@@ -220,7 +220,7 @@ describe('runUninstallSkill', () => {
         const code = runUninstallSkill({ global: false, output, cwdOverride: project });
 
         expect(code).toBe(1);
-        expect(stderrChunks.join('')).toContain('not a directory');
+        expect(stderrChunks.join('')).toContain('not a real directory');
         expect(stdoutChunks.join('')).toBe('');
         expect(readFileSync(join(victim, 'SKILL.md'), 'utf-8')).toBe('OTHER SKILL BODY');
         expect(readFileSync(join(victim, 'reference', 'commands.md'), 'utf-8')).toBe('OTHER SKILL REFERENCE');

@@ -306,6 +306,7 @@ Common error messages:
 - `Unknown action '<a>' for <r>. Use: get, list, …`: Run `testrail <r> --help` to see valid actions for that resource.
 - `Body required.`: Pass `--data`, `--data-file`, or piped stdin to the write action.
 - `Invalid JSON: …`: Fix the JSON syntax in the request body.
+- `Cannot read stdin: stdin read timed out after 30000ms (producer did not close the pipe).`: Stdin stayed open. Pass `--data` or `--data-file`, or redirect `</dev/null`.
 - `Payload validation failed: …`: Make sure the request body matches the Zod schema.
 - `TestRail API error: 404 Not Found …`: The TestRail server returned a 4xx or 5xx HTTP response.
 - `<resource> <action> requires --file <path|->.`: Pass `--file` for attachment or BDD upload actions.

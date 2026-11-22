@@ -5,6 +5,7 @@ import {
     TestRailLicenseError,
     TestRailValidationError,
     isLicenseRestriction,
+    dnsLookupError,
     networkError,
     sanitizedCause,
 } from './errors.js';
@@ -98,7 +99,6 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
     // not a verdict about the host, so it is reported as a network error (and
     // retried like one by the pipeline) without advising the caller to disable
     // this guard. Nothing is sent, and every retry validates again.
-    const lookupFailed = `DNS lookup failed for "${hostname}": `;
     let lookups: { address: string; family: number }[];
     try {
         if (dnsLookup) {
@@ -109,11 +109,11 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
         }
     } catch (err) {
         if (err instanceof TestRailValidationError) throw err;
-        throw networkError(err, lookupFailed);
+        throw dnsLookupError(err, hostname);
     }
 
     if (lookups.length === 0) {
-        throw networkError(new Error('no addresses returned'), lookupFailed);
+        throw dnsLookupError(new Error('no addresses returned'), hostname);
     }
 
     for (const lookup of lookups) {

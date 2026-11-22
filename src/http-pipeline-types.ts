@@ -127,7 +127,7 @@ export type RequestIntent = 'side-effecting-read' | 'fresh-read';
 // there; `__t?` is a never-emitted brand witness that prevents TS's
 // `noUnusedLocals` (TS6133) from rejecting the phantom on the interface.
 export interface RequestSpec<T> {
-    /** @internal Phantom brand; never set or read. */
+    /** Phantom brand that ties the spec to its result type; never set or read. */
     readonly __t?: T;
     readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE';
     readonly endpoint: string;

@@ -228,7 +228,7 @@ export function requireRealDirectory(path: string): void {
     // failure, so no catch is needed and none of this is unreachable.
     const stat = lstatSync(path, { throwIfNoEntry: false });
     if (stat !== undefined && !stat.isDirectory()) {
-        throw new Error(`${path} exists and is not a directory; refusing to write through it`);
+        throw new Error(`${path} exists and is not a real directory (for example a symlink); refusing to use it`);
     }
 }
 
