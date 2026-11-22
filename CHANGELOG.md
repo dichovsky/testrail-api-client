@@ -12,7 +12,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [10.0.0] — 2026-11-21 — Node 26, upload ownership, and response validation
+## [10.0.0] — 2026-11-22 — Node 26, upload ownership, and response validation
 
 This major release requires Node.js 26 and changes upload cleanup and custom response validation.
 It includes #310–#317, plus release preparation, removal of the obsolete dependency audit exception, and the fixes from a pre-release audit of the SDK, CLI, and skill.
