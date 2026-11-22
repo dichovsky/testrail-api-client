@@ -12,11 +12,11 @@ procedures, read [CLAUDE.md](../CLAUDE.md). [CODEMAP.md](../CODEMAP.md) is the s
 
 - [Layers](#1-layered-view)
 - [HTTP pipeline](#22-http-pipeline-requestt), [cache](#23-request-cache),
-  [retries](#24-retry-policy-the-get--write-asymmetry), and [SSRF protection](#25-ssrf-guard--two-layers)
+  [retries](#24-retry-policy-the-get--write-asymmetry), and [SSRF protection](#25-ssrf-guard-two-layers)
 - [Lifecycle and transport ownership](#26-lifecycle)
-- [Domain modules and pagination](#3-domain-modules--srcmodulests)
-- [Schemas](#4-type-system--schemasts--typests) and [exports](#5-public-barrel--srcindexts)
-- [CLI](#6-cli--srccli), [errors](#7-errors), and [tests](#8-testing--tests)
+- [Domain modules and pagination](#3-domain-modules-srcmodulests)
+- [Schemas](#4-type-system-schemasts--typests) and [exports](#5-public-barrel-srcindexts)
+- [CLI](#6-cli-srccli), [errors](#7-errors), and [tests](#8-testing-tests)
 
 ## 1. Layered view
 
