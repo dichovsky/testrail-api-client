@@ -33,6 +33,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Output } from './output.js';
+import { sanitizeForTerminal } from './sanitize.js';
 
 export interface InstallSkillOptions {
     global: boolean;
@@ -113,7 +114,9 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
         installDirectory(source, dir, referenceSources);
 
         const extra = referenceSources.length > 0 ? ` (+${referenceSources.length} reference)` : '';
-        opts.output.outRaw(`Installed testrail-cli skill → ${target}${extra}\n`);
+        // `outRaw` writes verbatim, and the target derives from HOME / the
+        // working directory just like the paths `err` sanitizes above.
+        opts.output.outRaw(`Installed testrail-cli skill → ${sanitizeForTerminal(target)}${extra}\n`);
         return 0;
     } catch (e: unknown) {
         writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
@@ -215,14 +218,17 @@ function listReferenceFiles(skillRoot: string): readonly string[] {
  * into whatever that link targets — the install-side twin of the symlink hole
  * the uninstall cleanup had. `lstatSync` describes the link itself, so a
  * symlink fails `isDirectory()`; `statSync` here would reintroduce the bug.
+ *
+ * Shared with `uninstall-skill`, which must not remove through such a path
+ * either.
  */
-function requireRealDirectory(path: string): void {
+export function requireRealDirectory(path: string): void {
     // `throwIfNoEntry: false` yields undefined for the ordinary absent case
     // (mkdir creates it below) while still throwing on a permission or I/O
     // failure, so no catch is needed and none of this is unreachable.
     const stat = lstatSync(path, { throwIfNoEntry: false });
     if (stat !== undefined && !stat.isDirectory()) {
-        throw new Error(`${path} exists and is not a directory; refusing to write through it`);
+        throw new Error(`${path} exists and is not a real directory (for example a symlink); refusing to use it`);
     }
 }
 

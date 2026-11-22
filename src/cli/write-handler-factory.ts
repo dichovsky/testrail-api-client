@@ -1,8 +1,8 @@
 import type { z } from 'zod';
-import type { Handler, HandlerContext } from './handler-context.js';
+import type { BodyInput, Handler, HandlerContext } from './handler-context.js';
 import type { TestRailClient } from '../client.js';
 import { parseId, parseEntryId } from './ids.js';
-import { resolveBody } from './body.js';
+import { resolveBody, type BodyResolution } from './body.js';
 import { executeDestructive } from './destructive.js';
 
 /**
@@ -83,7 +83,8 @@ export interface WriteHandlerSpec<S extends z.ZodTypeAny> {
     bodySchema: S;
     /** When true, an absent body resolves to `{}` with source `'default'`
      *  instead of erroring — PATCH-style updates where every field is optional
-     *  (e.g. `dataset update`). */
+     *  (e.g. `dataset update`). Empty or whitespace-only piped stdin counts as
+     *  absent. */
     allowEmptyBody?: boolean;
     /** Invokes the client method. Receives parsed numeric ids, the validated
      *  body, and the UUID entry (`''` when `entryParam` is unset). */
@@ -96,18 +97,40 @@ export interface WriteHandlerSpec<S extends z.ZodTypeAny> {
     formatOutput?: (nums: NumIds, result: unknown, entry: string) => unknown;
 }
 
+/**
+ * Body resolution for an `allowEmptyBody` action. No source at all, or piped
+ * stdin that is empty or whitespace-only, is the empty update `{}`.
+ *
+ * `runCli` registers the stdin thunk whenever stdin is not a terminal, so in
+ * CI, cron, or under `</dev/null` "nothing was piped" arrives as an empty read
+ * rather than an absent thunk. Deciding on the thunk alone made the same
+ * command succeed at a terminal and fail with "Invalid JSON" everywhere else.
+ */
+function resolveOptionalBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S): BodyResolution<z.infer<S>> {
+    if (input.dataFlag !== undefined || input.dataFileFlag !== undefined) return resolveBody(input, schema);
+    let piped = '';
+    if (input.readStdin !== undefined) {
+        // Read exactly once: stdin cannot be rewound, and a second read after
+        // a failure would return whatever followed the failure point.
+        try {
+            piped = input.readStdin();
+        } catch (e) {
+            return { ok: false, error: `Cannot read stdin: ${e instanceof Error ? e.message : String(e)}` };
+        }
+    }
+    return piped.trim() === ''
+        ? { ok: true, payload: {} as z.infer<S>, source: 'default' }
+        : resolveBody({ readStdin: () => piped }, schema);
+}
+
 export function createWriteHandler<S extends z.ZodTypeAny>(spec: WriteHandlerSpec<S>): Handler {
     const pathParams = spec.pathParams ?? [];
     return async (ctx: HandlerContext): Promise<void> => {
         const { nums, entry, idBag } = parsePathArgs(ctx, pathParams, spec.entryParam);
 
-        const noBody =
-            ctx.bodyInput.dataFlag === undefined &&
-            ctx.bodyInput.dataFileFlag === undefined &&
-            ctx.bodyInput.readStdin === undefined;
         const body =
-            spec.allowEmptyBody === true && noBody
-                ? { ok: true as const, payload: {} as z.infer<S>, source: 'default' as const }
+            spec.allowEmptyBody === true
+                ? resolveOptionalBody(ctx.bodyInput, spec.bodySchema)
                 : resolveBody(ctx.bodyInput, spec.bodySchema);
         if (!body.ok) throw new Error(body.error);
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TestRailClientCore } from '../client-core.js';
 import { TestRailApiError, TestRailValidationError } from '../errors.js';
-import { validateId } from '../validation.js';
+import { validateId, validateIdList, validateTimestamp } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import type { Case, GetCasesOptions, HistoryEntry, SoftDeleteOptions } from '../types.js';
 import type { Page, PaginatedRequestOptions } from '../pagination.js';
@@ -64,6 +64,10 @@ export const CASES_PAGINATION = createPaginatedListExecutor<
         } = options ?? {};
         if (suiteId !== undefined) validateId(suiteId, 'suiteId');
         if (sectionId !== undefined) validateId(sectionId, 'sectionId');
+        validateTimestamp(createdAfter, 'createdAfter');
+        validateTimestamp(createdBefore, 'createdBefore');
+        validateTimestamp(updatedAfter, 'updatedAfter');
+        validateTimestamp(updatedBefore, 'updatedBefore');
         return {
             operation: 'get_cases',
             pathParameters: [projectId],
@@ -171,6 +175,9 @@ export class CaseModule {
      */
     async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
         validateId(sectionId, 'sectionId');
+        if (!Array.isArray(payload) || payload.length === 0) {
+            throw new TestRailValidationError('cases must contain at least one case');
+        }
         // Wire shape (confirmed by live probe 2026-06-21): the request body must be
         // `{ cases: [...] }` — a bare array is rejected with 400 "Field :cases is a
         // required field." — and the success response wraps the created cases as
@@ -259,6 +266,7 @@ export class CaseModule {
      */
     async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
         validateId(suiteId, 'suiteId');
+        validateIdList(payload.case_ids, 'caseIds');
         // Wire shape (confirmed by live probe 2026-06-21): the success response wraps the
         // updated cases as `{ updated_cases: [...] }`, not a bare array. Routed through
         // `listOf`/`unwrapList` for the same reason as `addCases` above — on a bulk
@@ -317,6 +325,7 @@ export class CaseModule {
     ): Promise<void | SoftDeletePreview> {
         validateId(suiteId, 'suiteId');
         validateId(projectId, 'projectId');
+        validateIdList(payload.case_ids, 'caseIds');
         const soft = options?.soft === true;
         const endpoint = buildEndpoint(`delete_cases/${suiteId}`, {
             project_id: projectId,
@@ -340,6 +349,7 @@ export class CaseModule {
      */
     async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<void> {
         validateId(sectionId, 'sectionId');
+        validateIdList(payload.case_ids, 'caseIds');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `copy_cases_to_section/${sectionId}`,
@@ -356,6 +366,7 @@ export class CaseModule {
      */
     async moveCasesToSection(sectionId: number, payload: MoveCasesToSectionPayload): Promise<void> {
         validateId(sectionId, 'sectionId');
+        validateIdList(payload.case_ids, 'caseIds');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `move_cases_to_section/${sectionId}`,

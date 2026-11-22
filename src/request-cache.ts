@@ -13,7 +13,7 @@ export interface CacheLoadResult<T> {
     readonly cacheable: boolean;
 }
 
-export interface CacheResolution<T> {
+export interface CacheResolution<Raw, T> {
     readonly key: string | undefined;
     /** Request policy can differ without changing the stored response identity. */
     readonly pendingKey?: string;
@@ -25,8 +25,10 @@ export interface CacheResolution<T> {
     readonly shareInFlight: boolean;
     /** Applies caller-specific waiting policy to cache hits and shared work. */
     readonly wait: (promise: Promise<T>) => Promise<T>;
-    /** Performs the upstream work and reports whether its result may be stored. */
-    readonly load: () => Promise<CacheLoadResult<T>>;
+    /** Performs upstream work, returning the raw response before caller transformations. */
+    readonly load: () => Promise<Raw>;
+    /** Decodes one caller's response and reports whether the raw response may be stored. */
+    readonly decode: (raw: Raw) => CacheLoadResult<T>;
 }
 
 /**
@@ -53,22 +55,27 @@ export class RequestCache {
      * Resolves one request through cache read, in-flight coalescing, loading,
      * conditional publication, and pending-promise cleanup.
      */
-    public resolve<T>(resolution: CacheResolution<T>): Promise<T> {
+    public resolve<Raw, T>(resolution: CacheResolution<Raw, T>): Promise<T> {
         const { key } = resolution;
         if (key === undefined) {
-            return startOperation(resolution.load).result.then(({ value }) => value);
+            return startOperation(async () => resolution.decode(await resolution.load()).value).result;
         }
 
-        const cached = this.read<T>(key);
+        const cached = this.read<Raw>(key);
         if (cached !== undefined) {
-            return resolution.wait(Promise.resolve(cached));
+            return resolution.wait(Promise.resolve(cached).then((raw) => resolution.decode(raw).value));
         }
 
         const pendingKey = resolution.pendingKey ?? key;
-        const existing = this.pending.get(pendingKey) as OperationHandle<T> | undefined;
+        const existing = this.pending.get(pendingKey) as OperationHandle<Raw> | undefined;
         if (existing !== undefined) {
             void observeOperation(existing.settled);
-            return resolution.wait(existing.result);
+            // Copy raw JSON before applying this caller's schema. Transformed
+            // values can contain functions or class instances that cannot be
+            // preserved by structuredClone.
+            return resolution.wait(
+                existing.result.then((raw) => resolution.decode(globalThis.structuredClone(raw)).value),
+            );
         }
 
         const startedAtGeneration = this.generation;
@@ -77,24 +84,29 @@ export class RequestCache {
         // before `resolve()` returns. Normalize a synchronous loader throw into
         // the promised error contract here; `startOperation` itself deliberately
         // preserves non-Error reasons for `trackOperation` callbacks.
-        const upstream = startOperation(() => {
+        const upstream = startOperation(async () => {
+            let work: Promise<Raw>;
             try {
-                return resolution.load();
+                work = resolution.load();
             } catch (error) {
                 throw error instanceof Error ? error : new Error(String(error));
             }
-        });
-        const loaded = upstream.result.then(({ value, cacheable }) => {
+            const raw = await work;
+            // Keep a pristine snapshot even if a caller's transform changes
+            // its input. Decode inside the operation so work started by a
+            // transform or mismatch hook remains part of its settlement.
+            const snapshot = globalThis.structuredClone(raw);
+            const { value, cacheable } = resolution.decode(raw);
             if (cacheable && startedAtGeneration === this.generation) {
-                this.write(key, value);
+                this.write(key, snapshot);
             }
-            return value;
+            return { raw: snapshot, value };
         });
 
         if (resolution.shareInFlight) {
-            const shared = { result: loaded, settled: upstream.settled };
+            const shared = { result: upstream.result.then(({ raw }) => raw), settled: upstream.settled };
             this.pending.set(pendingKey, shared);
-            loaded
+            shared.result
                 .finally(() => {
                     if (this.pending.get(pendingKey) === shared) {
                         this.pending.delete(pendingKey);
@@ -103,7 +115,7 @@ export class RequestCache {
                 .catch(() => undefined);
         }
 
-        return loaded;
+        return upstream.result.then(({ value }) => value);
     }
 
     /**

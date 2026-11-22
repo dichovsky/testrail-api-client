@@ -25,7 +25,8 @@ function stripComments(source: string): string {
 }
 
 /**
- * Extract every `export const (Add|Update)<X>PayloadSchema = ...` block. A
+ * Extract every `export const <X>PayloadSchema = ...` block, whatever its prefix
+ * (`Add`, `Update`, `Delete`, `Copy`, `Move`, `Edit`, `User`, ...). A
  * block runs from its `export const` line to (but not including) the next
  * top-of-file `export ` declaration or end of file. Works for both
  * `zObject({...})` definitions (multi-line) and one-liner array forms like
@@ -44,7 +45,7 @@ function extractPayloadBlocks(source: string): { name: string; body: string }[] 
     for (let i = 0; i < starts.length; i++) {
         const current = starts[i];
         if (current === undefined) continue;
-        if (!/^(?:Add|Update)\w+PayloadSchema$/.test(current.name)) continue;
+        if (!current.name.endsWith('PayloadSchema')) continue;
         const next = starts[i + 1];
         const end = next !== undefined ? next.index : source.length;
         blocks.push({ name: current.name, body: source.slice(current.index, end) });
@@ -196,6 +197,19 @@ describe('SPEC #A.1 — schema conventions lint (CLAUDE.md (Schema authoring con
             violations,
             `Payload schemas must not reuse response-only sub-schemas (see §4 — define an Add*PayloadSchema sub-schema instead, e.g., PlanEntryRunPayloadSchema). Offenders:\n${message}`,
         ).toHaveLength(0);
+    });
+
+    it('declares each response type once: src/schemas/*.ts does not repeat an alias owned by src/types.ts', () => {
+        // Case/Test/Result differ between the two files (flat `custom_*` access
+        // exists only on the src/types.ts form), so a second declaration lets an
+        // import pick the wrong one silently.
+        const declaredTypes = (text: string): string[] =>
+            Array.from(text.matchAll(/^export\s+(?:type|interface)\s+(\w+)/gm), (match) => match[1] ?? '');
+        const owned = new Set(
+            declaredTypes(stripComments(readFileSync(resolve(__dirname, '../src/types.ts'), 'utf8'))),
+        );
+        expect(owned.size).toBeGreaterThan(20);
+        expect(declaredTypes(source).filter((name) => owned.has(name))).toEqual([]);
     });
 
     it('extracts at least one payload block (sanity check — guards against an always-passing regex)', () => {

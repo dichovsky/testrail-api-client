@@ -6,8 +6,8 @@ Only the latest published major version receives security fixes. This project do
 
 | Version | Supported |
 | ------- | --------- |
-| 9.x     | Yes       |
-| < 9.0   | No        |
+| 10.x    | Yes       |
+| < 10.0  | No        |
 
 ## Reporting a vulnerability
 

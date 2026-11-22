@@ -100,9 +100,16 @@ export function valueToString(v: unknown): string {
     return '[Function]';
 }
 
-function getField(row: unknown, key: string): unknown {
-    if (typeof row !== 'object' || row === null) return undefined;
-    return (row as Record<string, unknown>)[key];
+// Own properties only. A column named after an `Object.prototype` member
+// (`__proto__`, `constructor`) reads as absent on a row that lacks it.
+function getField(row: Record<string, unknown>, key: string): unknown {
+    return Object.hasOwn(row, key) ? row[key] : undefined;
+}
+
+// A cell map without a prototype. On a plain `{}`, assigning the `__proto__`
+// column is dropped and reading it returns `Object.prototype`.
+function emptyCells<Cell>(): Record<string, Cell> {
+    return Object.create(null) as Record<string, Cell>;
 }
 
 function projectCell(value: unknown): ProjectedCell {
@@ -124,7 +131,7 @@ function projectRecord<Cell>(
     columns: readonly string[],
     project: (value: unknown) => Cell,
 ): ProjectedRow<Cell> {
-    const cells: Record<string, Cell> = {};
+    const cells = emptyCells<Cell>();
     for (const key of columns) {
         cells[key] = project(getField(row, key));
     }
@@ -155,7 +162,7 @@ function projectOutput<Cell>(
                 columns,
                 rows: data.map((row) => {
                     if (isRecord(row)) return projectRecord(row, columns, project);
-                    return { cells: {}, isRecord: false, scalarValue: project(row) };
+                    return { cells: emptyCells<Cell>(), isRecord: false, scalarValue: project(row) };
                 }),
             };
         }
@@ -196,10 +203,16 @@ export function renderTable(data: unknown): string {
 
     const rawKeys = projected.columns;
     const keys = rawKeys.map(sanitizeForTerminal);
+    // A loop, not `Math.max(...lengths)`: one call argument per row overflows
+    // the stack on a large `--all` result.
     const widths = keys.map((k, i) => {
         const column = rawKeys[i] ?? k;
-        const bodyMax = projected.rows.map((row) => (row.cells[column] ?? '').length);
-        return Math.max(k.length, ...bodyMax);
+        let width = k.length;
+        for (const row of projected.rows) {
+            const length = (row.cells[column] ?? '').length;
+            if (length > width) width = length;
+        }
+        return width;
     });
 
     const line = widths.map((w) => '-'.repeat(w)).join('-+-');
@@ -236,14 +249,21 @@ export function safeJsonStringify(data: unknown): string {
         // JSON.stringify returns the JS value undefined for inputs without a
         // JSON representation (undefined, function, symbol); fall back to the
         // JSON literal "null" so the result is always a parseable string.
-        return JSON.stringify(data, null, 2) ?? 'null';
+        return escapeJsonTerminalControls(JSON.stringify(data, null, 2) ?? 'null');
     } catch (e) {
-        return JSON.stringify(
-            { error: 'unserializable', message: e instanceof Error ? e.message : String(e) },
-            null,
-            2,
+        return escapeJsonTerminalControls(
+            JSON.stringify({ error: 'unserializable', message: e instanceof Error ? e.message : String(e) }, null, 2),
         );
     }
+}
+
+// `JSON.stringify` escapes C0 controls but writes DEL (U+007F) and the C1
+// controls (U+0080–U+009F) raw, and a terminal that honours UTF-8-encoded C1
+// acts on them (U+009B is CSI, U+009D is OSC). Raw, they occur only inside
+// string literals, where a `\uXXXX` escape is valid and decodes to the same
+// character, so the parsed value does not change.
+function escapeJsonTerminalControls(json: string): string {
+    return json.replace(/[\u007f-\u009f]/g, (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
 
 // ── YAML renderer ────────────────────────────────────────────────────────────
@@ -304,17 +324,34 @@ const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([
     '+.inf',
     '+.Inf',
     '+.INF',
+    // The YAML 1.1 merge key. Bare, a YAML 1.1 parser folds the mapping under
+    // it into the parent instead of keeping a key named `<<`.
+    '<<',
 ]);
 
 function needsQuoting(s: string): boolean {
     if (SPECIAL_BARE_STRINGS.has(s)) return true;
     // Leading or trailing whitespace would be lost in plain form.
     if (s !== s.trim()) return true;
-    // A purely numeric / scientific / hex / octal literal would parse as a
-    // number; force quoting so it stays a string.
-    if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(s)) return true;
-    if (/^0x[0-9a-fA-F]+$/.test(s)) return true;
-    if (/^0o[0-7]+$/.test(s)) return true;
+    // A purely numeric / scientific / hex / octal / binary literal would parse
+    // as a number; force quoting so it stays a string. Fraction digits are
+    // matched only after a literal dot: `\d+\.?\d*` accepts the same strings
+    // but can split one digit run at every position, which takes quadratic
+    // time on a long run that ends in a non-digit.
+    if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(s)) return true;
+    // YAML 1.1 also allows `_` digit separators inside these literals.
+    if (/^[+-]?0x[0-9a-fA-F_]+$/.test(s)) return true;
+    if (/^[+-]?0o[0-7_]+$/.test(s)) return true;
+    if (/^[+-]?0b[01_]+$/.test(s)) return true;
+    // A leading date: a YAML 1.1 parser reads `2026-01-01` and
+    // `2026-01-01T10:00:00Z` as timestamps.
+    if (/^\d{4}-\d\d?-\d\d?/.test(s)) return true;
+    // Other YAML 1.1 implicit types: sexagesimal numbers (`1:30` is 90),
+    // underscore digit groups (`1_000`), and the `=` value key. Each
+    // pattern has one way to match a given string, so it runs in linear time.
+    if (/^[+-]?\d+(?::\d+)+(?:\.\d*)?$/.test(s)) return true;
+    if (/^[+-]?(?:\d[\d_]*(?:\.[\d_]*)?|\.[\d_]+)(?:[eE][+-]?\d+)?$/.test(s)) return true;
+    if (s === '=') return true;
     // Reserved leading indicators per YAML 1.2 §5.3. A leading `-` followed
     // by space or end-of-string would start a block sequence; `?`/`:` start
     // a mapping key/value; `#` starts a comment. Quote any leading occurrence
@@ -336,16 +373,21 @@ function needsQuoting(s: string): boolean {
     // Control chars / non-printables — must be quoted (and escaped). Scanned
     // by character code (no control-character regex literal): C0 (U+0000–U+001F),
     // DEL (U+007F), and C1 (U+0080–U+009F), all single UTF-16 code units.
+    // LF and CR are C0 controls, so this covers multi-line strings too — block
+    // scalars are out of scope; double-quote with \n escapes.
     for (const ch of s) {
-        if (isControlChar(ch.charCodeAt(0))) return true;
+        if (isControlChar(ch.charCodeAt(0)) || isLineSeparator(ch)) return true;
     }
-    // Multi-line — block scalars are out of scope; double-quote with \n escapes.
-    if (s.includes('\n') || s.includes('\r')) return true;
     // Embedded double-quote or backslash: plain form would round-trip but
     // double-quoted form is more readable and avoids any single-quote/
     // double-quote ambiguity downstream tooling might introduce.
     if (s.includes('"') || s.includes('\\')) return true;
     return false;
+}
+
+/** U+2028 LINE SEPARATOR and U+2029 PARAGRAPH SEPARATOR: YAML line breaks, not printable text. */
+function isLineSeparator(ch: string): boolean {
+    return ch === '\u2028' || ch === '\u2029';
 }
 
 function escapeDoubleQuoted(s: string): string {
@@ -381,6 +423,12 @@ function escapeDoubleQuoted(s: string): string {
         if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) {
             // C0 / DEL / C1 — emit as \xNN.
             out += `\\x${code.toString(16).padStart(2, '0')}`;
+            continue;
+        }
+        if (isLineSeparator(ch)) {
+            // YAML treats U+2028 and U+2029 as line breaks, so a raw one
+            // would fold or break the scalar.
+            out += `\\u${code.toString(16)}`;
             continue;
         }
         // Printable (including non-ASCII Unicode) — pass through. YAML 1.2
@@ -600,9 +648,9 @@ function csvCellFromProjected(cell: ProjectedCell | undefined): string {
     if (cell === undefined) return '';
     // Trust classification comes from the shared projector. Typed scalar
     // values are safe to emit verbatim; text and structured values are not.
+    // null and undefined are always trusted, so an untrusted source is neither.
     if (cell.trusted) return cell.source === null || cell.source === undefined ? '' : String(cell.source);
     const v = cell.source;
-    if (v === null || v === undefined) return '';
     if (typeof v === 'string') return neutralizeCsvFormula(sanitizeForCsv(v));
     if (typeof v === 'object') {
         try {

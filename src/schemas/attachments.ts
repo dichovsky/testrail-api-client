@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject, type KnownResponse } from './common.js';
+import { zObject } from './common.js';
 
 // ── Attachment Schema ─────────────────────────────────────────────────────────
 
@@ -78,5 +78,3 @@ export const AttachmentSchema = zObject({
     is_image: z.boolean().nullish(),
     icon: z.string().nullish(),
 });
-
-export type Attachment = KnownResponse<typeof AttachmentSchema>;

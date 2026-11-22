@@ -50,6 +50,9 @@ export interface PreparedPaginatedRequest {
     readonly query?: Readonly<Record<string, PaginatedQueryValue>>;
 }
 
+/** A prepared request after the executor copied and froze it: every field is present. */
+type PreparedRequestSnapshot = Required<PreparedPaginatedRequest>;
+
 export interface PaginationRegistration {
     readonly operation: string;
     readonly response: 'envelope' | 'nested-envelope';
@@ -114,7 +117,7 @@ function endpointOptions<Options extends DirectPaginationOptions>(
 function snapshotPreparedRequest(
     request: PreparedPaginatedRequest,
     allowedOperations: ReadonlySet<string>,
-): PreparedPaginatedRequest {
+): PreparedRequestSnapshot {
     if (!allowedOperations.has(request.operation)) {
         throw new Error(`Pagination descriptor selected undeclared operation "${request.operation}"`);
     }
@@ -128,8 +131,8 @@ function snapshotPreparedRequest(
     });
 }
 
-function buildOperationPath(request: PreparedPaginatedRequest): string {
-    return [request.operation, ...(request.pathParameters ?? []).map(String)].join('/');
+function buildOperationPath(request: PreparedRequestSnapshot): string {
+    return [request.operation, ...request.pathParameters.map(String)].join('/');
 }
 
 /**
@@ -179,7 +182,7 @@ export function createPaginatedListExecutor<
 
     const request = async (
         client: TestRailClientCore,
-        prepared: PreparedPaginatedRequest,
+        prepared: PreparedRequestSnapshot,
         controls: DirectPaginationValues,
         transport?: PaginationTransport,
     ): Promise<unknown> => {

@@ -195,9 +195,12 @@ function redactMessage(message: string, secrets: readonly string[]): string {
     if (decoded !== message && containsCredential) return REDACTED;
     let redacted = decoded;
     for (const secret of secrets) redacted = redacted.split(secret).join(REDACTED);
+    // The user part stops at its first colon after one character. Letting it
+    // span colons selects the same text, but retries the remainder from every
+    // colon when no `@` follows: quadratic within the input cap.
     redacted = redacted
         .replace(/\b(?:Basic|Bearer)\s+[^\s"'<>]+/giu, REDACTED)
-        .replace(/(https?:\/\/)[^\s/@]+:[^\s/@]+@/giu, `$1${REDACTED}@`);
+        .replace(/(https?:\/\/)[^\s/@][^\s/@:]*:[^\s/@]+@/giu, `$1${REDACTED}@`);
     // Decoding is an inspection step. Preserve escaped labels and punctuation
     // exactly when safe. If a decoded value needs redaction, omit the complete
     // encoded message rather than risk exposing an unmapped original suffix.

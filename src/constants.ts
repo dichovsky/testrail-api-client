@@ -15,10 +15,20 @@ export const DEFAULT_MAX_RETRIES = 3;
 export const MAX_RETRIES = 10;
 export const DEFAULT_CACHE_TTL_MS = 300000; // 5 minutes
 export const DEFAULT_CACHE_CLEANUP_INTERVAL_MS = 60000; // 1 minute
+/** Nested `cause` levels kept when a custom `fetch` failure is copied onto a TestRailApiError. */
+export const MAX_SANITIZED_CAUSE_DEPTH = 4;
 /** Maximum delay Node.js timers accept without overflowing to a 1 ms delay. */
 export const MAX_NODE_TIMER_DELAY_MS = 2_147_483_647;
-/** Established constructor-compatible email syntax for TestRail credentials. */
-export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * Established constructor-compatible email syntax for TestRail credentials.
+ *
+ * The domain's dot is anchored to the first one after the leading character
+ * (`[^\s@.]*` cannot consume a dot) so a non-matching candidate has exactly one
+ * split to try. The equivalent `[^\s@]+\.[^\s@]+` accepts the same strings but
+ * tries every split, which a long run of dots turns into a quadratic walk — on
+ * a value the caller supplies, synchronously, in the constructor.
+ */
+export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]+$/;
 /**
  * Shape check for a TestRail user's email address, shared by the
  * `get_user_by_email` lookup and the `add_user` / `update_user` payloads:
@@ -160,6 +170,16 @@ export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024;
  * and cancellation propagates cleanly through `for await (chunk of stdin)`.
  */
 export const STDIN_READ_TIMEOUT_MS = 30000;
+
+/** The standard-input file descriptor. */
+export const STDIN_FD = 0;
+
+/**
+ * Pause between attempts when a synchronous text read of stdin reports
+ * `EAGAIN` (a non-blocking descriptor with no data yet). The retries stop at
+ * `STDIN_READ_TIMEOUT_MS`.
+ */
+export const STDIN_RETRY_INTERVAL_MS = 10;
 
 /**
  * Indent width (in spaces) for the CLI YAML renderer. Two-space indent is the

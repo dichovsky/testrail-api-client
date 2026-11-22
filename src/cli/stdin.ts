@@ -1,4 +1,5 @@
 import { readSync } from 'node:fs';
+import { STDIN_READ_TIMEOUT_MS, STDIN_RETRY_INTERVAL_MS } from '../constants.js';
 
 /** Input capabilities supplied by the executable or an in-process caller. */
 export interface CliStdin {
@@ -33,10 +34,16 @@ export interface BinaryInputStream extends AsyncIterable<unknown> {
  * accumulated bytes exceed `maxBytes`, so the process never allocates
  * past the cap.
  *
+ * **Non-blocking descriptors:** `EAGAIN` means "no data yet", not end of
+ * input. The reader waits `STDIN_RETRY_INTERVAL_MS` and tries again, and
+ * throws once `STDIN_READ_TIMEOUT_MS` has passed since the call began. It
+ * never returns the bytes read so far as if the producer had finished.
+ *
  * **Out of scope (what this does NOT fix):** a producer that holds
  * the pipe open without ever sending more than `maxBytes` (e.g.
  * `tail -f`, a FIFO writer that never closes, a slow trickle).
- * `readSync` is a blocking syscall; without a wall-clock deadline the
+ * `readSync` is a blocking syscall; on a blocking descriptor there is no
+ * wall-clock deadline and the
  * CLI will block on the first chunk indefinitely. Adding an async
  * stream reader with `AbortController` is tracked as a follow-up in
  * `BACKLOG.md` — it requires switching `BodyInput.readStdin` from
@@ -54,19 +61,28 @@ export function readBoundedStdin(maxBytes: number, fd: number): string {
     const buf = Buffer.alloc(CHUNK_SIZE);
     const chunks: Buffer[] = [];
     let total = 0;
+    const deadlineAt = Date.now() + STDIN_READ_TIMEOUT_MS;
     for (;;) {
         let bytesRead: number;
         try {
             bytesRead = readSync(fd, buf, 0, CHUNK_SIZE, null);
         } catch (e: unknown) {
-            // EAGAIN on non-blocking stdin: no data ready right now. Node
-            // defaults stdin to blocking, so this is rare in practice, but
-            // when it does occur we stop reading cleanly and return what was
-            // accumulated rather than crashing. Any other error is a real
-            // failure and is rethrown so the caller surfaces it.
+            // EAGAIN on a non-blocking descriptor: the producer has not
+            // written yet. That is not EOF — treating it as EOF truncated
+            // every body or key that arrived later than the read. Any other
+            // error is a real failure and is rethrown so the caller surfaces
+            // it.
             const code = (e as { code?: string }).code;
-            if (code === 'EAGAIN') break;
-            throw e;
+            if (code !== 'EAGAIN') throw e;
+            if (Date.now() >= deadlineAt) {
+                throw new Error(
+                    `stdin read timed out after ${STDIN_READ_TIMEOUT_MS}ms (producer did not close the pipe).`,
+                    { cause: e },
+                );
+            }
+            // A synchronous sleep: this reader has no event loop to yield to.
+            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, STDIN_RETRY_INTERVAL_MS);
+            continue;
         }
         if (bytesRead === 0) break;
         total += bytesRead;
@@ -117,7 +133,7 @@ export async function readStdinBinary(
     }, timeoutMs);
     // `unref()` so a never-firing timer doesn't keep the event loop alive
     // past the natural CLI exit.
-    if (typeof timer.unref === 'function') timer.unref();
+    timer.unref();
 
     const chunks: Buffer[] = [];
     let total = 0;

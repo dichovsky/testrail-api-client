@@ -7,9 +7,8 @@ import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
  * Build the `{ limit?, offset? }` options object for the per-resource
  * attachment-list endpoints. Mirrors the `case list` / `run list` /
  * `result list` pagination convention. Both flags are optional; either one
- * can be set independently. In the backward-compatible default mode,
- * malformed values are omitted by `optInt`; explicit `--page`/`--all` modes
- * validate their numeric controls strictly before handler dispatch.
+ * can be set independently. Every mode validates its numeric controls
+ * strictly before handler dispatch.
  */
 function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: number } {
     const limit = ctx.pagination.limit;

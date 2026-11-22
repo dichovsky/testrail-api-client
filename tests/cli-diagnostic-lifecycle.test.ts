@@ -37,6 +37,9 @@ const originalExitCode = process.exitCode;
 const originalListeners = new Map(
     (['exit', 'SIGINT', 'SIGTERM'] as const).map((event) => [event, process.listeners(event)]),
 );
+// Each `import('../src/cli.js')` registers one EPIPE handler on stdout and stderr.
+const originalStdoutErrorListeners = process.stdout.listeners('error');
+const originalStderrErrorListeners = process.stderr.listeners('error');
 const fetch = vi.fn<typeof globalThis.fetch>();
 let directory: string;
 let diagnosticPath: string;
@@ -67,6 +70,16 @@ afterEach(() => {
     for (const [event, listeners] of originalListeners) {
         for (const listener of process.listeners(event)) {
             if (!listeners.includes(listener)) process.removeListener(event, listener);
+        }
+    }
+    for (const listener of process.stdout.listeners('error')) {
+        if (!originalStdoutErrorListeners.includes(listener)) {
+            process.stdout.removeListener('error', listener);
+        }
+    }
+    for (const listener of process.stderr.listeners('error')) {
+        if (!originalStderrErrorListeners.includes(listener)) {
+            process.stderr.removeListener('error', listener);
         }
     }
     rmSync(directory, { recursive: true, force: true });

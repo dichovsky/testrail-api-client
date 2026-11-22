@@ -513,12 +513,14 @@ describe('handleTestList', () => {
         expect(client.tests.getTests).toHaveBeenCalledWith(5, { status_id: [1, 5], limit: 50, offset: 10 });
     });
 
-    it('silently drops invalid --limit / --offset (optInt fallback) without rejecting the call', async () => {
+    it('never reaches the handler with a malformed --limit / --offset', () => {
+        // The pagination projection rejects the value, so no context exists
+        // for a handler to run with — it used to be built with both dropped.
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['5'], limit: 'foo', offset: 'bar' });
-        await handleTestList(ctx);
-        // optInt returns undefined for non-integer; handler omits both keys
-        expect(client.tests.getTests).toHaveBeenCalledWith(5, {});
+        expect(() => buildCtx(client, { pathParams: ['5'], limit: 'foo', offset: 'bar' })).toThrow(
+            '--limit must be a positive safe integer (got: foo)',
+        );
+        expect(client.tests.getTests).not.toHaveBeenCalled();
     });
 
     it.each([

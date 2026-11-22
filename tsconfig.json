@@ -5,8 +5,6 @@
         "lib": ["ES2022"],
         "moduleResolution": "NodeNext",
         "declaration": true,
-        "declarationMap": true,
-        "sourceMap": true,
         // Strict type checking
         "strict": true,
         "noImplicitAny": true,
@@ -40,7 +38,6 @@
         // Emit
         "noEmit": true,
         "removeComments": false,
-        "preserveConstEnums": true,
         "incremental": false
     },
     "include": ["src/**/*", "tests/**/*", "scripts/**/*", "examples/**/*", "vitest.config.ts"],

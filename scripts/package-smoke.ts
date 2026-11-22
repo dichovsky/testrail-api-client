@@ -79,10 +79,12 @@ function run(
     args: readonly string[],
     cwd: string,
     env: typeof process.env = process.env,
+    input?: string,
 ): CommandResult {
     const result = spawnSync(command, args, {
         cwd,
         env,
+        input,
         encoding: 'utf8',
         maxBuffer: 16 * 1024 * 1024,
     });
@@ -101,6 +103,7 @@ function runWindowsCommandShim(
     args: readonly string[],
     cwd: string,
     env: typeof process.env,
+    input?: string,
 ): CommandResult {
     const commandProcessor = env['COMSPEC'];
     if (
@@ -128,6 +131,7 @@ function runWindowsCommandShim(
     const result = spawnSync(commandProcessor, ['/d', '/s', '/v:off', '/c', `"${shellCommand}"`], {
         cwd,
         env,
+        input,
         encoding: 'utf8',
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
@@ -336,7 +340,7 @@ function readPackageIdentity(filePath: string, label: string): PackageIdentity {
         files.every((entry, index) => entry === expectedFiles[index]);
     const validExports =
         isRecord(exportsValue) &&
-        Object.keys(exportsValue).length === 2 &&
+        Object.keys(exportsValue).length === 3 &&
         isExactStringRecord(exportsValue['.'], {
             types: './dist/index.d.ts',
             import: './dist/index.js',
@@ -345,7 +349,8 @@ function readPackageIdentity(filePath: string, label: string): PackageIdentity {
         isExactStringRecord(exportsValue['./cli'], {
             import: './dist/cli.js',
             default: './dist/cli.js',
-        });
+        }) &&
+        exportsValue['./package.json'] === './package.json';
     if (
         manifest['type'] !== 'module' ||
         manifest['main'] !== 'dist/index.js' ||
@@ -667,6 +672,14 @@ export function trackedProjects(client: TestRailClient): OperationHandle<Project
     return client.trackOperation(() => client.projects.getAllProjects(getAllOptions));
 }
 
+// Deliberately unannotated: with \`declaration: true\` the compiler must be able
+// to name the inferred types from the package root (TS2883/TS2742 otherwise).
+export function inferredCase(client: TestRailClient) {
+    return client.cases.getCase(1);
+}
+
+export const inferredProjects = (client: TestRailClient) => client.projects;
+
 export const legacyPage: Page<Project> = {
     kind: 'legacy-array',
     items: [],
@@ -831,10 +844,10 @@ function cliSmoke(consumerDirectory: string, identity: PackageIdentity): void {
         fail('consumer install did not contain the testrail CLI entrypoint.');
     }
     const cleanEnvironment = safeChildEnvironment();
-    const runCli = (args: readonly string[], env: typeof process.env): CommandResult =>
+    const runCli = (args: readonly string[], env: typeof process.env, input?: string): CommandResult =>
         process.platform === 'win32'
-            ? runWindowsCommandShim(cliPath, args, consumerDirectory, env)
-            : run(cliPath, args, consumerDirectory, env);
+            ? runWindowsCommandShim(cliPath, args, consumerDirectory, env, input)
+            : run(cliPath, args, consumerDirectory, env, input);
     const help = runCli(['--help'], cleanEnvironment);
     const helpOutput = requireSuccess('packed CLI --help', help);
     if (!helpOutput.includes('--strict-responses')) {
@@ -860,12 +873,61 @@ function cliSmoke(consumerDirectory: string, identity: PackageIdentity): void {
         fail('strict-response environment validation did not run before auth/output.');
     }
 
+    // A JSON body piped into the packed binary on every CI operating system.
+    // The entrypoint reads descriptor 0 synchronously; a reader that stopped
+    // at the first EAGAIN or misread the descriptor would lose the body.
+    const pipedBody = runCli(
+        ['case', 'add', '1', '--dry-run'],
+        {
+            ...cleanEnvironment,
+            TESTRAIL_BASE_URL: 'https://example.invalid',
+            TESTRAIL_EMAIL: 'smoke@example.invalid',
+            TESTRAIL_API_KEY: 'smoke-placeholder',
+        },
+        '{"title":"piped smoke"}\n',
+    );
+    const pipedPreview: unknown = JSON.parse(requireSuccess('packed CLI piped stdin body', pipedBody));
+    if (
+        !isRecord(pipedPreview) ||
+        pipedPreview['source'] !== 'stdin' ||
+        !isRecord(pipedPreview['payload']) ||
+        pipedPreview['payload']['title'] !== 'piped smoke'
+    ) {
+        fail('packed CLI did not read the piped stdin body.');
+    }
+
     const invalidFlag = runCli(['--strict-responses=true', 'project', 'list'], cleanEnvironment);
     if (invalidFlag.status !== 1 || !invalidFlag.stderr.includes(EXPECTED_FLAG_ERROR)) {
         fail('packed CLI did not reject an assigned --strict-responses value.');
     }
     if (invalidFlag.stderr.includes('Missing auth') || invalidFlag.stdout.length > 0) {
         fail('--strict-responses shape validation did not run before auth/output.');
+    }
+}
+
+/**
+ * `tsconfig.prod.json` sets `stripInternal`. The 10.0.0 changelog promises
+ * that `RequestSpec` no longer declares its `@internal` pipeline members;
+ * reverting the option would republish them without failing anything else.
+ */
+function verifyInternalMembersStripped(consumerDirectory: string): void {
+    const declarations = readFileSync(
+        path.join(consumerDirectory, 'node_modules', PACKAGE_NAME, 'dist', 'http-pipeline-types.d.ts'),
+        'utf8',
+    );
+    // Scope the check to RequestSpec: `timeout` and `bodyTimeout` are also
+    // legitimate members of other interfaces in the same file.
+    const start = declarations.indexOf('export interface RequestSpec<');
+    const end = declarations.indexOf('\n}', start);
+    if (start < 0 || end < 0) {
+        fail('published http-pipeline-types.d.ts does not declare RequestSpec.');
+    }
+    const requestSpec = declarations.slice(start, end);
+    const leaked = ['cacheVariant', 'deadlineAt', 'timeout', 'bodyTimeout'].filter((member) =>
+        new RegExp(`\\breadonly ${member}\\??:`).test(requestSpec),
+    );
+    if (leaked.length > 0) {
+        fail(`published RequestSpec declares @internal member(s): ${leaked.join(', ')}.`);
     }
 }
 
@@ -893,6 +955,7 @@ function main(): void {
         writeConsumerFixture(consumerDirectory, archivePath, zodArchivePath);
         installConsumer(consumerDirectory);
         verifyInstalledManifest(consumerDirectory, identity);
+        verifyInternalMembersStripped(consumerDirectory);
         compileConsumer(consumerDirectory, compiler);
         runtimeImportSmoke(consumerDirectory);
         cliSmoke(consumerDirectory, identity);

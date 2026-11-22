@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
     ENTRY_ID_RE,
     validateId,
+    validateIdList,
+    validateTimestamp,
     validateEntryId,
     validateAttachmentId,
     validatePaginationParams,
@@ -39,6 +41,50 @@ describe('validation', () => {
 
         it('uses the supplied name in the error message', () => {
             expect(() => validateId(0, 'sectionId')).toThrow('sectionId must be a positive integer');
+        });
+
+        it('rejects integers beyond Number.MAX_SAFE_INTEGER (functional-modules#8)', () => {
+            expect(() => validateId(Number.MAX_SAFE_INTEGER, 'caseId')).not.toThrow();
+            // 2**53 is not exactly representable as an ID and 1e21 stringifies as "1e+21".
+            expect(() => validateId(2 ** 53, 'caseId')).toThrow('caseId must be a positive integer');
+            expect(() => validateId(1e21, 'runId')).toThrow(TestRailValidationError);
+        });
+    });
+
+    describe('validateIdList', () => {
+        it('accepts a non-empty list of positive integers, including a readonly one', () => {
+            const ids: readonly number[] = [1, 2, 3];
+            expect(() => validateIdList(ids, 'caseIds')).not.toThrow();
+        });
+
+        it('rejects an empty list and a non-array', () => {
+            expect(() => validateIdList([], 'caseIds')).toThrow('caseIds must contain at least one positive integer');
+            expect(() => validateIdList(undefined as unknown as number[], 'caseIds')).toThrow(TestRailValidationError);
+            expect(() => validateIdList(5 as unknown as number[], 'caseIds')).toThrow(TestRailValidationError);
+        });
+
+        it('names the failing index', () => {
+            expect(() => validateIdList([1, 0], 'labelIds')).toThrow('labelIds[1] must be a positive integer');
+            expect(() => validateIdList([1.5], 'testIds')).toThrow('testIds[0] must be a positive integer');
+            expect(() => validateIdList([1, 2, Number.NaN], 'caseIds')).toThrow(TestRailValidationError);
+        });
+    });
+
+    describe('validateTimestamp', () => {
+        it('accepts an omitted or null value and non-negative safe integers', () => {
+            expect(() => validateTimestamp(undefined, 'createdAfter')).not.toThrow();
+            expect(() => validateTimestamp(null, 'createdAfter')).not.toThrow();
+            expect(() => validateTimestamp(0, 'createdAfter')).not.toThrow();
+            expect(() => validateTimestamp(1_763_683_200, 'createdAfter')).not.toThrow();
+        });
+
+        it('rejects values no TestRail server accepts as a Unix timestamp (functional-modules#9)', () => {
+            for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5, 2 ** 53, '100']) {
+                expect(() => validateTimestamp(bad as number, 'updatedBefore')).toThrow(
+                    'updatedBefore must be a non-negative integer Unix timestamp',
+                );
+            }
+            expect(() => validateTimestamp(-1, 'createdAfter')).toThrow(TestRailValidationError);
         });
     });
 
@@ -100,6 +146,12 @@ describe('validation', () => {
             expect(() => validateAttachmentId(1.5)).toThrow(TestRailValidationError);
         });
 
+        it('rejects integers beyond Number.MAX_SAFE_INTEGER (functional-modules#8)', () => {
+            expect(() => validateAttachmentId(Number.MAX_SAFE_INTEGER)).not.toThrow();
+            expect(() => validateAttachmentId(2 ** 53)).toThrow(TestRailValidationError);
+            expect(() => validateAttachmentId(1e21)).toThrow(TestRailValidationError);
+        });
+
         it('rejects an arbitrary non-UUID string (path-traversal guard)', () => {
             expect(() => validateAttachmentId('../../admin')).toThrow(TestRailValidationError);
             expect(() => validateAttachmentId('not-a-uuid')).toThrow(TestRailValidationError);
@@ -159,6 +211,11 @@ describe('validation', () => {
 
         it('rejects non-integer offset', () => {
             expect(() => validatePaginationParams(undefined, 1.5)).toThrow(TestRailValidationError);
+        });
+
+        it('rejects an offset beyond Number.MAX_SAFE_INTEGER (functional-modules#8)', () => {
+            expect(() => validatePaginationParams(undefined, Number.MAX_SAFE_INTEGER)).not.toThrow();
+            expect(() => validatePaginationParams(undefined, 1e21)).toThrow('offset must be a non-negative integer');
         });
 
         it('validates limit before offset (limit error wins on simultaneous failure)', () => {

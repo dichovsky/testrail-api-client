@@ -24,7 +24,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } 
 import type { Mock } from 'vitest';
 import { handleRunWatch } from '../src/cli/handlers/run-watch.js';
 import { makeStdin, captureOutput, makeActionSpec } from './helpers.js';
-import { TestRailApiError } from '../src/errors.js';
+import { TestRailApiError, dnsLookupError } from '../src/errors.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import type { Run } from '../src/types.js';
@@ -188,6 +188,56 @@ describe('handleRunWatch', () => {
         expect(events).not.toContain('completed');
     });
 
+    it.each([
+        ['a 503', new TestRailApiError(503, 'Service Unavailable')],
+        ['a 429', new TestRailApiError(429, 'Too Many Requests')],
+        ['a network error', new TestRailApiError(0, 'Network error')],
+    ])('--once rejects on %s instead of scheduling another poll', async (_label, error) => {
+        // "Poll once and exit" has to hold when the one poll fails. Rescheduling
+        // on a transient error kept a CI step alive for as long as the outage.
+        const client = buildClient();
+        client.runs.getRun.mockRejectedValue(error);
+        const { ctx, out, stderr } = buildCtx(client, { once: true });
+
+        const settled = handleRunWatch(ctx).then(
+            () => 'resolved',
+            (e: unknown) => e,
+        );
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        expect(client.runs.getRun).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+        expect(await settled).toBe(error);
+        expect(out).not.toHaveBeenCalled();
+        // The caller reports the error; there is no retry to announce.
+        expect(stderr()).toBe('');
+    });
+
+    it('ends every stderr status line with a newline', async () => {
+        const client = buildClient();
+        client.runs.getRun
+            .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
+            .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
+            .mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+
+        const { ctx, stderr } = buildCtx(client, { interval: '5' });
+        const promise = handleRunWatch(ctx);
+        await vi.advanceTimersByTimeAsync(10_000);
+        process.emit('SIGINT');
+        await vi.advanceTimersByTimeAsync(0);
+        await promise;
+
+        const retry =
+            'run watch: transient error for runId=42; retrying in 5s: TestRail API error: 503 Service Unavailable';
+        // One line per status message; the trailing '' is the final newline.
+        expect(stderr().split('\n')).toEqual([
+            retry,
+            retry,
+            expect.stringMatching(/^run watch: interrupted at runId=42; lastSnapshot=\{.*"passed_count":1.*\}$/),
+            '',
+        ]);
+    });
+
     it('dry-run does not call the client and emits a preview', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { interval: '60', dryRun: true });
@@ -283,6 +333,38 @@ describe('handleRunWatch', () => {
 
         expect(client.runs.getRun).toHaveBeenCalledTimes(3);
         expect(stderr()).toMatch(/transient error/);
+        const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
+        expect(events).toContain('completed');
+    });
+
+    it('fails at once when the host never resolves, instead of polling until the job times out', async () => {
+        const client = buildClient();
+        client.runs.getRun.mockRejectedValue(
+            dnsLookupError(new Error('getaddrinfo ENOTFOUND typo.testrail.io'), 'typo.testrail.io'),
+        );
+
+        const { ctx, stderr } = buildCtx(client);
+        await expect(handleRunWatch(ctx)).rejects.toThrow(/DNS lookup failed for "typo.testrail.io"/);
+
+        expect(client.runs.getRun).toHaveBeenCalledTimes(1);
+        expect(stderr()).not.toMatch(/transient error/);
+    });
+
+    it('keeps retrying a DNS failure after a poll has succeeded', async () => {
+        const client = buildClient();
+        client.runs.getRun
+            .mockResolvedValueOnce(mockRun({ is_completed: false }))
+            .mockRejectedValueOnce(dnsLookupError(new Error('getaddrinfo EAI_AGAIN host'), 'host'))
+            .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 3, untested_count: 0 }));
+
+        const { ctx, out, stderr } = buildCtx(client);
+        const promise = handleRunWatch(ctx);
+        await vi.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(30_000);
+        await promise;
+
+        expect(client.runs.getRun).toHaveBeenCalledTimes(3);
+        expect(stderr()).toMatch(/transient error.*DNS lookup failed/);
         const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
         expect(events).toContain('completed');
     });
@@ -546,7 +628,7 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
                     this.message = `TestRail API error: ${status} ${statusText}`;
                 }
             }
-            return { TestRailApiError };
+            return { TestRailApiError, isDnsLookupFailure: () => false };
         });
         // Reset so subsequent imports pick up the mock.
         vi.resetModules();

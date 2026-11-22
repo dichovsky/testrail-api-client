@@ -2,7 +2,6 @@ import { MAX_PAGINATION_BYTES, MAX_PAGINATION_LIMIT, MAX_TIMEOUT_MS } from '../c
 import type { PaginatedRequestOptions, PaginationSafetyOptions } from '../pagination.js';
 import type { RawCliPaginationArgs } from './flags.js';
 import type { HandlerContext } from './handler-context.js';
-import { optInt } from './ids.js';
 import { paginationFor } from './metadata/paginated-endpoints.js';
 import type { ActionSpec } from './metadata/types.js';
 
@@ -105,22 +104,14 @@ function parseOptional(args: RawCliPaginationArgs, definition: NumericFlag): num
 /** Normalize validated argv pagination values for production dispatch and handler tests. */
 export function parseCliPagination(args: RawCliPaginationArgs): CliPaginationParsed {
     const mode = getCliPaginationMode(args);
+    // Items and page mode share one strict parser. `--all` takes neither flag
+    // (validateCliPagination rejects the combination), so nothing is read.
     const limit =
-        mode === 'page'
-            ? args.limit === undefined
-                ? undefined
-                : parseCanonicalInteger(args.limit, '--limit', false, MAX_PAGINATION_LIMIT)
-            : mode === 'items' && typeof args.limit === 'string'
-              ? optInt(args.limit)
-              : undefined;
+        mode === 'all' || args.limit === undefined
+            ? undefined
+            : parseCanonicalInteger(args.limit, '--limit', false, MAX_PAGINATION_LIMIT);
     const offset =
-        mode === 'page'
-            ? args.offset === undefined
-                ? undefined
-                : parseCanonicalInteger(args.offset, '--offset', true)
-            : mode === 'items' && typeof args.offset === 'string'
-              ? optInt(args.offset)
-              : undefined;
+        mode === 'all' || args.offset === undefined ? undefined : parseCanonicalInteger(args.offset, '--offset', true);
     const aggregate = NUMERIC_FLAGS.reduce<ParsedPaginationArgs>((parsed, definition) => {
         const value = parseOptional(args, definition);
         return value === undefined ? parsed : { ...parsed, [definition.property]: value };
@@ -135,9 +126,9 @@ export function parseCliPagination(args: RawCliPaginationArgs): CliPaginationPar
 
 /**
  * Validates pagination mode and flag compatibility before auth resolution or
- * client construction. Legacy no-mode `--limit` / `--offset` values keep the
- * established lenient `optInt` behavior; explicit page and aggregate controls
- * use strict canonical-integer validation.
+ * client construction. Every numeric control uses strict canonical-integer
+ * validation, the default-mode `--limit` / `--offset` included: a malformed
+ * value is an error, never a parameter to omit.
  */
 export function validateCliPagination(
     actionSpec: ActionSpec | undefined,

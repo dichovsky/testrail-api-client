@@ -13,7 +13,7 @@
  * Deliberately offline and deterministic, like the other `:check` gates — it
  * asserts the invariant the *release commit* must satisfy rather than querying
  * npm. A release bumps `package.json` and updates this list in the same commit
- * (RELEASING.md step 3), so requiring the manifest version to be listed catches
+ * (RELEASING.md, Prepare step 10), so requiring the manifest version to be listed catches
  * exactly the omission that matters, with no network flake and no dependence on
  * git tags (the pre-5.0.0 published versions have none).
  */

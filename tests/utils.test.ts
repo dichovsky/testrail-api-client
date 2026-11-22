@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { base64Encode, serializeIdList, sleep } from '../src/utils.js';
+import { TestRailValidationError } from '../src/errors.js';
+import { base64Encode, serializeIdFilter, sleep } from '../src/utils.js';
 
 describe('Utils', () => {
     describe('base64Encode', () => {
@@ -23,22 +24,6 @@ describe('Utils', () => {
         it('should handle special characters', () => {
             expect(base64Encode('!@#$%^&*()')).toBe('IUAjJCVeJiooKQ==');
             expect(base64Encode('line1\nline2')).toBe('bGluZTEKbGluZTI=');
-        });
-
-        it('should use btoa fallback when Buffer is unavailable (browser path)', () => {
-            // Temporarily hide the Buffer global to exercise the browser code path
-            const bufferHolder = globalThis as { Buffer: typeof Buffer | undefined };
-            const savedBuffer = bufferHolder.Buffer;
-            bufferHolder.Buffer = undefined;
-
-            try {
-                expect(base64Encode('hello')).toBe('aGVsbG8=');
-                expect(base64Encode('user:password')).toBe('dXNlcjpwYXNzd29yZA==');
-                // Unicode still encodes correctly via the btoa + encodeURIComponent path
-                expect(base64Encode('café')).toBe('Y2Fmw6k=');
-            } finally {
-                bufferHolder.Buffer = savedBuffer;
-            }
         });
     });
 
@@ -87,17 +72,12 @@ describe('Utils', () => {
         });
     });
 
-    describe('serializeIdList', () => {
-        it('should join non-empty ID lists', () => {
-            expect(serializeIdList([1, 2, 3])).toBe('1,2,3');
-        });
+    describe('serializeIdFilter', () => {
+        it('should reject a value that is neither a number nor a list with a validation error', () => {
+            const call = (): unknown => serializeIdFilter('5' as unknown as number, 'labelId');
 
-        it('should return undefined for empty lists', () => {
-            expect(serializeIdList([])).toBeUndefined();
-        });
-
-        it('should return undefined when IDs are omitted', () => {
-            expect(serializeIdList()).toBeUndefined();
+            expect(call).toThrow(TestRailValidationError);
+            expect(call).toThrow('labelId must be a positive integer or a list of positive integers');
         });
     });
 });

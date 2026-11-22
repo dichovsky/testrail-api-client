@@ -33,6 +33,7 @@ The package requires Node 26 or newer. CI covers Node 26 on Linux, Windows, and 
     Publication must succeed before this list becomes final.
 11. Check the README, user guides, architecture docs, agent instructions, examples, CLI help, and manual skill sections against the release changes.
     Dated audits and archived plans remain historical records.
+    For a major release, also update the supported-versions table in `SECURITY.md`.
 12. Verify that every SDK endpoint has a CLI action and every CLI action has a skill recipe.
 13. Install the locked dependencies without lifecycle scripts:
 
@@ -54,6 +55,13 @@ The `agents-md` script builds the client first. The `skill` script also updates 
 The `mapping` script validates the current skill recipe anchors.
 The CLI reads its version from `package.json`. Generators write the version into the skill and codemap files.
 
+For the 10.0.0 release, keep these upgrade notes in the README and changelog:
+
+- Node.js 26 is the minimum runtime for applications, CLI commands, and CI jobs.
+- SDK upload methods own supplied file descriptors even when validation rejects the call. Link to [upload ownership](SDK.md#upload-files).
+- Endpoint response checks bypass public `parse()` overrides. Link to the [response validation migration](SDK.md#response-validation).
+- TypeScript 7 is the repository compiler and the tested consumer compiler, not a runtime or peer dependency.
+
 For the 9.0.0 DNS-pinning release, the required breaking-change notes covered these changes:
 
 - Global proxy and custom agent bypass.
@@ -73,6 +81,9 @@ RUN_FUZZ=1 npx vitest run tests/cli-fuzz.test.ts
 npm audit --omit=dev --audit-level=moderate
 npm run audit:dependencies
 ```
+
+If `audit-ci.jsonc` has allowlist entries, check that every `expiry` date is later than the planned publish date.
+The `Publish` workflow runs the same audit after the tag exists.
 
 1. Open a release pull request with the version, scope, compatibility notes, and validation results.
 2. Wait for all CI jobs to pass.

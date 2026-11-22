@@ -54,7 +54,7 @@ export const BDDS_PAGINATION = createPaginatedListExecutor<
                 section_id: sectionId,
                 label_id: serializeIdFilter(labelId, 'labelId'),
                 refs: typeof refs === 'string' ? refs : undefined,
-                'refs[]': refs !== undefined && typeof refs !== 'string' ? refs : undefined,
+                'refs[]': Array.isArray(refs) ? refs : undefined,
             },
         };
     },

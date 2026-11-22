@@ -1,6 +1,7 @@
 # CLI guide
 
 Use `testrail` for shell scripts, CI jobs, and individual API calls.
+Requires Node.js 26 or newer.
 Install with `npm install @dichovsky/testrail-api-client`; the examples below use `npx` to run that local installation.
 For a command without installing locally, use `npm exec --package=@dichovsky/testrail-api-client -- testrail --help`.
 
@@ -51,7 +52,7 @@ The CLI validates writes with Zod, preserves `custom_*` fields, and does not con
 A new result requires at least one of `status_id`, `comment`, or `assignedto_id`.
 See the [payload reference](../skill/reference/payload-schemas.yaml) for field details and [recipes](../skill/reference/recipes.md) for complete payloads.
 
-JSON from stdin or `--data-file` has a 1 MiB limit. Stdin reads wait for the pipe to close.
+JSON from stdin or `--data-file` has a 1 MiB limit. Stdin reads wait for the pipe to close (on Linux and macOS, for at most 30 seconds). If stdin might stay open (some CI runners, `docker run -i`), pass `--data` or `--data-file`, or redirect `</dev/null`.
 Use `--data-file` when a producer might leave its pipe open.
 
 String flags need a value. For a value beginning with `--`, use `--flag=--value`.

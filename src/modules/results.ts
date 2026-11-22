@@ -5,8 +5,8 @@ import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import type { AddResultPayload, AddResultsForCasesPayload, AddResultsPayload, EditResultPayload } from '../schemas.js';
 import { ResultSchema } from '../schemas.js';
 import type { GetResultsForRunOptions, GetResultsOptions, Result } from '../types.js';
-import { serializeIdList } from '../utils.js';
-import { validateId } from '../validation.js';
+import { serializeIdFilter } from '../utils.js';
+import { validateId, validateTimestamp } from '../validation.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
 
 export interface GetAllResultsOptions extends Omit<GetResultsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
@@ -66,8 +66,8 @@ export const RESULTS_PAGINATION = createPaginatedListExecutor<
         const createdBefore = includeCreatedFilters ? (options?.createdBefore ?? options?.created_before) : undefined;
         const createdBy = includeCreatedFilters ? (options?.createdBy ?? options?.created_by) : undefined;
         const statusId = options?.statusId ?? options?.status_id;
-        if (createdBy !== undefined) createdBy.forEach((userId) => validateId(userId, 'createdBy'));
-        if (statusId !== undefined) statusId.forEach((id) => validateId(id, 'statusId'));
+        validateTimestamp(createdAfter, 'createdAfter');
+        validateTimestamp(createdBefore, 'createdBefore');
 
         return {
             operation: args.operation,
@@ -75,8 +75,8 @@ export const RESULTS_PAGINATION = createPaginatedListExecutor<
             query: {
                 created_after: createdAfter,
                 created_before: createdBefore,
-                created_by: serializeIdList(createdBy),
-                status_id: serializeIdList(statusId),
+                created_by: serializeIdFilter(createdBy, 'createdBy'),
+                status_id: serializeIdFilter(statusId, 'statusId'),
                 defects_filter: options?.defectsFilter ?? options?.defects_filter,
             },
         };
@@ -182,7 +182,7 @@ export class ResultModule {
      */
     async editResult(resultId: number, payload: EditResultPayload): Promise<Result> {
         validateId(resultId, 'resultId');
-        if (Object.keys(payload).length === 0) {
+        if (!Object.values(payload).some((value) => value !== undefined)) {
             throw new TestRailValidationError('At least one result field is required');
         }
         return this.client.request<Result>({

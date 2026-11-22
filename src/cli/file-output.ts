@@ -8,7 +8,7 @@ import { lstatSync } from 'node:fs';
  * The accompanying JSON ack is redirected to stderr so the binary stream
  * remains uncontaminated.
  */
-export const STDOUT_SENTINEL = '-';
+const STDOUT_SENTINEL = '-';
 
 /**
  * Raw input for the download destination resolver. Only `outFlag`; no

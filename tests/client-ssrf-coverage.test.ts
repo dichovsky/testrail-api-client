@@ -269,6 +269,32 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         }
     });
 
+    it.each([
+        ['10.0.0.5', 4],
+        ['::1', 6],
+    ])('rejects a private answer (%s) that follows a public one', async (address, family) => {
+        // Every answer is handed to the socket resolver, so one private entry
+        // anywhere in the list must refuse the request, not only the first.
+        mockDnsLookup.mockResolvedValueOnce([
+            { address: '93.184.216.34', family: 4 },
+            { address, family },
+        ]);
+        const client = new TestRailClient({
+            baseUrl: 'https://public-host.example',
+            email: 'test@example.com',
+            apiKey: 'key',
+        });
+        try {
+            const rejection = await client.projects.getProject(1).catch((error: unknown) => error);
+            expect(rejection).toBeInstanceOf(TestRailValidationError);
+            expect((rejection as Error).message).toMatch(/private\/loopback host .* -> "[^"]*"/);
+            expect((rejection as Error).message).toContain(address);
+            expect(mockFetch).not.toHaveBeenCalled();
+        } finally {
+            client.destroy();
+        }
+    });
+
     it('rethrows TestRailValidationError raised inside the dns.lookup try block (line 154)', async () => {
         // When the dns module raises TestRailValidationError directly (a
         // synthetic mock path that mirrors how a future inner check could
@@ -331,16 +357,20 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
     });
 
     it('wraps non-Error DNS rejections (defensive — fail-closed)', async () => {
-        // err instanceof Error -> false branch: the message falls back to
-        // 'Unknown error'. Defends against a future DNS shim that rejects
-        // with a non-Error value.
-        mockDnsLookup.mockRejectedValueOnce('plain string rejection');
+        // err instanceof Error -> false branch: the reason is stringified
+        // instead of read off `.message`. Defends against a future DNS shim
+        // that rejects with a non-Error value.
+        mockDnsLookup.mockRejectedValue('plain string rejection');
         const client = new TestRailClient({
             baseUrl: 'https://public-host.example',
             email: 'test@example.com',
             apiKey: 'key',
+            maxRetries: 0,
         });
-        await expect(client.projects.getProject(1)).rejects.toThrow(/Unknown error|DNS validation failed/);
+        await expect(client.projects.getProject(1)).rejects.toThrow(
+            'Network error: DNS lookup failed for "public-host.example": plain string rejection',
+        );
+        expect(mockFetch).not.toHaveBeenCalled();
     });
 });
 

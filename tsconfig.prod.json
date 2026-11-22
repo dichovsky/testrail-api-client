@@ -10,7 +10,11 @@
         // tarball, so consumers' editors and debuggers chased a missing target.
         // Not emitting them is the same outcome without the dangling reference.
         "declarationMap": false,
-        "sourceMap": false
+        "sourceMap": false,
+        // Members tagged `@internal` (for example the pipeline knobs on
+        // `RequestSpec`) are implementation details; keep them out of the
+        // published declarations.
+        "stripInternal": true
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "dist", "tests"]

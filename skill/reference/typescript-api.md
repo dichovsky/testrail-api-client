@@ -29,8 +29,6 @@ const client = new TestRailClient({
 
 try {
     // Put the selected endpoint calls here, before client cleanup.
-    const project = await client.projects.getProject(1);
-    console.log(project.name);
 } catch (e) {
     if (e instanceof TestRailApiError) {
         // HTTP/network/protocol errors carry .status / .statusText / .response.
@@ -210,6 +208,8 @@ import { readFileSync } from 'node:fs';
 // Upload — pass a Buffer (or a Blob) plus a filename.
 const buf = readFileSync('./screenshot.png');
 const ack = await client.attachments.addAttachmentToCase(42, buf, 'screenshot.png');
+// The response type permits a missing ID. Stop before you use it.
+if (ack.attachment_id == null) throw new Error('Upload returned no attachment ID');
 console.log(ack.attachment_id);
 
 // Download — returns an ArrayBuffer; the caller writes to disk.
@@ -233,11 +233,14 @@ const plan = await client.plans.addPlan(1, {
 
 // Add a config-specific run to an existing plan entry. Entry IDs are
 // UUID-style strings (NOT integers) — use the value from plan.entries[].id.
-await client.plans.addRunToPlanEntry(plan.id, plan.entries[0].id, {
+// The response type permits missing entries. Stop before you use the ID.
+const entryId = plan.entries?.[0]?.id;
+if (entryId === undefined) throw new Error('Plan response has no entry ID');
+await client.plans.addRunToPlanEntry(plan.id, entryId, {
     config_ids: [101, 102],
 });
 
-await client.plans.updatePlanEntry(plan.id, plan.entries[0].id, {
+await client.plans.updatePlanEntry(plan.id, entryId, {
     name: 'Smoke (config matrix)',
 });
 

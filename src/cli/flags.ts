@@ -34,7 +34,7 @@ function defineFlagCatalog<const Catalog extends Readonly<Record<string, CliFlag
  * resolution. Action-scoped flags are either explicitly named by an action or
  * admitted through a capability derived from its ActionSpec.
  */
-export const FLAG_CATALOG = defineFlagCatalog({
+const FLAG_CATALOG = defineFlagCatalog({
     'base-url': { type: 'string', scope: 'global' },
     email: { type: 'string', scope: 'global', valueName: 'email' },
     'user-email': { type: 'string', scope: 'action', handlerKey: 'userEmail', valueName: 'email' },
@@ -264,7 +264,7 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
     },
     quiet: {
         scope: 'All commands',
-        description: 'Suppress normal output and advisory warnings; rely on the exit code.',
+        description: 'Suppress normal output, error messages, and advisory warnings; rely on the exit code.',
     },
     help: {
         scope: 'Top level',

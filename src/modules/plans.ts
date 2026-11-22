@@ -11,8 +11,8 @@ import {
     type AddRunToPlanEntryPayload,
     type UpdateRunInPlanEntryPayload,
 } from '../schemas.js';
-import { serializeIdList } from '../utils.js';
-import { validateId, validateEntryId } from '../validation.js';
+import { serializeIdFilter } from '../utils.js';
+import { validateId, validateEntryId, validateTimestamp } from '../validation.js';
 import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
 
@@ -35,8 +35,8 @@ export const PLANS_PAGINATION = createPaginatedListExecutor<
         const createdBefore = options?.createdBefore ?? options?.created_before;
         const createdBy = options?.createdBy ?? options?.created_by;
         const milestoneId = options?.milestoneId ?? options?.milestone_id;
-        if (createdBy !== undefined) createdBy.forEach((userId) => validateId(userId, 'createdBy'));
-        if (milestoneId !== undefined) milestoneId.forEach((id) => validateId(id, 'milestoneId'));
+        validateTimestamp(createdAfter, 'createdAfter');
+        validateTimestamp(createdBefore, 'createdBefore');
         const isCompleted =
             options?.isCompleted ?? (options?.is_completed !== undefined ? options.is_completed === 1 : undefined);
         return {
@@ -45,9 +45,9 @@ export const PLANS_PAGINATION = createPaginatedListExecutor<
             query: {
                 created_after: createdAfter,
                 created_before: createdBefore,
-                created_by: serializeIdList(createdBy),
+                created_by: serializeIdFilter(createdBy, 'createdBy'),
                 is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
-                milestone_id: serializeIdList(milestoneId),
+                milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
                 refs: options?.refs,
             },
         };

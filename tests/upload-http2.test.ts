@@ -3,19 +3,16 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-// Node 24's bundled Undici 7 defaults to HTTP/1. Native Undici 8 (Node 26)
-// negotiates HTTP/2 by default; test that real public surface without changing
-// the process-wide dispatcher or importing an additional dependency.
-const nativeHttp2 = Number(process.versions['undici']?.split('.')[0] ?? 0) >= 8;
+// Native Undici 8 (Node 26) negotiates HTTP/2 by default; test that real public
+// surface without changing the process-wide dispatcher or importing an
+// additional dependency.
 
 describe('native HTTP/2 upload lifecycle', () => {
-    it.skipIf(!nativeHttp2)(
-        'does not adopt another concurrent upload with the same endpoint and method',
-        async () => {
-            const certPath = fileURLToPath(new URL('./fixtures/pinned-test-cert.pem', import.meta.url));
-            const keyPath = fileURLToPath(new URL('./fixtures/pinned-test-key.pem', import.meta.url));
-            const clientUrl = new URL('../src/client.ts', import.meta.url).href;
-            const code = `
+    it('does not adopt another concurrent upload with the same endpoint and method', async () => {
+        const certPath = fileURLToPath(new URL('./fixtures/pinned-test-cert.pem', import.meta.url));
+        const keyPath = fileURLToPath(new URL('./fixtures/pinned-test-key.pem', import.meta.url));
+        const clientUrl = new URL('../src/client.ts', import.meta.url).href;
+        const code = `
                 import assert from 'node:assert/strict';
                 import dns from 'node:dns';
                 import { syncBuiltinESMExports } from 'node:module';
@@ -111,17 +108,15 @@ describe('native HTTP/2 upload lifecycle', () => {
                     server.close();
                 }
             `;
-            const { stdout } = await promisify(execFile)(
-                process.execPath,
-                ['--import', 'tsx', '--input-type=module', '-e', code],
-                { env: { ...process.env, NODE_EXTRA_CA_CERTS: certPath }, timeout: 10_000 },
-            );
-            expect(stdout.trim()).toBe('concurrent upload retained its owner');
-        },
-        15_000,
-    );
+        const { stdout } = await promisify(execFile)(
+            process.execPath,
+            ['--import', 'tsx', '--input-type=module', '-e', code],
+            { env: { ...process.env, NODE_EXTRA_CA_CERTS: certPath }, timeout: 10_000 },
+        );
+        expect(stdout.trim()).toBe('concurrent upload retained its owner');
+    }, 15_000);
 
-    it.skipIf(!nativeHttp2).each(['complete', 'early-response'] as const)(
+    it.each(['complete', 'early-response'] as const)(
         'settles a %s upload without interrupting a stream on the same connection',
         async (scenario) => {
             const certPath = fileURLToPath(new URL('./fixtures/pinned-test-cert.pem', import.meta.url));

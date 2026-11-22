@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
 
+// Every client in this file that sends a request resolves its host through
+// this stub. The real resolver would make these tests depend on the network,
+// and `timeout` covers DNS resolution, so a slow lookup could also abort an
+// attempt before fetch is reached.
+const instantDnsLookup = async (): Promise<{ address: string; family: number }[]> => [
+    { address: '203.0.113.10', family: 4 },
+];
+
 describe('TestRailClient - Coverage Improvement', () => {
     beforeEach(() => {
         vi.resetAllMocks();
@@ -399,6 +407,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 // environments while still keeping the test execution fast.
                 timeout: 1000,
                 maxRetries: 0, // No retries to avoid complications
+                dnsLookup: instantDnsLookup,
             });
 
             // Mock fetch to simulate timeout
@@ -412,26 +421,40 @@ describe('TestRailClient - Coverage Improvement', () => {
 
     describe('Retry Logic Edge Cases', () => {
         it('should handle maximum retry attempts with exponential backoff', async () => {
-            const client = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test@example.com',
-                apiKey: 'test-key',
-                maxRetries: 2,
-            });
+            vi.useFakeTimers();
+            try {
+                const client = new TestRailClient({
+                    baseUrl: 'https://example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                    maxRetries: 5,
+                    dnsLookup: instantDnsLookup,
+                });
 
-            // Mock fetch to always return 500 error
-            global.fetch = vi.fn().mockResolvedValue({
-                ok: false,
-                status: 500,
-                statusText: 'Internal Server Error',
-                text: vi.fn().mockResolvedValue('Internal Server Error'),
-                json: vi.fn().mockResolvedValue({ error: 'Server error' }),
-            });
+                // Always answer 500, and record when each attempt is sent.
+                const startedAt = Date.now();
+                const attemptOffsets: number[] = [];
+                global.fetch = vi.fn().mockImplementation(async () => {
+                    attemptOffsets.push(Date.now() - startedAt);
+                    return {
+                        ok: false,
+                        status: 500,
+                        statusText: 'Internal Server Error',
+                        text: vi.fn().mockResolvedValue('Internal Server Error'),
+                    };
+                });
 
-            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailApiError);
+                const outcome = client.projects.getProject(1).catch((error: unknown) => error);
+                await vi.advanceTimersByTimeAsync(25_000);
 
-            // Verify multiple calls were made due to retries
-            expect(global.fetch).toHaveBeenCalledTimes(3); // initial + 2 retries
+                // Initial attempt plus 5 retries. The waits double from 1 s
+                // (1, 2, 4, 8 s) and the fifth is capped at 10 s instead of 16 s.
+                expect(attemptOffsets).toEqual([0, 1000, 3000, 7000, 15_000, 25_000]);
+                await expect(outcome).resolves.toMatchObject({ name: 'TestRailApiError', status: 500 });
+                client.destroy();
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('should handle network error with retry limit reached', async () => {
@@ -440,6 +463,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 email: 'test@example.com',
                 apiKey: 'test-key',
                 maxRetries: 1,
+                dnsLookup: instantDnsLookup,
             });
 
             // Mock fetch to throw network error
@@ -452,17 +476,6 @@ describe('TestRailClient - Coverage Improvement', () => {
             // Should have made 2 attempts (initial + 1 retry)
             expect(global.fetch).toHaveBeenCalledTimes(2);
         });
-
-        // These two are the only clients in this file with a sub-second
-        // timeout, and `timeout` now covers DNS resolution as well as the
-        // fetch phase. Every other client here is left on live DNS because a
-        // 30s default cannot plausibly be exhausted by a lookup; at 50ms a
-        // real resolver easily can, which would abort the attempt before fetch
-        // is reached and make these tests measure resolver latency instead of
-        // the retry policy they are about.
-        const instantDnsLookup = async (): Promise<{ address: string; family: number }[]> => [
-            { address: '203.0.113.10', family: 4 },
-        ];
 
         it('should handle abort error after retries exhausted', async () => {
             const client = new TestRailClient({
@@ -528,96 +541,67 @@ describe('TestRailClient - Coverage Improvement', () => {
             client2.destroy();
         });
 
-        it('should handle process event registration in environments without process', () => {
-            // Mock environment without process
-            const processHolder = global as { process: typeof process | undefined };
-            const originalProcess = processHolder.process;
-            processHolder.process = undefined;
+        const DESTROYED = 'Cannot use TestRailClient after destroy() has been called';
 
-            // Should still create client successfully
-            expect(() => {
-                const client = new TestRailClient({
-                    baseUrl: 'https://example.testrail.net',
-                    email: 'test@example.com',
-                    apiKey: 'test-key',
-                });
-                client.destroy();
-            }).not.toThrow();
-
-            // Restore original process
-            processHolder.process = originalProcess;
-        });
-
-        it('should handle cleanup of all active clients', () => {
-            const client1 = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test1@example.com',
-                apiKey: 'test-key-1',
-            });
-
-            const client2 = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test2@example.com',
-                apiKey: 'test-key-2',
-            });
-
-            // Test cleanup by calling destroy on both
-            client1.destroy();
-            client2.destroy();
-
-            // Should complete without errors
-            expect(true).toBe(true);
-        });
-
-        it('should invoke cleanupAllClients when process emits exit (opt-in)', () => {
-            const client = new TestRailClient({
+        function makeOptInClient(): TestRailClient {
+            return new TestRailClient({
                 baseUrl: 'https://example.testrail.net',
                 email: 'test@example.com',
                 apiKey: 'test-key',
                 registerProcessHandlers: true,
+                // Reached only when a handler failed to destroy the client;
+                // these keep that failure fast and off the network.
+                maxRetries: 0,
+                dnsLookup: instantDnsLookup,
+                fetch: vi.fn(),
             });
+        }
+
+        it('should invoke cleanupAllClients when process emits exit (opt-in)', async () => {
+            const client = makeOptInClient();
 
             // Emit exit — synchronously calls cleanupAllClients which destroys all active clients
             process.emit('exit', 0);
 
-            // destroy() is idempotent; calling it again after cleanup must not throw
-            expect(() => client.destroy()).not.toThrow();
+            await expect(client.projects.getProject(1)).rejects.toThrow(DESTROYED);
         });
 
-        it('should invoke cleanupAllClients on SIGINT and exit with code 130 (opt-in)', () => {
+        it('should invoke cleanupAllClients on SIGINT and exit with code 130 (opt-in)', async () => {
             const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+            try {
+                const client = makeOptInClient();
 
-            const client = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test@example.com',
-                apiKey: 'test-key',
-                registerProcessHandlers: true,
-            });
+                process.emit('SIGINT');
 
-            process.emit('SIGINT');
-
-            expect(exitSpy).toHaveBeenCalledWith(130);
-            expect(() => client.destroy()).not.toThrow();
-
-            exitSpy.mockRestore();
+                expect(exitSpy).toHaveBeenCalledWith(130);
+                await expect(client.projects.getProject(1)).rejects.toThrow(DESTROYED);
+            } finally {
+                exitSpy.mockRestore();
+            }
         });
 
-        it('should invoke cleanupAllClients on SIGTERM and exit with code 143 (opt-in)', () => {
+        it('should invoke cleanupAllClients on SIGTERM and exit with code 143 (opt-in)', async () => {
             const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+            try {
+                const client = makeOptInClient();
 
-            const client = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test@example.com',
-                apiKey: 'test-key',
-                registerProcessHandlers: true,
-            });
+                process.emit('SIGTERM');
 
-            process.emit('SIGTERM');
+                expect(exitSpy).toHaveBeenCalledWith(143);
+                await expect(client.projects.getProject(1)).rejects.toThrow(DESTROYED);
+            } finally {
+                exitSpy.mockRestore();
+            }
+        });
 
-            expect(exitSpy).toHaveBeenCalledWith(143);
-            expect(() => client.destroy()).not.toThrow();
+        it('leaves a destroyed client out of the exit sweep', () => {
+            const client = makeOptInClient();
+            client.destroy();
+            const destroySpy = vi.spyOn(client, 'destroy');
 
-            exitSpy.mockRestore();
+            process.emit('exit', 0);
+
+            expect(destroySpy).not.toHaveBeenCalled();
         });
     });
 
@@ -759,6 +743,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 email: 'test@example.com',
                 apiKey: 'test-key',
                 maxRetries: 0, // No retries
+                dnsLookup: instantDnsLookup,
             });
 
             // Mock fetch to return non-JSON error response
@@ -810,6 +795,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 email: 'test@example.com',
                 apiKey: 'test-key',
                 maxRetries: 3,
+                dnsLookup: instantDnsLookup,
             });
         }
 
@@ -957,7 +943,9 @@ describe('TestRailClient - Coverage Improvement', () => {
             client.destroy();
         });
 
-        it.each([301, 302, 303, 307, 308])(
+        // 300, 304 and 399 pin the guard to the whole [300, 400) range rather
+        // than to the statuses a server normally uses for redirects.
+        it.each([300, 301, 302, 303, 304, 307, 308, 399])(
             'rejects %i across the full redirect-status matrix on GET',
             async (status) => {
                 const client = makeClient();
@@ -966,7 +954,9 @@ describe('TestRailClient - Coverage Improvement', () => {
                 await expect(client.projects.getProject(1)).rejects.toMatchObject({
                     name: 'TestRailApiError',
                     status,
+                    response: expect.stringContaining('Redirect blocked'),
                 });
+                expect(global.fetch).toHaveBeenCalledTimes(1);
                 client.destroy();
             },
         );

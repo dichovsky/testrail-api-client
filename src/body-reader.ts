@@ -1,4 +1,4 @@
-import { TestRailApiError } from './errors.js';
+import { TestRailApiError, networkError, sanitizedCause } from './errors.js';
 import { bindOperation, observeOperation } from './operation-tracking.js';
 
 /**
@@ -16,6 +16,12 @@ export interface BodyLimits {
      * that cancels the reader on expiry. Should never be negative.
      */
     deadlineMs: number;
+    /**
+     * The response came from a caller-supplied `fetch`, so a stream failure is
+     * caller code: attach a {@link sanitizedCause} copy instead of the raw
+     * error, which can carry the request headers.
+     */
+    sanitizeCause?: boolean;
 }
 
 function cancelReaderBestEffort(reader: globalThis.ReadableStreamDefaultReader<Uint8Array>, reason: Error): void {
@@ -29,12 +35,26 @@ function cancelReaderBestEffort(reader: globalThis.ReadableStreamDefaultReader<U
     }
 }
 
+/** Identity, not `statusText`: marks the errors this module raised for its own deadline. */
+const bodyTimeouts = new WeakSet<object>();
+
 function bodyTimeoutError(deadlineMs: number): TestRailApiError {
-    return new TestRailApiError(
+    const error = new TestRailApiError(
         0,
         'Body read timeout',
         `body read exceeded ${deadlineMs}ms before the response body finished streaming`,
     );
+    bodyTimeouts.add(error);
+    return error;
+}
+
+/**
+ * Whether `error` is this module reporting that `deadlineMs` elapsed. Lets a
+ * caller that derived the deadline from a wider allowance attribute the expiry
+ * to that allowance.
+ */
+export function isBodyReadTimeout(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && bodyTimeouts.has(error);
 }
 
 /**
@@ -52,10 +72,41 @@ function bodyTimeoutError(deadlineMs: number): TestRailApiError {
  * this only on the chosen branch.
  *
  * @throws {TestRailApiError} status 0 with `Response body too large` when
- *         `maxBytes` is exceeded, or `Body read timeout` when `deadlineMs`
- *         elapses before the stream closes.
+ *         `maxBytes` is exceeded, `Body read timeout` when `deadlineMs`
+ *         elapses before the stream closes, or `Network error: …` when the
+ *         transport fails mid-body.
  */
 export async function readBodyWithLimits(response: Response, limits: BodyLimits): Promise<Uint8Array> {
+    try {
+        return await readBody(response, limits);
+    } catch (error) {
+        // The size and deadline failures above are already the documented
+        // class. Anything else is the stream itself failing after the headers
+        // arrived (undici raises `TypeError: terminated` on a reset), which is
+        // a network failure to the caller, not a raw runtime error.
+        if (error instanceof TestRailApiError) throw error;
+        const failure = networkError(
+            error,
+            '',
+            limits.sanitizeCause === true ? { cause: sanitizedCause(error) } : undefined,
+        );
+        transportFailures.add(failure);
+        throw failure;
+    }
+}
+
+/** Identity, not `statusText`: marks the errors raised for a stream that failed mid-body. */
+const transportFailures = new WeakSet<object>();
+
+/**
+ * Whether `error` is this module reporting that the response stream itself
+ * failed after the headers arrived, as opposed to a size or deadline limit.
+ */
+export function isBodyTransportFailure(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && transportFailures.has(error);
+}
+
+async function readBody(response: Response, limits: BodyLimits): Promise<Uint8Array> {
     const { maxBytes, deadlineMs } = limits;
     // Some Response-like objects (mocks, polyfills, older runtimes) do not
     // expose a ReadableStream. Fall back to `arrayBuffer()` / `text()` and

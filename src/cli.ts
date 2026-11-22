@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+import { isatty } from 'node:tty';
 import { TestRailClient } from './client.js';
 import { runCli } from './cli/index.js';
 import { sanitizeForTerminal } from './cli/sanitize.js';
+import { STDIN_FD } from './constants.js';
 import { readBoundedStdin, readStdinBinary } from './cli/stdin.js';
 
 /**
@@ -22,6 +24,20 @@ import { readBoundedStdin, readStdinBinary } from './cli/stdin.js';
  * and does want it, for `destroy()` on Ctrl-C and the conventional 130/143
  * exit codes.
  */
+
+// A reader that closes early (`testrail case list --all 2>&1 | head`) reaches
+// this process as an `EPIPE` 'error' event on stdout or stderr. With no
+// listener Node treats it as an uncaught exception, prints a stack trace, and
+// replaces the exit code. Nobody is left to read the rest, so stop quietly
+// instead; `process.exit()` without an argument keeps a failure code that was
+// already recorded. Any other stream error stays fatal.
+const exitQuietlyOnEpipe = (error: NodeJS.ErrnoException): void => {
+    if (error.code !== 'EPIPE') throw error;
+    process.exit();
+};
+process.stdout.on('error', exitQuietlyOnEpipe);
+process.stderr.on('error', exitQuietlyOnEpipe);
+
 runCli({
     argv: process.argv.slice(2),
     env: process.env,
@@ -32,12 +48,18 @@ runCli({
     // same shape that broke the stdin pipe in #221/#230.
     stdoutIsTTY: process.stdout.isTTY === true,
     stdin: {
-        // Node sets `isTTY` to `true` for a terminal and leaves it `undefined`
-        // for a pipe or redirect — it is never `false`. Testing `!== false`
-        // here is what broke the documented `echo $KEY | testrail …` pipe
-        // (#221/#230), so compare against `true` and nothing else.
-        isTTY: process.stdin.isTTY === true,
-        read: (maxBytes) => readBoundedStdin(maxBytes, process.stdin.fd),
+        // `isatty`, not `process.stdin.isTTY`: creating the stream switches
+        // descriptor 0 to non-blocking mode, which only the read below wants.
+        isTTY: isatty(STDIN_FD),
+        // Create the stream only when a text read actually happens. Its
+        // non-blocking descriptor makes `readBoundedStdin` poll on EAGAIN
+        // under STDIN_READ_TIMEOUT_MS instead of blocking in a syscall, so a
+        // producer that never closes the pipe ends in an error instead of a
+        // hang that also defers SIGINT and SIGTERM indefinitely.
+        read: (maxBytes) => {
+            void process.stdin;
+            return readBoundedStdin(maxBytes, STDIN_FD);
+        },
         readBinary: (maxBytes, timeoutMs) => readStdinBinary(process.stdin, maxBytes, timeoutMs),
     },
     createClient: (config) => new TestRailClient({ ...config, registerProcessHandlers: true }),

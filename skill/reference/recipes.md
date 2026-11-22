@@ -812,8 +812,9 @@ testrail run watch 42 --interval 10
 
 ```bash
 # One-shot status check: poll once, emit the snapshot, exit 0
-# regardless of is_completed. Useful when you want the watcher's
-# rendering without a long-running process.
+# regardless of is_completed. A failed poll exits 1; --once never
+# retries. Useful when you want the watcher's rendering without a
+# long-running process.
 testrail run watch 42 --once
 ```
 
@@ -980,7 +981,8 @@ testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","c
 <!-- recipe-for: attachment:add-to-plan-entry -->
 <!-- recipe-for: attachment:add-to-run -->
 
-You can also store attachments on test plans, plan entries, test runs, and individual tests.
+You can also store attachments on test plans, plan entries, and test runs.
+You can list the attachments on an individual test.
 Pass `--file <path>` (or `--file -` for stdin) to upload a file.
 Pass `--filename` to override the basename.
 
@@ -996,15 +998,15 @@ testrail attachment add-to-plan-entry 100 'a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6'
   --file ./config-matrix.xlsx
 ```
 
-**Upload attachments to a run and individual tests:**
+**Upload attachments to a run:**
 
 ```bash
 # Upload a build log to the entire run.
 testrail attachment add-to-run 42 --file ./build.log
-
-# Upload a screenshot to a single test (run instance of a case).
-testrail attachment add-to-test 1337 --file ./screenshot.png
 ```
+
+TestRail has no upload endpoint for an individual test.
+To attach a file to a test, upload the file to one of its results with `attachment add-to-result` (Recipe 15).
 
 **List attachments across entry types:**
 
@@ -1618,7 +1620,7 @@ Set `TESTRAIL_ALLOW_DESTRUCTIVE=1` and pass `--yes` to confirm:
 
 ```bash
 testrail group delete 12 --yes
-# → (empty response; group is gone)
+# → {"groupId":12,"deleted":true}
 ```
 
 ```bash
@@ -1653,7 +1655,7 @@ testrail role list --all
 ```bash
 # Extract role IDs and names as a lookup table
 testrail role list --all | jq 'map({key: .name, value: .id}) | from_entries'
-# → {"Admin":"1","Analyst":"2",...}
+# → {"Lead":1,"Analyst":2,...}
 ```
 
 ```bash
@@ -1689,7 +1691,7 @@ These commands fetch cases, inspect edit history, copy or move cases between sec
 **Fetch a single case by ID:**
 
 ```bash
-testrail case get 1337 | jq '{id, title, section_id, type_id, priority_id, assigned_to_id}'
+testrail case get 1337 | jq '{id, title, section_id, type_id, priority_id}'
 ```
 
 The response includes all `custom_*` fields on the case.
@@ -1756,20 +1758,26 @@ testrail case update-bulk 12 --data '{
 
 To update custom fields, use the exact `system_name` (such as `"custom_rfc": "RFC-5678"`). See Recipe 45.
 
-**CI/scripting pattern — list unassigned cases and update their priority:**
+**CI/scripting pattern — list cases with one priority and change their priority:**
+
+Select cases with a field that the case response contains.
+A `jq` filter on a missing field such as `select(.missing == null)` matches every case.
 
 ```bash
-# Extract case IDs where assigned_to_id is null (unassigned).
+# Extract the IDs of cases where priority_id is 1.
+# Priority IDs depend on the instance. Run `testrail priority list` first.
 CASES=$(testrail case list --project-id 5 --suite-id 12 --all | \
-    jq -r '.[] | select(.assigned_to_id == null) | .id')
+    jq -r '.[] | select(.priority_id == 1) | .id')
 
-# Convert to a JSON array and bulk-update.
-CASE_IDS=$(echo "$CASES" | jq -Rs 'split("\n") | map(select(. != "") | tonumber)')
+# Convert to a JSON array and bulk-update. Skip the update when no case matches.
+if [ -n "$CASES" ]; then
+    CASE_IDS=$(echo "$CASES" | jq -Rs 'split("\n") | map(select(. != "") | tonumber)')
 
-testrail case update-bulk 12 --data "$(jq -n --argjson ids "$CASE_IDS" '{
-    "case_ids": $ids,
-    "priority_id": 4
-}')"
+    testrail case update-bulk 12 --data "$(jq -n --argjson ids "$CASE_IDS" '{
+        "case_ids": $ids,
+        "priority_id": 4
+    }')"
+fi
 ```
 
 ### 45. Case field configuration and discovery
@@ -1926,10 +1934,10 @@ Output:
 
 ```json
 [
-    { "id": 1, "name": "Automated", "is_builtin": true },
-    { "id": 2, "name": "Manual", "is_builtin": true },
-    { "id": 3, "name": "Exploratory", "is_builtin": true },
-    { "id": 4, "name": "Performance", "is_builtin": false }
+    { "id": 1, "name": "Automated", "is_default": false },
+    { "id": 2, "name": "Manual", "is_default": true },
+    { "id": 3, "name": "Exploratory", "is_default": false },
+    { "id": 4, "name": "Performance", "is_default": false }
 ]
 ```
 
@@ -1965,16 +1973,17 @@ Every destructive CLI action requires both gates:
 1. The `--yes` flag.
 2. The `TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable.
 
-If either gate is missing, the CLI blocks the API call:
+If either gate is missing, the CLI blocks the API call.
+The CLI checks the environment variable first:
 
 ```bash
-# Without --yes: exits 1.
-testrail case delete 1337
-# Error: Destructive action; pass --yes to confirm.
-
-# Without env var: exits 2.
+# Without the environment variable: exits 2, with or without --yes.
 testrail case delete 1337 --yes
-# Error: Destructive action requires TESTRAIL_ALLOW_DESTRUCTIVE=1.
+# Error: Destructive action 'case delete' requires TESTRAIL_ALLOW_DESTRUCTIVE=1 environment variable. ...
+
+# With the environment variable but without --yes: exits 1.
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail case delete 1337
+# Error: Destructive action; pass --yes to confirm.
 ```
 
 Provide both gates to delete the case:
@@ -2003,12 +2012,13 @@ Response:
     "soft": true,
     "deleted": false,
     "preview": {
-        "cases_affected": 1,
-        "results_affected": 42,
-        "attachments_affected": 3
+        "affected_tests": 42
     }
 }
 ```
+
+The `preview` object contains the counters that TestRail returns.
+For `case delete`, the counter is `affected_tests`.
 
 **Client-side preview with `--dry-run` (no API call):**
 
@@ -2022,10 +2032,11 @@ Output:
 
 ```json
 {
+    "dryRun": true,
+    "action": "case delete",
     "caseId": 1337,
-    "destructive": true,
-    "dry_run": true,
-    "soft": false
+    "soft": false,
+    "destructive": true
 }
 ```
 
@@ -2048,10 +2059,16 @@ testrail case delete 1337 --yes --dry-run
 
 # Step 2: Server-side preview (costs 1 API request, returns counts).
 PREVIEW=$(testrail case delete 1337 --yes --soft)
-RESULTS_AFFECTED=$(echo "$PREVIEW" | jq '.preview.results_affected')
 
-if [ "$RESULTS_AFFECTED" -gt 100 ]; then
-    echo "Too many results affected; aborting." >&2
+# jq -e fails when the count is missing, null, or not a number.
+AFFECTED_TESTS=$(echo "$PREVIEW" | jq -e '.preview.affected_tests | numbers') || {
+    echo "Preview has no affected_tests count; aborting." >&2
+    exit 1
+}
+
+# Continue only when the count is at most 100. A failed comparison also aborts.
+if ! [ "$AFFECTED_TESTS" -le 100 ]; then
+    echo "Too many tests affected; aborting." >&2
     exit 1
 fi
 
@@ -2067,21 +2084,21 @@ testrail case delete 1337 --yes
 
 **Missing case IDs:**
 
-If the case ID does not exist, TestRail returns HTTP 404 and the CLI exits with code 1:
+If the case ID does not exist, TestRail rejects the request with HTTP 400 or 404, and the CLI exits with code 1.
+The CLI prints the status on stderr (`Error: TestRail API error: <status> <text>`).
+Read the status from the real delete. `--dry-run` sends no request and cannot detect a missing case:
 
 ```bash
 export TESTRAIL_ALLOW_DESTRUCTIVE=1
 
-if testrail case delete 1337 --yes; then
+# Capture stderr from the real delete.
+if ERR=$(testrail case delete 1337 --yes 2>&1 >/dev/null); then
     echo "Case 1337 deleted."
-elif [ $? -eq 1 ]; then
-    # Could be 404 (not found) or a network error — check stderr
-    if testrail case delete 1337 --dry-run 2>&1 | grep -q "not found"; then
-        echo "Case 1337 does not exist; skipping."
-    else
-        echo "Delete failed; aborting." >&2
-        exit 1
-    fi
+elif echo "$ERR" | grep -qE "TestRail API error: (400|404)"; then
+    echo "Case 1337 does not exist; skipping."
+else
+    echo "Delete failed: $ERR" >&2
+    exit 1
 fi
 ```
 
@@ -2103,7 +2120,7 @@ Use these commands to fetch, list, create, move, update, and delete sections.
 testrail section get 42
 ```
 
-Returns `{ id: 42, project_id: 5, suite_id: 12, parent_id: null, name: "Login", depth: 0, display_order: 1 }`.
+Returns `{ id: 42, suite_id: 12, parent_id: null, name: "Login", depth: 0, display_order: 1 }`.
 
 **2. List all sections in a project:**
 
@@ -2130,19 +2147,22 @@ testrail section add 5 --data '{
 **4. Move a section (TestRail 6.5.2+):**
 
 ```bash
-# Move to a different parent section or top-level position
+# Move under parent section 50, after sibling section 41
 testrail section move 42 --data '{
     "parent_id": 50,
-    "display_order": 2
+    "after_id": 41
 }'
 
-# Move to top level (no parent)
+# Move to top level (no parent), first position
 testrail section move 42 --data '{
     "parent_id": null,
-    "display_order": 1
+    "after_id": null
 }'
 ```
 
+The payload fields are `parent_id` and `after_id`.
+`after_id` is the ID of the section that the moved section follows.
+`move_section` does not accept `display_order`.
 `section move` accepts partial payloads. Omit fields that you do not want to change.
 
 **5. Update section metadata:**
@@ -2245,7 +2265,7 @@ See Recipe 28 to create, update, audit, or delete shared steps.
 testrail shared-step get 100
 ```
 
-Returns `{ id: 100, project_id: 5, name: "Navigate to login", steps: [...] }`.
+Returns `{ id: 100, project_id: 5, title: "Navigate to login", custom_steps_separated: [...] }`.
 
 **2. List all shared step sets in a project:**
 
@@ -2263,14 +2283,14 @@ testrail shared-step list --project-id 5 --all --page-size 50 --start-offset 100
 
 ```bash
 # Find the shared step ID
-STEP_ID=$(testrail shared-step list --project-id 5 --all | jq '.[] | select(.name == "Navigate to login") | .id')
+STEP_ID=$(testrail shared-step list --project-id 5 --all | jq '.[] | select(.title == "Navigate to login") | .id')
 
 # Use it when adding a case
 testrail case add 42 --data "{
     \"title\": \"Login flow\",
     \"type_id\": 1,
-    \"custom_steps\": [
-        {\"content\": \"{step_id: ${STEP_ID}}\"}
+    \"custom_steps_separated\": [
+        {\"shared_step_id\": ${STEP_ID}}
     ]
 }"
 ```
@@ -2329,7 +2349,7 @@ TestRail validates the syntax and returns HTTP 400 if the file is malformed.
 testrail bdd add 42 --file scenario.feature --dry-run
 ```
 
-This command prints the parsed file size and MIME type without uploading.
+This command prints the file path, the upload filename, and the file size without uploading.
 
 **4. Replace an existing case's BDD content:**
 
@@ -2393,29 +2413,29 @@ Use `result add-bulk-by-test` when:
 
 ```bash
 # Fetch the test list, map to results, and publish all at once.
-testrail result add-bulk-by-test 42 --data '[
+testrail result add-bulk-by-test 42 --data '{"results": [
   {"test_id": 100, "status_id": 1, "comment": "✓ unit tests passed"},
   {"test_id": 101, "status_id": 5, "comment": "✗ integration failed on step 2"},
   {"test_id": 102, "status_id": 1, "elapsed": "2m15s", "version": "3.1.4"}
-]'
+]}'
 ```
 
 **Dry-run preview (no API call):**
 
 ```bash
-testrail result add-bulk-by-test 42 --dry-run --data '[
+testrail result add-bulk-by-test 42 --dry-run --data '{"results": [
   {"test_id": 100, "status_id": 1},
   {"test_id": 101, "status_id": 5}
-]'
+]}'
 ```
 
 **Custom fields pass through unchanged:**
 
 ```bash
-testrail result add-bulk-by-test 42 --data '[
+testrail result add-bulk-by-test 42 --data '{"results": [
   {"test_id": 100, "status_id": 1, "custom_env": "prod", "custom_browser": "safari"},
   {"test_id": 101, "status_id": 5, "defects": "BUG-123"}
-]'
+]}'
 ```
 
 **Alternatives:**
@@ -2452,21 +2472,26 @@ Output:
 [
     {
         "id": 1,
-        "name": "Environment",
+        "name": "env",
         "system_name": "custom_env",
+        "label": "Environment",
         "type_id": 1,
-        "configs": [1, 2, 3]
-    },
-    {
-        "id": 2,
-        "name": "Browser",
-        "system_name": "custom_browser",
-        "type_id": 2,
-        "configs": [1]
+        "display_order": 1,
+        "is_active": true,
+        "include_all": true,
+        "template_ids": [],
+        "configs": [
+            {
+                "context": { "is_global": true, "project_ids": null },
+                "options": { "is_required": false }
+            }
+        ]
     }
 ]
 ```
 
+`name` is the unprefixed field name, and `label` is the display text.
+Each `configs` entry is an object with `context` and `options`.
 Use `system_name` (such as `custom_env`) as the key when you write results:
 
 ```bash
@@ -2542,7 +2567,7 @@ Use these commands to list pre-configured report templates and start report gene
 **List report templates in a project:**
 
 ```bash
-testrail report list 5 --format json | jq '.[] | {id, name, is_global}'
+testrail report list 5 --format json | jq 'map({id, name, description})'
 ```
 
 Output:
@@ -2552,19 +2577,19 @@ Output:
     {
         "id": 1,
         "name": "Test Results Summary",
-        "is_global": true
+        "description": null
     },
     {
         "id": 8,
         "name": "Custom Defect Report",
-        "is_global": false
+        "description": "Open defects for each run"
     }
 ]
 ```
 
 **Trigger report generation:**
 
-`report run` calls `GET run_report/{report_template_id}` and returns URLs for the generated HTML and PDF reports:
+`report run` calls `GET run_report/{report_template_id}` and returns URLs for the report view and the generated HTML and PDF reports:
 
 ```bash
 testrail report run 8
@@ -2574,8 +2599,9 @@ Output:
 
 ```json
 {
-    "report_url": "https://instance.testrail.io/reports/index.html?user_id=1",
-    "report_url_pdf": "https://instance.testrail.io/reports/index.pdf?user_id=1"
+    "report_url": "https://instance.testrail.io/index.php?/reports/view/383",
+    "report_html": "https://instance.testrail.io/index.php?/reports/get_html/383",
+    "report_pdf": "https://instance.testrail.io/index.php?/reports/get_pdf/383"
 }
 ```
 
@@ -2594,8 +2620,8 @@ Download the report from the returned URL with `curl` or `wget`:
 ```bash
 # Note: The API returns URLs; to download, use curl or wget
 URLS=$(testrail report run 8)
-REPORT_URL=$(echo "$URLS" | jq -r '.report_url')
-curl -o report.html "$REPORT_URL"
+REPORT_HTML=$(echo "$URLS" | jq -r '.report_html')
+curl -o report.html "$REPORT_HTML"
 ```
 
 **Common automation uses:**

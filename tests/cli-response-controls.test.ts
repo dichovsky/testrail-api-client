@@ -89,6 +89,8 @@ async function runCli(
     });
 
     let exitCode: number | undefined;
+    const stdoutErrorListeners = process.stdout.listeners('error');
+    const stderrErrorListeners = process.stderr.listeners('error');
 
     try {
         await import('../src/cli.js');
@@ -98,6 +100,19 @@ async function runCli(
         stdoutSpy.mockRestore();
         stderrSpy.mockRestore();
         process.exitCode = originalExitCode;
+        // Every fresh CLI module registers stdout and stderr 'error' listeners.
+        // Left in place, the eleventh import would emit a
+        // MaxListenersExceededWarning into the stderr under test.
+        for (const listener of process.stdout.listeners('error')) {
+            if (!stdoutErrorListeners.includes(listener)) {
+                process.stdout.removeListener('error', listener);
+            }
+        }
+        for (const listener of process.stderr.listeners('error')) {
+            if (!stderrErrorListeners.includes(listener)) {
+                process.stderr.removeListener('error', listener);
+            }
+        }
     }
 
     return {

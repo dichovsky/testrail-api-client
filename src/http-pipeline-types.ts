@@ -63,10 +63,13 @@ export interface PipelineSpec<TParsed> {
     /** Parses the successful Response body into the caller's return type. */
     parseSuccess(response: Response): Promise<TParsed>;
     /**
-     * Optional hook fired immediately after a successful response is received
-     * but before `parseSuccess()`. Used to invalidate the GET cache on writes.
+     * Optional hook fired exactly once per dispatched attempt, whatever its
+     * outcome: when response headers arrive (before any body is read) or when
+     * the attempt fails after `fetch` was invoked. Used to invalidate the GET
+     * cache on writes, which may have committed upstream even when the client
+     * sees an error status, a network failure, or a timeout.
      */
-    onSuccessBeforeParse?(): void;
+    onWriteOutcome?(): void;
 }
 
 /**
@@ -124,17 +127,18 @@ export type RequestIntent = 'side-effecting-read' | 'fresh-read';
 // there; `__t?` is a never-emitted brand witness that prevents TS's
 // `noUnusedLocals` (TS6133) from rejecting the phantom on the interface.
 export interface RequestSpec<T> {
-    /** @internal Phantom brand; never set or read. */
+    /** Phantom brand that ties the spec to its result type; never set or read. */
     readonly __t?: T;
     readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE';
     readonly endpoint: string;
     readonly body?: RequestBody;
     /**
-     * Zod schema for validating the response. When set on a GET, the parsed
-     * value is cached under `PARSED:GET:{endpoint}` only after validation
-     * succeeds (schema-invalid responses are never cached). A `page` cache
-     * variant uses `PAGE:PARSED:GET:{endpoint}`. When omitted on a GET, the
-     * raw body is cached under `GET:{endpoint}`.
+     * Zod schema for validating and transforming the response. When set on a
+     * GET, the raw JSON text is cached under `PARSED:GET:{endpoint}` only after the
+     * initiating caller's validation succeeds. Each caller applies its schema
+     * to its own raw response, including cache hits and shared requests, so
+     * transformed functions and class instances are preserved. When omitted
+     * on a GET, the raw body is cached under `GET:{endpoint}`.
      *
      * Typed as untyped `ZodType` (no `<T>` generic) deliberately — Zod 4 +
      * TypeScript `exactOptionalPropertyTypes` make `ZodType<T>` invariant in

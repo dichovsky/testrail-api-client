@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject, type KnownResponse } from './common.js';
+import { zObject } from './common.js';
 
 // ── Milestone Schema ──────────────────────────────────────────────────────────
 
@@ -42,8 +42,6 @@ export const MilestoneSchema = zObject({
     ...MilestoneBaseSchema.shape,
     milestones: z.array(MilestoneNodeSchema).nullish(),
 });
-
-export type Milestone = KnownResponse<typeof MilestoneSchema>;
 
 // ── Milestone write payloads ──────────────────────────────────────────────────
 

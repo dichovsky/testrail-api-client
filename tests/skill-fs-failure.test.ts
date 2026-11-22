@@ -10,7 +10,16 @@
  * leaks into the real-fs suites.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from 'node:fs';
+import {
+    existsSync,
+    mkdtempSync,
+    rmSync,
+    symlinkSync,
+    writeFileSync,
+    readFileSync,
+    readdirSync,
+    mkdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -22,6 +31,14 @@ const fsControl = vi.hoisted(() => ({
     failRollback: false,
     throwOnUnlinkTemp: false,
     throwOnLstat: false,
+    // lstat of the installed `testrail-cli` directory itself, as opposed to the
+    // SKILL.md inside it.
+    throwOnLstatSkillDir: false,
+    // When set, lstat of an install temp file reports this path's entry type
+    // instead of its own.
+    tempLstatStandIn: undefined as string | undefined,
+    // readdir of the package's own bundled `skill/reference`.
+    throwOnReadBundledReference: false,
     throwOnUnlinkTarget: false,
     // When true, the armed throw is a bare string instead of an Error, so the
     // handlers' `e instanceof Error ? e.message : String(e)` false arm runs.
@@ -76,8 +93,17 @@ vi.mock('node:fs', async (importOriginal) => {
         lstatSync: ((...args: Parameters<typeof actual.lstatSync>) => {
             if (fsControl.throwOnLstat && String(args[0]).endsWith('SKILL.md'))
                 raise('EACCES', 'permission denied, lstat');
+            if (fsControl.throwOnLstatSkillDir && String(args[0]).endsWith('testrail-cli'))
+                raise('EACCES', 'permission denied, lstat');
+            if (fsControl.tempLstatStandIn !== undefined && String(args[0]).includes('SKILL.md.tmp.'))
+                return actual.lstatSync(fsControl.tempLstatStandIn);
             return actual.lstatSync(...args);
         }) as typeof actual.lstatSync,
+        readdirSync: ((...args: Parameters<typeof actual.readdirSync>) => {
+            if (fsControl.throwOnReadBundledReference && /[\\/]skill[\\/]reference$/u.test(String(args[0])))
+                raise('EACCES', 'permission denied, scandir');
+            return actual.readdirSync(...args);
+        }) as typeof actual.readdirSync,
     };
 });
 
@@ -102,6 +128,9 @@ describe('install-skill — filesystem-failure catch', () => {
         fsControl.failRollback = false;
         fsControl.throwOnUnlinkTemp = false;
         fsControl.throwOnLstat = false;
+        fsControl.throwOnLstatSkillDir = false;
+        fsControl.tempLstatStandIn = undefined;
+        fsControl.throwOnReadBundledReference = false;
         fsControl.throwOnUnlinkTarget = false;
         fsControl.throwNonError = false;
         tmp = mkdtempSync(join(tmpdir(), 'tr-fsfail-install-'));
@@ -173,6 +202,23 @@ describe('install-skill — filesystem-failure catch', () => {
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to install skill');
         expect(stderrChunks.join('')).toContain('EACCES');
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    // The check after `O_EXCL | O_NOFOLLOW`: the temp file must still be a
+    // regular file when it is renamed into place. A real filesystem cannot
+    // swap it between two synchronous calls, so the mock reports another
+    // entry's type for it.
+    it.each(['symlink', 'directory'] as const)('refuses to publish a temp file that lstat reports as a %s', (kind) => {
+        const standIn = join(tmp, `stand-in-${kind}`);
+        if (kind === 'symlink') symlinkSync(source, standIn);
+        else mkdirSync(standIn);
+        fsControl.tempLstatStandIn = standIn;
+        const code = run();
+        expect(code).toBe(1);
+        expect(stderrChunks.join('')).toContain('temporary file is not a regular file');
+        // Neither the temp file nor its staging workspace is left behind.
+        expect(readdirSync(join(tmp, '.claude', 'skills'))).toEqual([]);
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -249,6 +295,9 @@ describe('uninstall-skill — filesystem-failure catches', () => {
         fsControl.throwOnRename = false;
         fsControl.throwOnUnlinkTemp = false;
         fsControl.throwOnLstat = false;
+        fsControl.throwOnLstatSkillDir = false;
+        fsControl.tempLstatStandIn = undefined;
+        fsControl.throwOnReadBundledReference = false;
         fsControl.throwOnUnlinkTarget = false;
         fsControl.throwNonError = false;
         tmp = mkdtempSync(join(tmpdir(), 'tr-fsfail-uninstall-'));
@@ -305,6 +354,50 @@ describe('uninstall-skill — filesystem-failure catches', () => {
         const code = runUninstallSkill({ global: false, output, cwdOverride: tmp });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to remove');
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('refuses with a structured error when the skill directory itself cannot be inspected', () => {
+        install();
+        fsControl.throwOnLstatSkillDir = true;
+        const code = runUninstallSkill({ global: false, output, cwdOverride: tmp });
+        expect(code).toBe(1);
+        expect(stderrChunks.join('')).toContain('Refusing to remove');
+        expect(stderrChunks.join('')).toContain('EACCES');
+        expect(existsSync(join(tmp, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('stringifies a non-Error directory lstat rejection (refusal String(e) fallback arm)', () => {
+        install();
+        fsControl.throwOnLstatSkillDir = true;
+        fsControl.throwNonError = true;
+        const code = runUninstallSkill({ global: false, output, cwdOverride: tmp });
+        expect(code).toBe(1);
+        expect(stderrChunks.join('')).toContain('Refusing to remove');
+        expect(stderrChunks.join('')).toContain('EACCES');
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    // bundledReferenceNames() answers "which reference files are ours to
+    // remove". When the bundled directory cannot be read the answer has to be
+    // "none", never "all": the installed copy can hold files the user added.
+    it('removes no reference files while the bundled reference set is unreadable', () => {
+        install();
+        const installed = join(tmp, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(join(installed, 'reference'));
+        writeFileSync(join(installed, 'reference', 'commands.md'), 'installed reference\n');
+        fsControl.throwOnReadBundledReference = true;
+        expect(runUninstallSkill({ global: false, output, cwdOverride: tmp })).toBe(0);
+        expect(existsSync(join(installed, 'SKILL.md'))).toBe(false);
+        expect(readdirSync(join(installed, 'reference'))).toEqual(['commands.md']);
+
+        // Control: `commands.md` is a name this package bundles, so the same
+        // tree is removed completely once the bundle is readable again.
+        fsControl.throwOnReadBundledReference = false;
+        install();
+        expect(runUninstallSkill({ global: false, output, cwdOverride: tmp })).toBe(0);
+        expect(existsSync(installed)).toBe(false);
         rmSync(tmp, { recursive: true, force: true });
     });
 });

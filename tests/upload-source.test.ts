@@ -225,4 +225,49 @@ describe('multipart lifetime', () => {
         expect(() => send()).toThrow(/consumed/);
         expect(fetch).not.toHaveBeenCalled();
     });
+
+    // `client.request` prepares and sends a multipart body exactly once, so
+    // these one-shot guards are reachable only by calling the module directly.
+    describe('one-shot guards', () => {
+        const body = { kind: 'multipart', file: new globalThis.Blob(['payload']), filename: 'evidence.txt' } as const;
+        const requestWith = (fetch: typeof globalThis.fetch): Parameters<typeof prepareMultipartUpload>[1] => ({
+            url: 'https://example.testrail.io/index.php?/api/v2/add_attachment_to_case/1',
+            options: { method: 'POST' },
+            controller: new AbortController(),
+            pinnedDispatcher: undefined,
+            fetch,
+        });
+
+        it('refuses to prepare a body that no scope owns', () => {
+            const fetch = vi.fn<typeof globalThis.fetch>();
+
+            expect(() => prepareMultipartUpload(body, requestWith(fetch))).toThrow(
+                'Multipart upload requires an owning scope',
+            );
+            expect(fetch).not.toHaveBeenCalled();
+        });
+
+        it('refuses to prepare the same upload twice', async () => {
+            const fetch = vi.fn<typeof globalThis.fetch>();
+
+            await withMultipartUpload(body, async (owned) => {
+                await prepareMultipartUpload(owned, requestWith(fetch));
+                await expect(prepareMultipartUpload(owned, requestWith(fetch))).rejects.toThrow(
+                    'Multipart upload already prepared',
+                );
+            });
+            expect(fetch).not.toHaveBeenCalled();
+        });
+
+        it('refuses to send the same upload twice', async () => {
+            const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response('{}'));
+
+            await withMultipartUpload(body, async (owned) => {
+                const send = await prepareMultipartUpload(owned, requestWith(fetch));
+                await send();
+                expect(() => send()).toThrow('Multipart upload already sent');
+            });
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+    });
 });

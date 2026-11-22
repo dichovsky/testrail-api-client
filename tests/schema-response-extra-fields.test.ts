@@ -139,11 +139,15 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
             expect(f.safeParse('x').success).toBe(false);
         });
 
-        it('declares quality_rating as a nullish number', () => {
+        it('declares quality_rating as a nullish number or object of dimension scores (api-currency#9)', () => {
             const f = ResultSchema.shape.quality_rating;
             expectNullishField(f);
+            // Observed on `get_results_for_run` (live audit): a numeric rating.
             expect(f.safeParse(4).success).toBe(true);
+            // Documented for TestRail 10.3+: one score per rating dimension.
+            expect(f.safeParse({ factual_accuracy: 4, relevance: 5 }).success).toBe(true);
             expect(f.safeParse('x').success).toBe(false);
+            expect(f.safeParse([4, 5]).success).toBe(false);
         });
 
         it('declares defects_data as a nullish unknown', () => {

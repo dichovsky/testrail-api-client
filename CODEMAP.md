@@ -9,9 +9,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "9.0.0"
+    "version": "10.0.0"
   },
-  "sourceHash": "82b39f71d93c48944fdd7e4b13861bf66ed08dfb3c17ca1f5c6e34ac9d40787f",
+  "sourceHash": "9706c5c7a2a5dcbd37b373877b2a19c6ffc108d199d9aef30caf5859d2af1136",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -21,7 +21,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldConfigPayload",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 340,
+      "line": 322,
       "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>",
       "typeOnly": true
     },
@@ -29,14 +29,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldConfigPayloadSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 326,
+      "line": 308,
       "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.union([z.array(z.number().int().positive()), z.literal('')]), }), options: zObject({ …"
     },
     {
       "name": "AddCaseFieldPayload",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 353,
+      "line": 335,
       "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>",
       "typeOnly": true
     },
@@ -44,14 +44,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldPayloadSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 342,
+      "line": 324,
       "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), is_indexed: z.boolean…"
     },
     {
       "name": "AddCaseFieldResponse",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 220,
+      "line": 210,
       "signature": "export type AddCaseFieldResponse = KnownResponse<typeof AddCaseFieldResponseSchema>",
       "typeOnly": true
     },
@@ -59,14 +59,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldResponseSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 195,
+      "line": 185,
       "signature": "export const AddCaseFieldResponseSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.string(), i…"
     },
     {
       "name": "AddCasePayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 125,
+      "line": 121,
       "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>",
       "typeOnly": true
     },
@@ -74,14 +74,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCasePayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 112,
+      "line": 108,
       "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
     },
     {
       "name": "AddCasesBulkPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 153,
+      "line": 151,
       "signature": "export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>",
       "typeOnly": true
     },
@@ -89,14 +89,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCasesBulkPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 151,
+      "line": 149,
       "signature": "export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1)"
     },
     {
       "name": "AddConfigurationGroupPayload",
       "kind": "type",
       "file": "src/schemas/configurations.ts",
-      "line": 35,
+      "line": 31,
       "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -104,14 +104,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddConfigurationGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/configurations.ts",
-      "line": 31,
+      "line": 27,
       "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
     },
     {
       "name": "AddConfigurationPayload",
       "kind": "type",
       "file": "src/schemas/configurations.ts",
-      "line": 47,
+      "line": 43,
       "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>",
       "typeOnly": true
     },
@@ -119,7 +119,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddConfigurationPayloadSchema",
       "kind": "const",
       "file": "src/schemas/configurations.ts",
-      "line": 43,
+      "line": 39,
       "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
     },
     {
@@ -141,7 +141,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddGroupPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 80,
+      "line": 76,
       "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -149,7 +149,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 75,
+      "line": 71,
       "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })",
       "jsdoc": "Group write-payload schemas (TestRail 7.5+). Mirror the variable/shared-step/milestone payload-migration precedent: each schema is declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future `custom_*`-style fields TestRail may add to either endpoint."
     },
@@ -173,7 +173,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddMilestonePayload",
       "kind": "type",
       "file": "src/schemas/milestones.ts",
-      "line": 59,
+      "line": 57,
       "signature": "export type AddMilestonePayload = z.infer<typeof AddMilestonePayloadSchema>",
       "typeOnly": true
     },
@@ -181,14 +181,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddMilestonePayloadSchema",
       "kind": "const",
       "file": "src/schemas/milestones.ts",
-      "line": 50,
+      "line": 48,
       "signature": "export const AddMilestonePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.number().optional(…"
     },
     {
       "name": "AddPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 161,
+      "line": 157,
       "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -196,14 +196,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 135,
+      "line": 131,
       "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: …"
     },
     {
       "name": "AddPlanPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 198,
+      "line": 194,
       "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>",
       "typeOnly": true
     },
@@ -211,14 +211,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddPlanPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 185,
+      "line": 181,
       "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(),…"
     },
     {
       "name": "AddProjectPayload",
       "kind": "type",
       "file": "src/schemas/projects.ts",
-      "line": 66,
+      "line": 64,
       "signature": "export type AddProjectPayload = z.infer<typeof AddProjectPayloadSchema>",
       "typeOnly": true
     },
@@ -226,14 +226,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddProjectPayloadSchema",
       "kind": "const",
       "file": "src/schemas/projects.ts",
-      "line": 59,
+      "line": 57,
       "signature": "export const AddProjectPayloadSchema = zObject({ name: z.string(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
     },
     {
       "name": "AddResultForCasePayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 139,
+      "line": 141,
       "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>",
       "typeOnly": true
     },
@@ -241,14 +241,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddResultForCasePayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 128,
+      "line": 130,
       "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().option…"
     },
     {
       "name": "AddResultForTestPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 162,
+      "line": 164,
       "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>",
       "typeOnly": true
     },
@@ -256,14 +256,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddResultForTestPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 151,
+      "line": 153,
       "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().option…"
     },
     {
       "name": "AddResultPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 102,
+      "line": 104,
       "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>",
       "typeOnly": true
     },
@@ -271,7 +271,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddResultPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 92,
+      "line": 94,
       "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().op…",
       "jsdoc": "SPEC #A.1 — canonical exemplar for **request** payload schemas."
     },
@@ -279,7 +279,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddResultsForCasesPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 145,
+      "line": 147,
       "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>",
       "typeOnly": true
     },
@@ -287,14 +287,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddResultsForCasesPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 141,
+      "line": 143,
       "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
     },
     {
       "name": "AddResultsPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 168,
+      "line": 170,
       "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>",
       "typeOnly": true
     },
@@ -302,14 +302,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddResultsPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 164,
+      "line": 166,
       "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
     },
     {
       "name": "AddRunPayload",
       "kind": "type",
       "file": "src/schemas/runs.ts",
-      "line": 86,
+      "line": 84,
       "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>",
       "typeOnly": true
     },
@@ -317,14 +317,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas/runs.ts",
-      "line": 72,
+      "line": 70,
       "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
     },
     {
       "name": "AddRunToPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 118,
+      "line": 114,
       "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -332,14 +332,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddRunToPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 106,
+      "line": 102,
       "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), start_on: z.number().optional(), due_…"
     },
     {
       "name": "AddSectionPayload",
       "kind": "type",
       "file": "src/schemas/sections.ts",
-      "line": 50,
+      "line": 48,
       "signature": "export type AddSectionPayload = z.infer<typeof AddSectionPayloadSchema>",
       "typeOnly": true
     },
@@ -347,7 +347,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddSectionPayloadSchema",
       "kind": "const",
       "file": "src/schemas/sections.ts",
-      "line": 43,
+      "line": 41,
       "signature": "export const AddSectionPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), parent_id: z.number().optional(), description: z.string().optional(), })"
     },
     {
@@ -370,7 +370,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddSuitePayload",
       "kind": "type",
       "file": "src/schemas/suites.ts",
-      "line": 27,
+      "line": 25,
       "signature": "export type AddSuitePayload = z.infer<typeof AddSuitePayloadSchema>",
       "typeOnly": true
     },
@@ -378,7 +378,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddSuitePayloadSchema",
       "kind": "const",
       "file": "src/schemas/suites.ts",
-      "line": 22,
+      "line": 20,
       "signature": "export const AddSuitePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), })"
     },
     {
@@ -406,6 +406,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "typeOnly": true
     },
     {
+      "name": "AttachmentModule",
+      "kind": "class",
+      "file": "src/modules/attachments.ts",
+      "line": 64,
+      "signature": "export class AttachmentModule",
+      "typeOnly": true
+    },
+    {
       "name": "AttachmentSchema",
       "kind": "const",
       "file": "src/schemas/attachments.ts",
@@ -418,6 +426,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/bdd.ts",
       "line": 14,
       "signature": "export type Bdd = z.infer<typeof BddSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "BddModule",
+      "kind": "class",
+      "file": "src/modules/bdd.ts",
+      "line": 76,
+      "signature": "export class BddModule",
+      "jsdoc": "BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints.",
       "typeOnly": true
     },
     {
@@ -458,15 +475,23 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseFieldConfigSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 143,
+      "line": 137,
       "signature": "export const CaseFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
     },
     {
       "name": "CaseFieldSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 154,
+      "line": 146,
       "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
+    },
+    {
+      "name": "CaseModule",
+      "kind": "class",
+      "file": "src/modules/cases.ts",
+      "line": 113,
+      "signature": "export class CaseModule",
+      "typeOnly": true
     },
     {
       "name": "CaseSchema",
@@ -487,14 +512,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseStatusSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 83,
+      "line": 79,
       "signature": "export const CaseStatusSchema = zObject({ case_status_id: z.number(), name: z.string(), abbreviation: z.string().nullish(), is_default: z.boolean(), is_approved: z.boolean(), is_untested: z.boolean().…"
     },
     {
       "name": "CaseTitle",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 53,
+      "line": 51,
       "signature": "export type CaseTitle = KnownResponse<typeof CaseTitleSchema>",
       "typeOnly": true
     },
@@ -502,7 +527,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseTitleSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 48,
+      "line": 46,
       "signature": "export const CaseTitleSchema = zObject({ id: z.number(), title: z.string(), })"
     },
     {
@@ -518,7 +543,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseTypeSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 254,
+      "line": 240,
       "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
     },
     {
@@ -543,8 +568,16 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ConfigurationGroupSchema",
       "kind": "const",
       "file": "src/schemas/configurations.ts",
-      "line": 14,
+      "line": 12,
       "signature": "export const ConfigurationGroupSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number(), configs: z.array(ConfigurationSchema), })"
+    },
+    {
+      "name": "ConfigurationModule",
+      "kind": "class",
+      "file": "src/modules/configurations.ts",
+      "line": 14,
+      "signature": "export class ConfigurationModule",
+      "typeOnly": true
     },
     {
       "name": "ConfigurationSchema",
@@ -557,7 +590,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CopyCasesToSectionPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 225,
+      "line": 223,
       "signature": "export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>",
       "typeOnly": true
     },
@@ -565,8 +598,8 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CopyCasesToSectionPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 221,
-      "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
+      "line": 219,
+      "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), })"
     },
     {
       "name": "CrossProjectReport",
@@ -581,7 +614,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CrossProjectReportSchema",
       "kind": "const",
       "file": "src/schemas/reports.ts",
-      "line": 49,
+      "line": 47,
       "signature": "export const CrossProjectReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_ids: z.array(z.number()), user_ids: z.array(z.number()).nullish(), includ…",
       "jsdoc": "Enterprise cross-project report template returned by `get_cross_project_reports`."
     },
@@ -591,6 +624,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/datasets.ts",
       "line": 48,
       "signature": "export type Dataset = KnownResponse<typeof DatasetSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "DatasetModule",
+      "kind": "class",
+      "file": "src/modules/datasets.ts",
+      "line": 35,
+      "signature": "export class DatasetModule",
       "typeOnly": true
     },
     {
@@ -621,35 +662,35 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DEFAULT_MAX_ITEMS",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 51,
+      "line": 61,
       "signature": "export const DEFAULT_MAX_ITEMS = 25_000"
     },
     {
       "name": "DEFAULT_MAX_PAGES",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 50,
+      "line": 60,
       "signature": "export const DEFAULT_MAX_PAGES = 100"
     },
     {
       "name": "DEFAULT_MAX_PAGINATION_BYTES",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 53,
+      "line": 63,
       "signature": "export const DEFAULT_MAX_PAGINATION_BYTES = 100 * 1024 * 1024"
     },
     {
       "name": "DEFAULT_MAX_PAGINATION_DURATION_MS",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 52,
+      "line": 62,
       "signature": "export const DEFAULT_MAX_PAGINATION_DURATION_MS = MAX_TIMEOUT_MS"
     },
     {
       "name": "DEFAULT_PAGE_SIZE",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 49,
+      "line": 59,
       "signature": "export const DEFAULT_PAGE_SIZE = MAX_PAGINATION_LIMIT",
       "jsdoc": "Defaults and hard bounds for bounded multi-page aggregation."
     },
@@ -657,7 +698,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DeleteCasesPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 193,
+      "line": 191,
       "signature": "export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>",
       "typeOnly": true
     },
@@ -665,8 +706,8 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DeleteCasesPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 185,
-      "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
+      "line": 183,
+      "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is …"
     },
     {
       "name": "DeleteLabelsPayload",
@@ -696,7 +737,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DynamicFilterField",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 290,
+      "line": 272,
       "signature": "export type DynamicFilterField = KnownResponse<typeof DynamicFilterFieldSchema>",
       "typeOnly": true
     },
@@ -704,7 +745,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DynamicFilterFieldSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 282,
+      "line": 264,
       "signature": "export const DynamicFilterFieldSchema = zObject({ type_id: z.number(), system_name: z.string(), label: z.string(), options: z.string().nullish(), sub_filters: z.string().nullish(), })",
       "jsdoc": "One field definition returned by `get_dynamic_filter_fields/{project_id}`. `options` and `sub_filters` are mutually endpoint-dependent and therefore nullish; `zObject` preserves any additional field metadata introduced by a future TestRail release."
     },
@@ -712,7 +753,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DynamicFiltersPayload",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 302,
+      "line": 284,
       "signature": "export type DynamicFiltersPayload = z.infer<typeof DynamicFiltersPayloadSchema>",
       "typeOnly": true
     },
@@ -720,7 +761,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DynamicFiltersPayloadSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 297,
+      "line": 279,
       "signature": "export const DynamicFiltersPayloadSchema = zObject({ mode: z.string(), filters: z.record(z.string(), z.record(z.string(), z.unknown())), })",
       "jsdoc": "Forward-compatible object accepted by run and plan-entry `dynamic_filters` fields. TestRail requires top-level `mode` and `filters`; each field-specific criterion remains open because its shape varies by field type."
     },
@@ -728,7 +769,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "EditResultPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 123,
+      "line": 125,
       "signature": "export type EditResultPayload = z.infer<typeof EditResultPayloadSchema>",
       "typeOnly": true
     },
@@ -736,7 +777,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "EditResultPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 111,
+      "line": 113,
       "signature": "export const EditResultPayloadSchema = zObject({ status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().o…",
       "jsdoc": "Partial payload accepted by `edit_result/{result_id}` (TestRail 10.4+). Every standard result field is optional because the endpoint changes only the fields supplied by the caller. Flat `custom_*` fields pass through via `zObject`; the built-in separated-step field is declared explicitly so its replacement-array contract is visible to TypeScript consumers."
     },
@@ -800,7 +841,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetAllLabelsOptions",
       "kind": "type",
       "file": "src/modules/labels.ts",
-      "line": 16,
+      "line": 15,
       "signature": "export type GetAllLabelsOptions = PaginatedRequestOptions",
       "typeOnly": true
     },
@@ -947,7 +988,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetLabelsOptions",
       "kind": "interface",
       "file": "src/modules/labels.ts",
-      "line": 9,
+      "line": 8,
       "signature": "export interface GetLabelsOptions { limit?: number; offset?: number; }",
       "typeOnly": true
     },
@@ -965,7 +1006,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "kind": "interface",
       "file": "src/types.ts",
       "line": 518,
-      "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; refs?: string; limit?: number; offset?: number; c…",
+      "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?: string…",
       "jsdoc": "Filter options for `getPlans()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
     },
@@ -991,7 +1032,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "kind": "interface",
       "file": "src/types.ts",
       "line": 585,
-      "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; created_after?: number; created_before?: number; created_by?: …",
+      "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; created_after?: number; created_before?: num…",
       "jsdoc": "Filter options for `getResultsForRun()`. Date filters accept Unix timestamps (seconds).",
       "typeOnly": true
     },
@@ -1000,7 +1041,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "kind": "interface",
       "file": "src/types.ts",
       "line": 566,
-      "signature": "export interface GetResultsOptions { statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number[]; defects_filter?: string; }",
+      "signature": "export interface GetResultsOptions { statusId?: number | readonly number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number | readonly number[]; defects_filter?: string; }",
       "jsdoc": "Filter options shared by `getResults()` and `getResultsForCase()`.",
       "typeOnly": true
     },
@@ -1009,7 +1050,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "kind": "interface",
       "file": "src/types.ts",
       "line": 439,
-      "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?…",
+      "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readon…",
       "typeOnly": true
     },
     {
@@ -1057,7 +1098,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "kind": "interface",
       "file": "src/types.ts",
       "line": 550,
-      "signature": "export interface GetTestsOptions { statusId?: number[]; labelId?: number[]; limit?: number; offset?: number; status_id?: number[]; label_id?: number[]; }",
+      "signature": "export interface GetTestsOptions { statusId?: number | readonly number[]; labelId?: number | readonly number[]; limit?: number; offset?: number; status_id?: number | readonly number[]; label_id?: numb…",
       "jsdoc": "Filter options for `getTests()`.",
       "typeOnly": true
     },
@@ -1065,7 +1106,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Group",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 60,
+      "line": 56,
       "signature": "export type Group = KnownResponse<typeof GroupSchema>",
       "typeOnly": true
     },
@@ -1073,14 +1114,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GroupSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 54,
+      "line": 50,
       "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).nullish(), })"
     },
     {
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 121,
+      "line": 198,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
       "jsdoc": "Utility to convert ZodError into TestRailValidationError."
     },
@@ -1096,7 +1137,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "HistoryChangeSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 59,
+      "line": 57,
       "signature": "export const HistoryChangeSchema = zObject({ field: z.string().nullish(), type_id: z.number().nullish(), old_text: z.string().nullish(), new_text: z.string().nullish(), label: z.string().nullish(), op…"
     },
     {
@@ -1111,8 +1152,17 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "HistoryEntrySchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 94,
+      "line": 92,
       "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
+    },
+    {
+      "name": "KnownResponse",
+      "kind": "type",
+      "file": "src/schemas/common.ts",
+      "line": 53,
+      "signature": "export type KnownResponse<TSchema extends z.ZodObject> = KnownObject<TSchema['shape']>",
+      "jsdoc": "Infer only the keys declared throughout a response schema. Runtime response objects remain passthrough at every level, but public types do not advertise unrestricted string indexes unless a field deliberately uses `z.record()`. Optional object keys, arrays, unions, and nullability retain their schema output semantics.",
+      "typeOnly": true
     },
     {
       "name": "Label",
@@ -1139,6 +1189,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "jsdoc": "Shape of a Label object as embedded inside a parent resource response — notably `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two endpoints emit the same logical shape but the wider TestRail Labels API has historically diverged on naming (`title` on embedded forms vs `name` on the stand-alone `get_label`), so the inner schema accepts both."
     },
     {
+      "name": "LabelModule",
+      "kind": "class",
+      "file": "src/modules/labels.ts",
+      "line": 52,
+      "signature": "export class LabelModule",
+      "jsdoc": "Stand-alone TestRail Labels API (TestRail 10.5+). Label *reads* embedded in case/test responses are handled by `LabelEmbeddedSchema`; this module manages the label definitions themselves.",
+      "typeOnly": true
+    },
+    {
       "name": "LabelSchema",
       "kind": "const",
       "file": "src/schemas/labels.ts",
@@ -1158,16 +1217,24 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "MAX_PAGINATION_BYTES",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 54,
+      "line": 64,
       "signature": "export const MAX_PAGINATION_BYTES = 1024 * 1024 * 1024"
     },
     {
       "name": "MAX_PAGINATION_LIMIT",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 46,
+      "line": 56,
       "signature": "export const MAX_PAGINATION_LIMIT = 250",
       "jsdoc": "Maximum page size accepted by TestRail's paginated/bulk API endpoints."
+    },
+    {
+      "name": "MetadataModule",
+      "kind": "class",
+      "file": "src/modules/metadata.ts",
+      "line": 58,
+      "signature": "export class MetadataModule",
+      "typeOnly": true
     },
     {
       "name": "Milestone",
@@ -1175,6 +1242,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/types.ts",
       "line": 350,
       "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "MilestoneModule",
+      "kind": "class",
+      "file": "src/modules/milestones.ts",
+      "line": 39,
+      "signature": "export class MilestoneModule",
       "typeOnly": true
     },
     {
@@ -1188,7 +1263,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "MoveCasesToSectionPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 238,
+      "line": 236,
       "signature": "export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>",
       "typeOnly": true
     },
@@ -1196,14 +1271,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "MoveCasesToSectionPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 233,
-      "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), suite_id: z.number(), })"
+      "line": 231,
+      "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), suite_id: z.number(), })"
     },
     {
       "name": "MoveSectionPayload",
       "kind": "type",
       "file": "src/schemas/sections.ts",
-      "line": 33,
+      "line": 31,
       "signature": "export type MoveSectionPayload = z.infer<typeof MoveSectionPayloadSchema>",
       "typeOnly": true
     },
@@ -1211,7 +1286,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "MoveSectionPayloadSchema",
       "kind": "const",
       "file": "src/schemas/sections.ts",
-      "line": 28,
+      "line": 26,
       "signature": "export const MoveSectionPayloadSchema = zObject({ parent_id: z.number().nullable().optional(), after_id: z.number().nullable().optional(), })"
     },
     {
@@ -1302,7 +1377,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PlanEntryRunPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 99,
+      "line": 95,
       "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>",
       "typeOnly": true
     },
@@ -1310,7 +1385,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PlanEntryRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 89,
+      "line": 85,
       "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
     },
     {
@@ -1321,10 +1396,18 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "signature": "export const PlanEntrySchema = zObject({ id: z.string(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), assignedto_id: z.number().nullish(), include_all: z.boolean(), case_…"
     },
     {
+      "name": "PlanModule",
+      "kind": "class",
+      "file": "src/modules/plans.ts",
+      "line": 57,
+      "signature": "export class PlanModule",
+      "typeOnly": true
+    },
+    {
       "name": "PlanSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 37,
+      "line": 35,
       "signature": "export const PlanSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), is_completed: z.boolea…"
     },
     {
@@ -1339,7 +1422,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PrioritySchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 68,
+      "line": 66,
       "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
     },
     {
@@ -1348,6 +1431,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/types.ts",
       "line": 338,
       "signature": "export type Project = KnownResponse<typeof ProjectSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "ProjectModule",
+      "kind": "class",
+      "file": "src/modules/projects.ts",
+      "line": 40,
+      "signature": "export class ProjectModule",
       "typeOnly": true
     },
     {
@@ -1375,6 +1466,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "typeOnly": true
     },
     {
+      "name": "ReportModule",
+      "kind": "class",
+      "file": "src/modules/reports.ts",
+      "line": 6,
+      "signature": "export class ReportModule",
+      "typeOnly": true
+    },
+    {
       "name": "ReportResult",
       "kind": "type",
       "file": "src/types.ts",
@@ -1387,7 +1486,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ReportResultSchema",
       "kind": "const",
       "file": "src/schemas/reports.ts",
-      "line": 87,
+      "line": 83,
       "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), report_html: z.string().nullish(), report_pdf: z.string().nullish(), user_report_url: z.string().nullish(), })",
       "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. `run_report` returns three URLs per the current doc example: `report_url` (the report view), `report_html`, and `report_pdf`. `report_url` is required; `report_html` and `report_pdf` are modelled as `.nullish()` since the endpoint requires TestRail 5.7+ and older servers may emit fewer keys. `user_report_url` is NOT in the current doc but remains `.nullish()` as a forward/legacy-compat placeholder for TestRail revisions that emitted it."
     },
@@ -1398,6 +1497,33 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "line": 20,
       "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), notify_user: z.boolean().nullish(), notify_link: z.boolean().nullish(), notify_link_recipient…",
       "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. Per the \"system fields always included in the response\" table, `get_reports` returns `id`, `name`, `description`, and six `notify_*` fields. `id` and `name` are required scalars; `description` is documented as a string but the doc example shows `\"description\": null`, so `.nullish()` matches the wire. The six `notify_*` fields are always-included per the doc, but modelled as `.nullish()` for defensive back-compat: older TestRail versions may omit them and `notify_link_recipients` is documented as a string that the doc example also shows as `null`. `is_shared` is NOT in the current doc field table; it remains `.nullish()` as a forward-compat placeholder."
+    },
+    {
+      "name": "RequestBody",
+      "kind": "type",
+      "file": "src/http-pipeline-types.ts",
+      "line": 79,
+      "signature": "export type RequestBody = | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'multipart'; readonly file: UploadFileInput; readonly filename: string }",
+      "jsdoc": "Outbound body for a `RequestSpec`. JSON bodies serialize via `JSON.stringify`. Multipart bodies stream from a file descriptor or in-memory buffer.",
+      "typeOnly": true
+    },
+    {
+      "name": "RequestIntent",
+      "kind": "type",
+      "file": "src/http-pipeline-types.ts",
+      "line": 104,
+      "signature": "export type RequestIntent = 'side-effecting-read' | 'fresh-read'",
+      "jsdoc": "Declared execution intent for the small set of requests whose handling cannot be derived from their shape.",
+      "typeOnly": true
+    },
+    {
+      "name": "RequestSpec",
+      "kind": "interface",
+      "file": "src/http-pipeline-types.ts",
+      "line": 129,
+      "signature": "export interface RequestSpec<T> { readonly __t?: T; readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'; readonly endpoint: string; readonly body?: RequestBody; readonly schema?: ZodType; readonly resp…",
+      "jsdoc": "Public-to-modules description of a single HTTP request. Modules call `TestRailClientCore.request<T>(spec)` instead of the historical `request/requestText/requestBinary/requestMultipart/requestParsed` quintet.",
+      "typeOnly": true
     },
     {
       "name": "Result",
@@ -1427,15 +1553,23 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ResultFieldConfigSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 222,
+      "line": 212,
       "signature": "export const ResultFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
     },
     {
       "name": "ResultFieldSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 232,
+      "line": 220,
       "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
+    },
+    {
+      "name": "ResultModule",
+      "kind": "class",
+      "file": "src/modules/results.ts",
+      "line": 86,
+      "signature": "export class ResultModule",
+      "typeOnly": true
     },
     {
       "name": "ResultSchema",
@@ -1458,7 +1592,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "RoleSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 43,
+      "line": 41,
       "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), is_project_admin: z.boolean().nullish(), })"
     },
     {
@@ -1467,6 +1601,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/types.ts",
       "line": 344,
       "signature": "export type Run = KnownResponse<typeof RunSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "RunModule",
+      "kind": "class",
+      "file": "src/modules/runs.ts",
+      "line": 57,
+      "signature": "export class RunModule",
       "typeOnly": true
     },
     {
@@ -1494,6 +1636,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "typeOnly": true
     },
     {
+      "name": "SectionModule",
+      "kind": "class",
+      "file": "src/modules/sections.ts",
+      "line": 41,
+      "signature": "export class SectionModule",
+      "typeOnly": true
+    },
+    {
       "name": "SectionSchema",
       "kind": "const",
       "file": "src/schemas/sections.ts",
@@ -1506,6 +1656,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/sharedSteps.ts",
       "line": 48,
       "signature": "export type SharedStep = KnownResponse<typeof SharedStepSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "SharedStepModule",
+      "kind": "class",
+      "file": "src/modules/sharedSteps.ts",
+      "line": 89,
+      "signature": "export class SharedStepModule",
       "typeOnly": true
     },
     {
@@ -1529,7 +1687,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "SoftDeletePreview",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 216,
+      "line": 214,
       "signature": "export type SoftDeletePreview = KnownResponse<typeof SoftDeletePreviewSchema>",
       "typeOnly": true
     },
@@ -1537,7 +1695,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "SoftDeletePreviewSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 206,
+      "line": 204,
       "signature": "export const SoftDeletePreviewSchema = zObject({ affected_tests: z.number().nullish(), affected_cases: z.number().nullish(), affected_sections: z.number().nullish(), affected_runs: z.number().nullish(…"
     },
     {
@@ -1580,6 +1738,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "typeOnly": true
     },
     {
+      "name": "SuiteModule",
+      "kind": "class",
+      "file": "src/modules/suites.ts",
+      "line": 34,
+      "signature": "export class SuiteModule",
+      "typeOnly": true
+    },
+    {
       "name": "SuiteSchema",
       "kind": "const",
       "file": "src/schemas/suites.ts",
@@ -1599,7 +1765,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TemplateSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 264,
+      "line": 248,
       "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
     },
     {
@@ -1611,10 +1777,18 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "typeOnly": true
     },
     {
+      "name": "TestModule",
+      "kind": "class",
+      "file": "src/modules/tests.ts",
+      "line": 74,
+      "signature": "export class TestModule",
+      "typeOnly": true
+    },
+    {
       "name": "TestRailApiError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 11,
+      "line": 12,
       "signature": "export class TestRailApiError extends Error",
       "jsdoc": "Thrown when communication with TestRail fails or a successful response cannot be used safely. This includes non-2xx responses, network/body-processing failures, and unrecognized outer response structures. The optional `response` retains the raw server value for programmatic inspection; callers should not expose it in logs because it can contain instance data."
     },
@@ -1622,7 +1796,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailClient",
       "kind": "class",
       "file": "src/client.ts",
-      "line": 87,
+      "line": 89,
       "signature": "export class TestRailClient extends TestRailClientCore",
       "jsdoc": "TestRail API Client"
     },
@@ -1646,7 +1820,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailLicenseError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 30,
+      "line": 107,
       "signature": "export class TestRailLicenseError extends TestRailApiError",
       "jsdoc": "Thrown when TestRail rejects a request because the instance lacks the required Enterprise license/subscription (HTTP 403 with a \"Not an Enterprise license/subscription.\" body — live-audit findings B.22/B.33). A subclass of , so existing `catch (TestRailApiError)` handlers still catch it; callers that want to branch on license gating specifically can use `instanceof TestRailLicenseError`."
     },
@@ -1654,7 +1828,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailPaginationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 105,
+      "line": 182,
       "signature": "export class TestRailPaginationError extends TestRailValidationError",
       "jsdoc": "Thrown when a bounded multi-page read cannot complete safely. HTTP and network failures remain ; this subtype represents client-side page structure, continuation, and aggregation-policy failures."
     },
@@ -1662,7 +1836,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 90,
+      "line": 167,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -1670,7 +1844,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailVersion",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 309,
+      "line": 291,
       "signature": "export type TestRailVersion = KnownResponse<typeof TestRailVersionSchema>",
       "typeOnly": true
     },
@@ -1678,7 +1852,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailVersionSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 305,
+      "line": 287,
       "signature": "export const TestRailVersionSchema = zObject({ version: z.string(), })",
       "jsdoc": "Response from the authenticated `get_version` endpoint (TestRail 10.6+)."
     },
@@ -1699,10 +1873,18 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "typeOnly": true
     },
     {
+      "name": "TestWithDataResponseSchema",
+      "kind": "const",
+      "file": "src/schemas/tests.ts",
+      "line": 48,
+      "signature": "export const TestWithDataResponseSchema = zObject({ test: TestSchema, results: z .array(ResultSchema) .nullish() .transform((items) => items ?? []), attachments: z .array(AttachmentSchema) .nullish() …",
+      "jsdoc": "Wire wrapper returned by `get_test/{test_id}&with_data=1`."
+    },
+    {
       "name": "UpdateCasePayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 141,
+      "line": 137,
       "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>",
       "typeOnly": true
     },
@@ -1710,14 +1892,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateCasePayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 127,
+      "line": 123,
       "signature": "export const UpdateCasePayloadSchema = zObject({ section_id: z.number().optional(), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.num…"
     },
     {
       "name": "UpdateCasesPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 176,
+      "line": 174,
       "signature": "export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>",
       "typeOnly": true
     },
@@ -1725,14 +1907,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateCasesPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 161,
-      "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), section_id: z.number().optional(), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number(…"
+      "line": 159,
+      "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), section_id: z.number().optional(), title: z.string().optional(), template_id: z.number().option…"
     },
     {
       "name": "UpdateConfigurationGroupPayload",
       "kind": "type",
       "file": "src/schemas/configurations.ts",
-      "line": 41,
+      "line": 37,
       "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -1740,14 +1922,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateConfigurationGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/configurations.ts",
-      "line": 37,
+      "line": 33,
       "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
     },
     {
       "name": "UpdateConfigurationPayload",
       "kind": "type",
       "file": "src/schemas/configurations.ts",
-      "line": 53,
+      "line": 49,
       "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>",
       "typeOnly": true
     },
@@ -1755,7 +1937,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateConfigurationPayloadSchema",
       "kind": "const",
       "file": "src/schemas/configurations.ts",
-      "line": 49,
+      "line": 45,
       "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
     },
     {
@@ -1778,7 +1960,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateGroupPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 87,
+      "line": 83,
       "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -1786,7 +1968,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 82,
+      "line": 78,
       "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
     },
     {
@@ -1809,7 +1991,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateMilestonePayload",
       "kind": "type",
       "file": "src/schemas/milestones.ts",
-      "line": 72,
+      "line": 70,
       "signature": "export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>",
       "typeOnly": true
     },
@@ -1817,14 +1999,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateMilestonePayloadSchema",
       "kind": "const",
       "file": "src/schemas/milestones.ts",
-      "line": 61,
+      "line": 59,
       "signature": "export const UpdateMilestonePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.numb…"
     },
     {
       "name": "UpdatePlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 183,
+      "line": 179,
       "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -1832,14 +2014,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdatePlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 165,
+      "line": 161,
       "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_i…"
     },
     {
       "name": "UpdatePlanPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 212,
+      "line": 208,
       "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>",
       "typeOnly": true
     },
@@ -1847,14 +2029,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdatePlanPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 200,
+      "line": 196,
       "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number…"
     },
     {
       "name": "UpdateProjectGroupAssignmentPayload",
       "kind": "type",
       "file": "src/schemas/projects.ts",
-      "line": 78,
+      "line": 76,
       "signature": "export type UpdateProjectGroupAssignmentPayload = z.infer<typeof UpdateProjectGroupAssignmentPayloadSchema>",
       "typeOnly": true
     },
@@ -1862,14 +2044,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateProjectGroupAssignmentPayloadSchema",
       "kind": "const",
       "file": "src/schemas/projects.ts",
-      "line": 73,
+      "line": 71,
       "signature": "export const UpdateProjectGroupAssignmentPayloadSchema = zObject({ id: z.number().int().positive(), role_id: ProjectAccessRoleIdPayloadSchema, })"
     },
     {
       "name": "UpdateProjectPayload",
       "kind": "type",
       "file": "src/schemas/projects.ts",
-      "line": 109,
+      "line": 107,
       "signature": "export type UpdateProjectPayload = z.infer<typeof UpdateProjectPayloadSchema>",
       "typeOnly": true
     },
@@ -1877,14 +2059,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateProjectPayloadSchema",
       "kind": "const",
       "file": "src/schemas/projects.ts",
-      "line": 99,
+      "line": 97,
       "signature": "export const UpdateProjectPayloadSchema = zObject({ name: z.string().optional(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), defa…"
     },
     {
       "name": "UpdateProjectUserAssignmentPayload",
       "kind": "type",
       "file": "src/schemas/projects.ts",
-      "line": 97,
+      "line": 95,
       "signature": "export type UpdateProjectUserAssignmentPayload = z.infer<typeof UpdateProjectUserAssignmentPayloadSchema>",
       "typeOnly": true
     },
@@ -1892,14 +2074,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateProjectUserAssignmentPayloadSchema",
       "kind": "const",
       "file": "src/schemas/projects.ts",
-      "line": 84,
+      "line": 82,
       "signature": "export const UpdateProjectUserAssignmentPayloadSchema = z.union([ zObject({ id: z.number().int().positive(), user_id: z.never().optional(), role_id: ProjectAccessRoleIdPayloadSchema, }), zObject({ id:…"
     },
     {
       "name": "UpdateRunInPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 133,
+      "line": 129,
       "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -1907,14 +2089,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateRunInPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 122,
+      "line": 118,
       "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(), inc…"
     },
     {
       "name": "UpdateRunPayload",
       "kind": "type",
       "file": "src/schemas/runs.ts",
-      "line": 101,
+      "line": 99,
       "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>",
       "typeOnly": true
     },
@@ -1922,14 +2104,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas/runs.ts",
-      "line": 88,
+      "line": 86,
       "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
     },
     {
       "name": "UpdateSectionPayload",
       "kind": "type",
       "file": "src/schemas/sections.ts",
-      "line": 57,
+      "line": 55,
       "signature": "export type UpdateSectionPayload = z.infer<typeof UpdateSectionPayloadSchema>",
       "typeOnly": true
     },
@@ -1937,7 +2119,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateSectionPayloadSchema",
       "kind": "const",
       "file": "src/schemas/sections.ts",
-      "line": 52,
+      "line": 50,
       "signature": "export const UpdateSectionPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
     },
     {
@@ -1960,7 +2142,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateSuitePayload",
       "kind": "type",
       "file": "src/schemas/suites.ts",
-      "line": 34,
+      "line": 32,
       "signature": "export type UpdateSuitePayload = z.infer<typeof UpdateSuitePayloadSchema>",
       "typeOnly": true
     },
@@ -1968,14 +2150,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateSuitePayloadSchema",
       "kind": "const",
       "file": "src/schemas/suites.ts",
-      "line": 29,
+      "line": 27,
       "signature": "export const UpdateSuitePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
     },
     {
       "name": "UpdateTestLabelsPayload",
       "kind": "type",
       "file": "src/schemas/tests.ts",
-      "line": 78,
+      "line": 74,
       "signature": "export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSchema>",
       "typeOnly": true
     },
@@ -1983,14 +2165,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateTestLabelsPayloadSchema",
       "kind": "const",
       "file": "src/schemas/tests.ts",
-      "line": 74,
+      "line": 70,
       "signature": "export const UpdateTestLabelsPayloadSchema = zObject({ labels: z.array(z.union([z.number(), z.string()])), })"
     },
     {
       "name": "UpdateTestsLabelsPayload",
       "kind": "type",
       "file": "src/schemas/tests.ts",
-      "line": 90,
+      "line": 86,
       "signature": "export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>",
       "typeOnly": true
     },
@@ -1998,14 +2180,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateTestsLabelsPayloadSchema",
       "kind": "const",
       "file": "src/schemas/tests.ts",
-      "line": 85,
-      "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(z.union([z.number(), z.string()])), })"
+      "line": 81,
+      "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number().int().positive()).min(1), labels: z.array(z.union([z.number(), z.string()])), })"
     },
     {
       "name": "UpdateTestsResponse",
       "kind": "type",
       "file": "src/schemas/tests.ts",
-      "line": 109,
+      "line": 105,
       "signature": "export type UpdateTestsResponse = KnownResponse<typeof UpdateTestsResponseSchema>",
       "typeOnly": true
     },
@@ -2013,7 +2195,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateTestsResponseSchema",
       "kind": "const",
       "file": "src/schemas/tests.ts",
-      "line": 104,
+      "line": 100,
       "signature": "export const UpdateTestsResponseSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(LabelEmbeddedSchema), })",
       "jsdoc": "`update_tests` acknowledges the bulk label assignment; it does **not** return the updated tests. TestRail's documented example is `{ \"test_ids\": [1, 2, 3], \"labels\": [{ \"id\": 1, \"title\": \"label1\" }] }` — the page's boilerplate status line (\"the tests are returned as part of the response\") is copy-pasted across every endpoint and contradicts the example beneath it."
     },
@@ -2061,7 +2243,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UserAddPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 125,
+      "line": 121,
       "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>",
       "typeOnly": true
     },
@@ -2069,7 +2251,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UserAddPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 112,
+      "line": 108,
       "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: userEmailField, is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.number().int().positive().…",
       "jsdoc": "User write-payload schemas (TestRail 7.3+). Mirror the group/milestone payload pattern: declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future fields TestRail may add to either endpoint."
     },
@@ -2081,10 +2263,18 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications: z.boole…"
     },
     {
+      "name": "UsersModule",
+      "kind": "class",
+      "file": "src/modules/users.ts",
+      "line": 34,
+      "signature": "export class UsersModule",
+      "typeOnly": true
+    },
+    {
       "name": "UserUpdatePayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 140,
+      "line": 136,
       "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>",
       "typeOnly": true
     },
@@ -2092,7 +2282,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UserUpdatePayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 127,
+      "line": 123,
       "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: userEmailField.optional(), is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.n…"
     },
     {
@@ -2101,6 +2291,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/variables.ts",
       "line": 24,
       "signature": "export type Variable = KnownResponse<typeof VariableSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "VariableModule",
+      "kind": "class",
+      "file": "src/modules/variables.ts",
+      "line": 35,
+      "signature": "export class VariableModule",
       "typeOnly": true
     },
     {
@@ -2126,54 +2324,89 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "kind": "interface",
           "line": 7,
           "exported": true,
-          "signature": "export interface BodyLimits { maxBytes: number; deadlineMs: number; }"
+          "signature": "export interface BodyLimits { maxBytes: number; deadlineMs: number; sanitizeCause?: boolean; }"
         },
         {
           "name": "cancelReaderBestEffort",
           "kind": "function",
-          "line": 21,
+          "line": 27,
           "exported": false,
           "signature": "function cancelReaderBestEffort(reader: globalThis.ReadableStreamDefaultReader<Uint8Array>, reason: Error): void"
         },
         {
+          "name": "bodyTimeouts",
+          "kind": "const",
+          "line": 39,
+          "exported": false,
+          "signature": "const bodyTimeouts = new WeakSet<object>()"
+        },
+        {
           "name": "bodyTimeoutError",
           "kind": "function",
-          "line": 32,
+          "line": 41,
           "exported": false,
           "signature": "function bodyTimeoutError(deadlineMs: number): TestRailApiError"
         },
         {
+          "name": "isBodyReadTimeout",
+          "kind": "function",
+          "line": 56,
+          "exported": true,
+          "signature": "export function isBodyReadTimeout(error: unknown): boolean"
+        },
+        {
           "name": "readBodyWithLimits",
           "kind": "function",
-          "line": 58,
+          "line": 79,
           "exported": true,
           "signature": "export async function readBodyWithLimits(response: Response, limits: BodyLimits): Promise<Uint8Array>"
         },
         {
+          "name": "transportFailures",
+          "kind": "const",
+          "line": 99,
+          "exported": false,
+          "signature": "const transportFailures = new WeakSet<object>()"
+        },
+        {
+          "name": "isBodyTransportFailure",
+          "kind": "function",
+          "line": 105,
+          "exported": true,
+          "signature": "export function isBodyTransportFailure(error: unknown): boolean"
+        },
+        {
+          "name": "readBody",
+          "kind": "function",
+          "line": 109,
+          "exported": false,
+          "signature": "async function readBody(response: Response, limits: BodyLimits): Promise<Uint8Array>"
+        },
+        {
           "name": "readBodyAsText",
           "kind": "function",
-          "line": 203,
+          "line": 254,
           "exported": true,
           "signature": "export async function readBodyAsText(response: Response, limits: BodyLimits): Promise<string>"
         },
         {
           "name": "failIfFallbackDeadlineReached",
           "kind": "function",
-          "line": 216,
+          "line": 267,
           "exported": false,
           "signature": "function failIfFallbackDeadlineReached(deadlineAt: number | undefined, deadlineMs: number): void"
         },
         {
           "name": "awaitFallbackBody",
           "kind": "function",
-          "line": 222,
+          "line": 273,
           "exported": false,
           "signature": "async function awaitFallbackBody<T>( promise: Promise<T>, deadlineAt: number | undefined, deadlineMs: number, ): Promise<T>"
         },
         {
           "name": "readBodyViaFallback",
           "kind": "function",
-          "line": 248,
+          "line": 299,
           "exported": false,
           "signature": "async function readBodyViaFallback(response: Response, maxBytes: number, deadlineMs: number): Promise<Uint8Array>"
         }
@@ -2185,10 +2418,20 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "./cli/index.js",
         "./cli/sanitize.js",
         "./cli/stdin.js",
-        "./client.js"
+        "./client.js",
+        "./constants.js",
+        "node:tty"
       ],
       "reExports": [],
-      "symbols": []
+      "symbols": [
+        {
+          "name": "exitQuietlyOnEpipe",
+          "kind": "const",
+          "line": 34,
+          "exported": false,
+          "signature": "const exitQuietlyOnEpipe = (error: NodeJS.ErrnoException): void => { if (error.code !== 'EPIPE') throw error; process.exit(); }"
+        }
+      ]
     },
     {
       "path": "src/cli/action-invocation.ts",
@@ -2472,105 +2715,105 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "extractDetail",
           "kind": "function",
-          "line": 207,
+          "line": 210,
           "exported": false,
           "signature": "function extractDetail(response: unknown, secrets: readonly string[] | undefined): DiagnosticServerDetail"
         },
         {
           "name": "createDiagnosticRecord",
           "kind": "function",
-          "line": 265,
+          "line": 268,
           "exported": true,
           "signature": "export function createDiagnosticRecord( error: unknown, auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>, handlerStarted = true, ): CliDiagnosticRecord"
         },
         {
           "name": "CliDiagnosticDestination",
           "kind": "interface",
-          "line": 302,
+          "line": 305,
           "exported": true,
           "signature": "export interface CliDiagnosticDestination { readonly write: (record: CliDiagnosticRecord) => boolean; readonly finish: () => boolean; }"
         },
         {
           "name": "sameFile",
           "kind": "function",
-          "line": 309,
+          "line": 312,
           "exported": false,
           "signature": "function sameFile(left: Stats, right: Stats): boolean"
         },
         {
           "name": "canonicalDestination",
           "kind": "function",
-          "line": 313,
+          "line": 316,
           "exported": false,
           "signature": "function canonicalDestination(path: string): string"
         },
         {
           "name": "clearDiagnosticAcl",
           "kind": "function",
-          "line": 321,
+          "line": 324,
           "exported": false,
           "signature": "function clearDiagnosticAcl(fd: number): void"
         },
         {
           "name": "createDarwinDiagnosticFile",
           "kind": "function",
-          "line": 336,
+          "line": 339,
           "exported": false,
           "signature": "function createDarwinDiagnosticFile(destination: string): number"
         },
         {
           "name": "DIAGNOSTIC_UNSUPPORTED_PLATFORM",
           "kind": "const",
-          "line": 452,
+          "line": 455,
           "exported": true,
           "signature": "export const DIAGNOSTIC_UNSUPPORTED_PLATFORM = '--diagnostic-file is unavailable on Windows because private file permissions cannot be guaranteed; no API request was sent.'"
         },
         {
           "name": "diagnosticSupportError",
           "kind": "function",
-          "line": 464,
+          "line": 467,
           "exported": true,
           "signature": "export function diagnosticSupportError(platform: string): string | undefined"
         },
         {
           "name": "prepareDiagnosticDestination",
           "kind": "function",
-          "line": 469,
+          "line": 472,
           "exported": true,
           "signature": "export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination"
         },
         {
           "name": "ProcessLifetime",
           "kind": "interface",
-          "line": 617,
+          "line": 620,
           "exported": true,
           "signature": "export interface ProcessLifetime { onExit: (listener: () => void) => void; offExit: (listener: () => void) => void; }"
         },
         {
           "name": "DiagnosticRequest",
           "kind": "interface",
-          "line": 623,
+          "line": 626,
           "exported": true,
           "signature": "export interface DiagnosticRequest { readonly path: unknown; readonly otherOutput: unknown; readonly dryRun: boolean; readonly credentials: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>; }"
         },
         {
           "name": "DiagnosticScopeDeps",
           "kind": "interface",
-          "line": 634,
+          "line": 637,
           "exported": true,
           "signature": "export interface DiagnosticScopeDeps { readonly lifetime: ProcessLifetime; readonly warn: (chunk: string) => void; readonly reportFailure: (error: unknown) => void; }"
         },
         {
           "name": "DiagnosticScope",
           "kind": "interface",
-          "line": 647,
+          "line": 650,
           "exported": true,
           "signature": "export interface DiagnosticScope { markDispatched: () => void; }"
         },
         {
           "name": "withDiagnostics",
           "kind": "function",
-          "line": 670,
+          "line": 673,
           "exported": true,
           "signature": "export async function withDiagnostics<T>( request: DiagnosticRequest, deps: DiagnosticScopeDeps, work: (scope: DiagnosticScope) => Promise<T>, ): Promise<T>"
         }
@@ -2703,8 +2946,8 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "name": "STDIN_SENTINEL",
           "kind": "const",
           "line": 15,
-          "exported": true,
-          "signature": "export const STDIN_SENTINEL = '-'"
+          "exported": false,
+          "signature": "const STDIN_SENTINEL = '-'"
         },
         {
           "name": "FileInput",
@@ -2754,8 +2997,8 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "name": "STDOUT_SENTINEL",
           "kind": "const",
           "line": 11,
-          "exported": true,
-          "signature": "export const STDOUT_SENTINEL = '-'"
+          "exported": false,
+          "signature": "const STDOUT_SENTINEL = '-'"
         },
         {
           "name": "FileOutput",
@@ -2870,8 +3113,8 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "name": "FLAG_CATALOG",
           "kind": "const",
           "line": 37,
-          "exported": true,
-          "signature": "export const FLAG_CATALOG = defineFlagCatalog({ 'base-url': { type: 'string', scope: 'global' }, email: { type: 'string', scope: 'global', valueName: 'email' }, 'user-email': { type: 'string', scope: …"
+          "exported": false,
+          "signature": "const FLAG_CATALOG = defineFlagCatalog({ 'base-url': { type: 'string', scope: 'global' }, email: { type: 'string', scope: 'global', valueName: 'email' }, 'user-email': { type: 'string', scope: 'action…"
         },
         {
           "name": "CliFlagName",
@@ -3159,49 +3402,49 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "paginationFromCtx",
           "kind": "function",
-          "line": 14,
+          "line": 13,
           "exported": false,
           "signature": "function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: number }"
         },
         {
           "name": "handleAttachmentListForCase",
           "kind": "function",
-          "line": 23,
+          "line": 22,
           "exported": true,
           "signature": "export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForRun",
           "kind": "function",
-          "line": 33,
+          "line": 32,
           "exported": true,
           "signature": "export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForTest",
           "kind": "function",
-          "line": 43,
+          "line": 42,
           "exported": true,
           "signature": "export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlan",
           "kind": "function",
-          "line": 48,
+          "line": 47,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlanEntry",
           "kind": "function",
-          "line": 62,
+          "line": 61,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentGet",
           "kind": "function",
-          "line": 80,
+          "line": 79,
           "exported": true,
           "signature": "export async function handleAttachmentGet(ctx: HandlerContext): Promise<void>"
         }
@@ -3515,14 +3758,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "handleDatasetUpdate",
           "kind": "const",
-          "line": 17,
+          "line": 18,
           "exported": true,
           "signature": "export const handleDatasetUpdate = createWriteHandler({ action: 'dataset update', pathParams: ['dataset_id'], bodySchema: UpdateDatasetPayloadSchema, allowEmptyBody: true, call: (client, [datasetId], …"
         },
         {
           "name": "handleDatasetDelete",
           "kind": "const",
-          "line": 29,
+          "line": 30,
           "exported": true,
           "signature": "export const handleDatasetDelete = createDestructiveHandler({ action: 'dataset delete', pathParams: ['dataset_id'], call: (client, [datasetId]) => client.datasets.deleteDataset(datasetId), })"
         }
@@ -4190,7 +4433,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "handleRunWatch",
           "kind": "function",
-          "line": 142,
+          "line": 143,
           "exported": true,
           "signature": "export async function handleRunWatch(ctx: HandlerContext): Promise<void>"
         }
@@ -4852,61 +5095,61 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "kind": "const",
           "line": 265,
           "exported": false,
-          "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY !== true) a…"
+          "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(stdin is not a terminal) and ne…"
         },
         {
           "name": "HEADER",
           "kind": "const",
-          "line": 287,
+          "line": 293,
           "exported": false,
           "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
         },
         {
           "name": "RESOURCE_LINE_WIDTH",
           "kind": "const",
-          "line": 289,
+          "line": 295,
           "exported": false,
           "signature": "const RESOURCE_LINE_WIDTH = 74"
         },
         {
           "name": "resourceNames",
           "kind": "function",
-          "line": 292,
+          "line": 298,
           "exported": false,
           "signature": "function resourceNames(): readonly string[]"
         },
         {
           "name": "isKnownResource",
           "kind": "function",
-          "line": 297,
+          "line": 303,
           "exported": true,
           "signature": "export function isKnownResource(resource: string): boolean"
         },
         {
           "name": "wrapIndented",
           "kind": "function",
-          "line": 315,
+          "line": 321,
           "exported": true,
           "signature": "export function wrapIndented(words: readonly string[]): string"
         },
         {
           "name": "renderResourcesBlock",
           "kind": "function",
-          "line": 336,
+          "line": 342,
           "exported": false,
           "signature": "function renderResourcesBlock(): string"
         },
         {
           "name": "buildResourceHelpText",
           "kind": "function",
-          "line": 355,
+          "line": 361,
           "exported": true,
           "signature": "export function buildResourceHelpText(resource: string): string"
         },
         {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 370,
+          "line": 376,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }
@@ -4941,44 +5184,37 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "const POSITIVE_INT_RE = /^[1-9]\\d*$/"
         },
         {
-          "name": "NON_NEG_INT_RE",
-          "kind": "const",
-          "line": 28,
+          "name": "toSafeInteger",
+          "kind": "function",
+          "line": 24,
           "exported": false,
-          "signature": "const NON_NEG_INT_RE = /^(0|[1-9]\\d*)$/"
+          "signature": "function toSafeInteger(digits: string, name: string): number"
         },
         {
           "name": "parseId",
           "kind": "function",
-          "line": 30,
+          "line": 32,
           "exported": true,
           "signature": "export function parseId(raw: string | undefined, name: string): number"
         },
         {
           "name": "parseEntryId",
           "kind": "function",
-          "line": 49,
+          "line": 48,
           "exported": true,
           "signature": "export function parseEntryId(raw: string | undefined, name: string): string"
         },
         {
           "name": "parseAttachmentId",
           "kind": "function",
-          "line": 70,
+          "line": 69,
           "exported": true,
           "signature": "export function parseAttachmentId(raw: string | undefined, name: string): number | string"
         },
         {
-          "name": "optInt",
-          "kind": "function",
-          "line": 81,
-          "exported": true,
-          "signature": "export function optInt(raw: string | undefined): number | undefined"
-        },
-        {
           "name": "parseIdList",
           "kind": "function",
-          "line": 96,
+          "line": 89,
           "exported": true,
           "signature": "export function parseIdList(raw: string | undefined, name: string): number[] | undefined"
         }
@@ -5051,16 +5287,23 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "const EXIT_ARGV_INVALID = 2"
         },
         {
+          "name": "strayPositionalsError",
+          "kind": "function",
+          "line": 47,
+          "exported": false,
+          "signature": "function strayPositionalsError(command: string, extra: readonly string[]): string"
+        },
+        {
           "name": "CliRuntime",
           "kind": "interface",
-          "line": 58,
+          "line": 69,
           "exported": true,
           "signature": "export interface CliRuntime { readonly argv: readonly string[]; readonly env: Readonly<Record<string, string | undefined>>; readonly stdout: (chunk: string | Uint8Array) => void; readonly stderr: (chu…"
         },
         {
           "name": "runCli",
           "kind": "function",
-          "line": 92,
+          "line": 103,
           "exported": true,
           "signature": "export async function runCli(runtime: CliRuntime): Promise<number>"
         }
@@ -5070,6 +5313,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "path": "src/cli/install-skill.ts",
       "imports": [
         "./output.js",
+        "./sanitize.js",
         "node:fs",
         "node:os",
         "node:path",
@@ -5080,49 +5324,49 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "InstallSkillOptions",
           "kind": "interface",
-          "line": 37,
+          "line": 38,
           "exported": true,
           "signature": "export interface InstallSkillOptions { global: boolean; force: boolean; printPath: boolean; output: Pick<Output, 'outRaw' | 'err'>; sourceOverride?: string; cwdOverride?: string; homeOverride?: string…"
         },
         {
           "name": "getBundledSkillPath",
           "kind": "function",
-          "line": 61,
+          "line": 62,
           "exported": true,
           "signature": "export function getBundledSkillPath(metaUrl: string): string"
         },
         {
           "name": "runInstallSkill",
           "kind": "function",
-          "line": 65,
+          "line": 66,
           "exported": true,
           "signature": "export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number"
         },
         {
           "name": "installDirectory",
           "kind": "function",
-          "line": 130,
+          "line": 133,
           "exported": false,
           "signature": "function installDirectory(source: string, target: string, references: readonly string[]): void"
         },
         {
           "name": "listReferenceFiles",
           "kind": "function",
-          "line": 193,
+          "line": 196,
           "exported": false,
           "signature": "function listReferenceFiles(skillRoot: string): readonly string[]"
         },
         {
           "name": "requireRealDirectory",
           "kind": "function",
-          "line": 219,
-          "exported": false,
-          "signature": "function requireRealDirectory(path: string): void"
+          "line": 225,
+          "exported": true,
+          "signature": "export function requireRealDirectory(path: string): void"
         },
         {
           "name": "installFile",
           "kind": "function",
-          "line": 242,
+          "line": 248,
           "exported": false,
           "signature": "function installFile(source: string, target: string): void"
         }
@@ -6027,210 +6271,231 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "getField",
           "kind": "function",
-          "line": 103,
+          "line": 105,
           "exported": false,
-          "signature": "function getField(row: unknown, key: string): unknown"
+          "signature": "function getField(row: Record<string, unknown>, key: string): unknown"
+        },
+        {
+          "name": "emptyCells",
+          "kind": "function",
+          "line": 111,
+          "exported": false,
+          "signature": "function emptyCells<Cell>(): Record<string, Cell>"
         },
         {
           "name": "projectCell",
           "kind": "function",
-          "line": 108,
+          "line": 115,
           "exported": false,
           "signature": "function projectCell(value: unknown): ProjectedCell"
         },
         {
           "name": "isProjectionRecord",
           "kind": "function",
-          "line": 118,
+          "line": 125,
           "exported": false,
           "signature": "function isProjectionRecord(value: unknown, shape: ProjectionShape): value is Record<string, unknown>"
         },
         {
           "name": "projectRecord",
           "kind": "function",
-          "line": 122,
+          "line": 129,
           "exported": false,
           "signature": "function projectRecord<Cell>( row: Record<string, unknown>, columns: readonly string[], project: (value: unknown) => Cell, ): ProjectedRow<Cell>"
         },
         {
           "name": "projectOutput",
           "kind": "function",
-          "line": 134,
+          "line": 141,
           "exported": false,
           "signature": "function projectOutput<Cell>( data: unknown, shape: ProjectionShape, project: (value: unknown) => Cell, ): ProjectedOutput<Cell>"
         },
         {
           "name": "renderTable",
           "kind": "function",
-          "line": 185,
+          "line": 192,
           "exported": true,
           "signature": "export function renderTable(data: unknown): string"
         },
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 234,
+          "line": 247,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
+          "name": "escapeJsonTerminalControls",
+          "kind": "function",
+          "line": 265,
+          "exported": false,
+          "signature": "function escapeJsonTerminalControls(json: string): string"
+        },
+        {
           "name": "SPECIAL_BARE_STRINGS",
           "kind": "const",
-          "line": 266,
+          "line": 286,
           "exported": false,
           "signature": "const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([ '', '~', 'null', 'Null', 'NULL', 'true', 'True', 'TRUE', 'false', 'False', 'FALSE', 'yes', 'Yes', 'YES', 'no', 'No', 'NO', 'on', 'On', 'ON',…"
         },
         {
           "name": "needsQuoting",
           "kind": "function",
-          "line": 309,
+          "line": 332,
           "exported": false,
           "signature": "function needsQuoting(s: string): boolean"
         },
         {
+          "name": "isLineSeparator",
+          "kind": "function",
+          "line": 389,
+          "exported": false,
+          "signature": "function isLineSeparator(ch: string): boolean"
+        },
+        {
           "name": "escapeDoubleQuoted",
           "kind": "function",
-          "line": 351,
+          "line": 393,
           "exported": false,
           "signature": "function escapeDoubleQuoted(s: string): string"
         },
         {
           "name": "renderYamlScalar",
           "kind": "function",
-          "line": 394,
+          "line": 442,
           "exported": false,
           "signature": "function renderYamlScalar(v: unknown): string"
         },
         {
           "name": "isPlainObject",
           "kind": "function",
-          "line": 416,
+          "line": 464,
           "exported": false,
           "signature": "function isPlainObject(v: unknown): v is Record<string, unknown>"
         },
         {
           "name": "renderYamlNode",
           "kind": "function",
-          "line": 425,
+          "line": 473,
           "exported": false,
           "signature": "function renderYamlNode(v: unknown, depth: number): string"
         },
         {
           "name": "renderYaml",
           "kind": "function",
-          "line": 506,
+          "line": 554,
           "exported": true,
           "signature": "export function renderYaml(value: unknown): string"
         },
         {
           "name": "CSV_LINE_TERMINATOR",
           "kind": "const",
-          "line": 538,
+          "line": 586,
           "exported": false,
           "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
         },
         {
           "name": "TAB",
           "kind": "const",
-          "line": 543,
+          "line": 591,
           "exported": false,
           "signature": "const TAB = 0x09"
         },
         {
           "name": "LF",
           "kind": "const",
-          "line": 544,
+          "line": 592,
           "exported": false,
           "signature": "const LF = 0x0a"
         },
         {
           "name": "CR",
           "kind": "const",
-          "line": 545,
+          "line": 593,
           "exported": false,
           "signature": "const CR = 0x0d"
         },
         {
           "name": "CSV_FORMULA_LEAD_CHARS",
           "kind": "const",
-          "line": 550,
+          "line": 598,
           "exported": false,
           "signature": "const CSV_FORMULA_LEAD_CHARS: ReadonlySet<string> = new Set(['=', '+', '-', '@'])"
         },
         {
           "name": "neutralizeCsvFormula",
           "kind": "function",
-          "line": 554,
+          "line": 602,
           "exported": false,
           "signature": "function neutralizeCsvFormula(cell: string): string"
         },
         {
           "name": "csvCellRequiresQuoting",
           "kind": "function",
-          "line": 564,
+          "line": 612,
           "exported": false,
           "signature": "function csvCellRequiresQuoting(cell: string): boolean"
         },
         {
           "name": "csvQuoteCell",
           "kind": "function",
-          "line": 573,
+          "line": 621,
           "exported": false,
           "signature": "function csvQuoteCell(cell: string): string"
         },
         {
           "name": "csvEscapeCell",
           "kind": "function",
-          "line": 582,
+          "line": 630,
           "exported": false,
           "signature": "function csvEscapeCell(cell: string): string"
         },
         {
           "name": "csvDataCell",
           "kind": "function",
-          "line": 589,
+          "line": 637,
           "exported": false,
           "signature": "function csvDataCell(cell: ProjectedCell | undefined): string"
         },
         {
           "name": "sanitizeForCsv",
           "kind": "function",
-          "line": 593,
+          "line": 641,
           "exported": false,
           "signature": "function sanitizeForCsv(cell: string): string"
         },
         {
           "name": "csvCellFromProjected",
           "kind": "function",
-          "line": 599,
+          "line": 647,
           "exported": false,
           "signature": "function csvCellFromProjected(cell: ProjectedCell | undefined): string"
         },
         {
           "name": "renderCsv",
           "kind": "function",
-          "line": 639,
+          "line": 687,
           "exported": true,
           "signature": "export function renderCsv(value: unknown): string"
         },
         {
           "name": "OutputEncoder",
           "kind": "interface",
-          "line": 677,
+          "line": 725,
           "exported": false,
           "signature": "interface OutputEncoder { readonly render: (payload: unknown) => string; readonly terminator: string; readonly omitEmpty: boolean; }"
         },
         {
           "name": "OUTPUT_ENCODERS",
           "kind": "const",
-          "line": 683,
+          "line": 731,
           "exported": false,
           "signature": "const OUTPUT_ENCODERS: Record<OutputFormat, OutputEncoder> = { table: { render: renderTable, terminator: '\\n', omitEmpty: false }, yaml: { render: renderYaml, terminator: '\\n', omitEmpty: false }, csv…"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 690,
+          "line": 738,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -6243,7 +6508,6 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "../pagination.js",
         "./flags.js",
         "./handler-context.js",
-        "./ids.js",
         "./metadata/paginated-endpoints.js",
         "./metadata/types.js"
       ],
@@ -6252,154 +6516,154 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "CliPaginationMode",
           "kind": "type",
-          "line": 9,
+          "line": 8,
           "exported": true,
           "signature": "export type CliPaginationMode = 'items' | 'page' | 'all'"
         },
         {
           "name": "CliPaginationOperations",
           "kind": "interface",
-          "line": 11,
+          "line": 10,
           "exported": true,
           "signature": "export interface CliPaginationOperations<T> { readonly items: () => Promise<T[]>; readonly page: () => Promise<unknown>; readonly all: () => Promise<T[]>; }"
         },
         {
           "name": "CliPaginationParsed",
           "kind": "interface",
-          "line": 17,
+          "line": 16,
           "exported": true,
           "signature": "export interface CliPaginationParsed { readonly mode: CliPaginationMode; readonly limit?: number; readonly offset?: number; readonly pageSize?: number; readonly startOffset?: number; readonly maxPages…"
         },
         {
           "name": "CliPaginationValidationResult",
           "kind": "type",
-          "line": 29,
+          "line": 28,
           "exported": true,
           "signature": "export type CliPaginationValidationResult = { readonly ok: true; readonly parsed: CliPaginationParsed } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "ParsedPaginationAggregateProperty",
           "kind": "type",
-          "line": 32,
+          "line": 31,
           "exported": false,
           "signature": "type ParsedPaginationAggregateProperty = 'pageSize' | 'startOffset' | 'maxPages' | 'maxItems' | 'maxDurationMs' | 'maxBytes'"
         },
         {
           "name": "ParsedPaginationArgs",
           "kind": "type",
-          "line": 35,
+          "line": 34,
           "exported": false,
           "signature": "type ParsedPaginationArgs = Omit<CliPaginationParsed, 'mode'>"
         },
         {
           "name": "NumericFlag",
           "kind": "interface",
-          "line": 37,
+          "line": 36,
           "exported": false,
           "signature": "interface NumericFlag { readonly property: ParsedPaginationAggregateProperty; readonly flag: string; readonly allowZero: boolean; readonly maximum?: number; }"
         },
         {
           "name": "PAGE_SIZE_FLAG",
           "kind": "const",
-          "line": 44,
+          "line": 43,
           "exported": false,
           "signature": "const PAGE_SIZE_FLAG = { property: 'pageSize', flag: '--page-size', allowZero: false, maximum: MAX_PAGINATION_LIMIT, } satisfies NumericFlag"
         },
         {
           "name": "START_OFFSET_FLAG",
           "kind": "const",
-          "line": 50,
+          "line": 49,
           "exported": false,
           "signature": "const START_OFFSET_FLAG = { property: 'startOffset', flag: '--start-offset', allowZero: true, } satisfies NumericFlag"
         },
         {
           "name": "MAX_PAGES_FLAG",
           "kind": "const",
-          "line": 55,
+          "line": 54,
           "exported": false,
           "signature": "const MAX_PAGES_FLAG = { property: 'maxPages', flag: '--max-pages', allowZero: false } satisfies NumericFlag"
         },
         {
           "name": "MAX_ITEMS_FLAG",
           "kind": "const",
-          "line": 56,
+          "line": 55,
           "exported": false,
           "signature": "const MAX_ITEMS_FLAG = { property: 'maxItems', flag: '--max-items', allowZero: false } satisfies NumericFlag"
         },
         {
           "name": "MAX_DURATION_FLAG",
           "kind": "const",
-          "line": 57,
+          "line": 56,
           "exported": false,
           "signature": "const MAX_DURATION_FLAG = { property: 'maxDurationMs', flag: '--max-duration-ms', allowZero: false, maximum: MAX_TIMEOUT_MS, } satisfies NumericFlag"
         },
         {
           "name": "MAX_BYTES_FLAG",
           "kind": "const",
-          "line": 63,
+          "line": 62,
           "exported": false,
           "signature": "const MAX_BYTES_FLAG = { property: 'maxBytes', flag: '--max-bytes', allowZero: false, maximum: MAX_PAGINATION_BYTES, } satisfies NumericFlag"
         },
         {
           "name": "NUMERIC_FLAGS",
           "kind": "const",
-          "line": 70,
+          "line": 69,
           "exported": false,
           "signature": "const NUMERIC_FLAGS: readonly NumericFlag[] = [ PAGE_SIZE_FLAG, START_OFFSET_FLAG, MAX_PAGES_FLAG, MAX_ITEMS_FLAG, MAX_DURATION_FLAG, MAX_BYTES_FLAG, ]"
         },
         {
           "name": "parseCanonicalInteger",
           "kind": "function",
-          "line": 79,
+          "line": 78,
           "exported": false,
           "signature": "function parseCanonicalInteger(raw: unknown, flag: string, allowZero: boolean, maximum?: number): number"
         },
         {
           "name": "parseOptional",
           "kind": "function",
-          "line": 99,
+          "line": 98,
           "exported": false,
           "signature": "function parseOptional(args: RawCliPaginationArgs, definition: NumericFlag): number | undefined"
         },
         {
           "name": "parseCliPagination",
           "kind": "function",
-          "line": 106,
+          "line": 105,
           "exported": true,
           "signature": "export function parseCliPagination(args: RawCliPaginationArgs): CliPaginationParsed"
         },
         {
           "name": "validateCliPagination",
           "kind": "function",
-          "line": 142,
+          "line": 133,
           "exported": true,
           "signature": "export function validateCliPagination( actionSpec: ActionSpec | undefined, args: RawCliPaginationArgs, ): CliPaginationValidationResult"
         },
         {
           "name": "getCliPaginationMode",
           "kind": "function",
-          "line": 221,
+          "line": 212,
           "exported": true,
           "signature": "export function getCliPaginationMode(args: Pick<RawCliPaginationArgs, 'page' | 'all'>): CliPaginationMode"
         },
         {
           "name": "outputPaginated",
           "kind": "function",
-          "line": 228,
+          "line": 219,
           "exported": true,
           "signature": "export async function outputPaginated<T>( ctx: Pick<HandlerContext, 'pagination' | 'out'>, operations: CliPaginationOperations<T>, ): Promise<void>"
         },
         {
           "name": "getPaginationSafetyOptions",
           "kind": "function",
-          "line": 239,
+          "line": 230,
           "exported": true,
           "signature": "export function getPaginationSafetyOptions(pagination: CliPaginationParsed): PaginationSafetyOptions"
         },
         {
           "name": "getPaginatedRequestOptions",
           "kind": "function",
-          "line": 249,
+          "line": 240,
           "exported": true,
           "signature": "export function getPaginatedRequestOptions(pagination: CliPaginationParsed): PaginatedRequestOptions"
         }
@@ -6611,6 +6875,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/stdin.ts",
       "imports": [
+        "../constants.js",
         "node:fs"
       ],
       "reExports": [],
@@ -6618,28 +6883,28 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "CliStdin",
           "kind": "interface",
-          "line": 4,
+          "line": 5,
           "exported": true,
           "signature": "export interface CliStdin { readonly isTTY: boolean; readonly read: (maxBytes: number) => string; readonly readBinary: (maxBytes: number, timeoutMs: number) => Promise<Uint8Array>; }"
         },
         {
           "name": "BinaryInputStream",
           "kind": "interface",
-          "line": 12,
+          "line": 13,
           "exported": true,
           "signature": "export interface BinaryInputStream extends AsyncIterable<unknown> { destroy(error?: Error): void; }"
         },
         {
           "name": "readBoundedStdin",
           "kind": "function",
-          "line": 52,
+          "line": 59,
           "exported": true,
           "signature": "export function readBoundedStdin(maxBytes: number, fd: number): string"
         },
         {
           "name": "readStdinBinary",
           "kind": "function",
-          "line": 104,
+          "line": 120,
           "exported": true,
           "signature": "export async function readStdinBinary( stream: BinaryInputStream, maxBytes: number, timeoutMs: number, ): Promise<Uint8Array>"
         }
@@ -6648,7 +6913,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/cli/uninstall-skill.ts",
       "imports": [
+        "./install-skill.js",
         "./output.js",
+        "./sanitize.js",
         "node:fs",
         "node:os",
         "node:path",
@@ -6659,28 +6926,28 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "UninstallSkillOptions",
           "kind": "interface",
-          "line": 44,
+          "line": 46,
           "exported": true,
           "signature": "export interface UninstallSkillOptions { global: boolean; output: Pick<Output, 'outRaw' | 'err'>; cwdOverride?: string; homeOverride?: string; }"
         },
         {
           "name": "bundledReferenceNames",
           "kind": "function",
-          "line": 73,
+          "line": 69,
           "exported": false,
           "signature": "function bundledReferenceNames(): readonly string[]"
         },
         {
           "name": "getInstallTarget",
           "kind": "function",
-          "line": 85,
+          "line": 86,
           "exported": true,
           "signature": "export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string"
         },
         {
           "name": "runUninstallSkill",
           "kind": "function",
-          "line": 90,
+          "line": 91,
           "exported": true,
           "signature": "export function runUninstallSkill(opts: UninstallSkillOptions): number"
         }
@@ -6765,23 +7032,30 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export interface WriteHandlerSpec<S extends z.ZodTypeAny> { action: string; pathParams?: readonly string[]; entryParam?: string; bodySchema: S; allowEmptyBody?: boolean; call: (client: TestRailClient,…"
         },
         {
+          "name": "resolveOptionalBody",
+          "kind": "function",
+          "line": 109,
+          "exported": false,
+          "signature": "function resolveOptionalBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S): BodyResolution<z.infer<S>>"
+        },
+        {
           "name": "createWriteHandler",
           "kind": "function",
-          "line": 99,
+          "line": 126,
           "exported": true,
           "signature": "export function createWriteHandler<S extends z.ZodTypeAny>(spec: WriteHandlerSpec<S>): Handler"
         },
         {
           "name": "DestructiveHandlerSpec",
           "kind": "interface",
-          "line": 132,
+          "line": 155,
           "exported": true,
           "signature": "export interface DestructiveHandlerSpec { action: string; pathParams?: readonly string[]; entryParam?: string; kind?: 'delete' | 'close'; call: (client: TestRailClient, nums: NumIds, entry: string, so…"
         },
         {
           "name": "createDestructiveHandler",
           "kind": "function",
-          "line": 149,
+          "line": 172,
           "exported": true,
           "signature": "export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler"
         }
@@ -6813,267 +7087,269 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 31,
+          "line": 39,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.name.replace(/^@[^/]+\\"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 60,
+          "line": 74,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 62,
+          "line": 76,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<readonly PinnedAddress[]>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 121,
+          "line": 133,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 122,
+          "line": 134,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 125,
+          "line": 137,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 135,
+          "line": 147,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "ResolvedTimeouts",
           "kind": "interface",
-          "line": 163,
+          "line": 175,
           "exported": false,
           "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestBudget; }"
         },
         {
+          "name": "readWithinBudget",
+          "kind": "function",
+          "line": 191,
+          "exported": false,
+          "signature": "async function readWithinBudget<T>( read: (response: Response, limits: BodyLimits) => Promise<T>, response: Response, maxBytes: number, { bodyTimeout, budget }: Pick<ResolvedTimeouts, 'bodyTimeout' | …"
+        },
+        {
           "name": "defineOverride",
           "kind": "function",
-          "line": 177,
+          "line": 214,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 185,
+          "line": 222,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 186
+              "line": 223
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 189
+              "line": 229
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 190
+              "line": 230
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 191
+              "line": 231
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 192
+              "line": 232
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 193
+              "line": 233
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 194
+              "line": 234
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 195
+              "line": 235
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 196
+              "line": 236
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 197
+              "line": 237
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 198
+              "line": 238
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 203
+              "line": 243
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 209
+              "line": 249
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 216
+              "line": 256
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 217
+              "line": 257
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 218
+              "line": 258
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 219
+              "line": 259
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 221
+              "line": 261
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 290
+              "line": 340
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 315
+              "line": 365
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 357
+              "line": 407
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 400
+              "line": 450
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 457
+              "line": 507
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 476
+              "line": 526
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 495
+              "line": 545
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 513
+              "line": 563
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 560
+              "line": 610
             },
             {
               "name": "requestAccepted",
               "kind": "method",
-              "line": 567
-            },
-            {
-              "name": "executeJson",
-              "kind": "method",
-              "line": 665
+              "line": 617
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 705
+              "line": 725
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 725
+              "line": 741
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 756
+              "line": 774
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 785
+              "line": 806
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 800
+              "line": 821
             },
             {
               "name": "raceAttemptDeadline",
               "kind": "method",
-              "line": 1034
+              "line": 1098
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1053
+              "line": 1117
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1078
+              "line": 1142
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1114
+              "line": 1178
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1126
+              "line": 1190
             }
           ]
         }
@@ -7145,114 +7421,114 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TestRailClient",
           "kind": "class",
-          "line": 87,
+          "line": 89,
           "exported": true,
           "signature": "export class TestRailClient extends TestRailClientCore",
           "members": [
             {
               "name": "projects",
               "kind": "property",
-              "line": 89
+              "line": 91
             },
             {
               "name": "suites",
               "kind": "property",
-              "line": 90
+              "line": 92
             },
             {
               "name": "sections",
               "kind": "property",
-              "line": 91
+              "line": 93
             },
             {
               "name": "cases",
               "kind": "property",
-              "line": 92
+              "line": 94
             },
             {
               "name": "plans",
               "kind": "property",
-              "line": 93
+              "line": 95
             },
             {
               "name": "runs",
               "kind": "property",
-              "line": 94
+              "line": 96
             },
             {
               "name": "tests",
               "kind": "property",
-              "line": 95
+              "line": 97
             },
             {
               "name": "results",
               "kind": "property",
-              "line": 96
+              "line": 98
             },
             {
               "name": "milestones",
               "kind": "property",
-              "line": 97
+              "line": 99
             },
             {
               "name": "users",
               "kind": "property",
-              "line": 98
+              "line": 100
             },
             {
               "name": "metadata",
               "kind": "property",
-              "line": 99
+              "line": 101
             },
             {
               "name": "configurations",
               "kind": "property",
-              "line": 100
+              "line": 102
             },
             {
               "name": "attachments",
               "kind": "property",
-              "line": 101
+              "line": 103
             },
             {
               "name": "bdd",
               "kind": "property",
-              "line": 102
+              "line": 104
             },
             {
               "name": "sharedSteps",
               "kind": "property",
-              "line": 103
+              "line": 105
             },
             {
               "name": "variables",
               "kind": "property",
-              "line": 104
+              "line": 106
             },
             {
               "name": "datasets",
               "kind": "property",
-              "line": 105
+              "line": 107
             },
             {
               "name": "reports",
               "kind": "property",
-              "line": 106
+              "line": 108
             },
             {
               "name": "labels",
               "kind": "property",
-              "line": 107
+              "line": 109
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 109
+              "line": 111
             },
             {
               "name": "withTimeout",
               "kind": "method",
-              "line": 153
+              "line": 155
             }
           ]
         }
@@ -7335,14 +7611,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "issueMessage",
           "kind": "function",
-          "line": 117,
+          "line": 137,
           "exported": false,
           "signature": "function issueMessage(path: readonly PropertyKey[]): string"
         },
         {
           "name": "validateTestRailConfig",
           "kind": "function",
-          "line": 175,
+          "line": 191,
           "exported": true,
           "signature": "export function validateTestRailConfig(config: unknown): asserts config is TestRailConfig"
         }
@@ -7417,247 +7693,268 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const DEFAULT_CACHE_CLEANUP_INTERVAL_MS = 60000"
         },
         {
-          "name": "MAX_NODE_TIMER_DELAY_MS",
+          "name": "MAX_SANITIZED_CAUSE_DEPTH",
           "kind": "const",
           "line": 19,
+          "exported": true,
+          "signature": "export const MAX_SANITIZED_CAUSE_DEPTH = 4"
+        },
+        {
+          "name": "MAX_NODE_TIMER_DELAY_MS",
+          "kind": "const",
+          "line": 21,
           "exported": true,
           "signature": "export const MAX_NODE_TIMER_DELAY_MS = 2_147_483_647"
         },
         {
           "name": "TESTRAIL_CONFIG_EMAIL_PATTERN",
           "kind": "const",
-          "line": 21,
+          "line": 31,
           "exported": true,
-          "signature": "export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/"
+          "signature": "export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\\s@]+@[^\\s@][^\\s@.]*\\.[^\\s@]+$/"
         },
         {
           "name": "TESTRAIL_USER_EMAIL_PATTERN",
           "kind": "const",
-          "line": 33,
+          "line": 43,
           "exported": true,
           "signature": "export const TESTRAIL_USER_EMAIL_PATTERN = /^[^\\s@]+@[^\\s@]+$/"
         },
         {
           "name": "DEFAULT_MAX_CACHE_SIZE",
           "kind": "const",
-          "line": 34,
+          "line": 44,
           "exported": true,
           "signature": "export const DEFAULT_MAX_CACHE_SIZE = 1000"
         },
         {
           "name": "DEFAULT_RATE_LIMIT_MAX_REQUESTS",
           "kind": "const",
-          "line": 35,
+          "line": 45,
           "exported": true,
           "signature": "export const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100"
         },
         {
           "name": "DEFAULT_RATE_LIMIT_WINDOW_MS",
           "kind": "const",
-          "line": 36,
+          "line": 46,
           "exported": true,
           "signature": "export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000"
         },
         {
           "name": "MAX_PAGINATION_LIMIT",
           "kind": "const",
-          "line": 46,
+          "line": 56,
           "exported": true,
           "signature": "export const MAX_PAGINATION_LIMIT = 250"
         },
         {
           "name": "DEFAULT_PAGE_SIZE",
           "kind": "const",
-          "line": 49,
+          "line": 59,
           "exported": true,
           "signature": "export const DEFAULT_PAGE_SIZE = MAX_PAGINATION_LIMIT"
         },
         {
           "name": "DEFAULT_MAX_PAGES",
           "kind": "const",
-          "line": 50,
+          "line": 60,
           "exported": true,
           "signature": "export const DEFAULT_MAX_PAGES = 100"
         },
         {
           "name": "DEFAULT_MAX_ITEMS",
           "kind": "const",
-          "line": 51,
+          "line": 61,
           "exported": true,
           "signature": "export const DEFAULT_MAX_ITEMS = 25_000"
         },
         {
           "name": "DEFAULT_MAX_PAGINATION_DURATION_MS",
           "kind": "const",
-          "line": 52,
+          "line": 62,
           "exported": true,
           "signature": "export const DEFAULT_MAX_PAGINATION_DURATION_MS = MAX_TIMEOUT_MS"
         },
         {
           "name": "DEFAULT_MAX_PAGINATION_BYTES",
           "kind": "const",
-          "line": 53,
+          "line": 63,
           "exported": true,
           "signature": "export const DEFAULT_MAX_PAGINATION_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "MAX_PAGINATION_BYTES",
           "kind": "const",
-          "line": 54,
+          "line": 64,
           "exported": true,
           "signature": "export const MAX_PAGINATION_BYTES = 1024 * 1024 * 1024"
         },
         {
           "name": "DEFAULT_MAX_JSON_RESPONSE_BYTES",
           "kind": "const",
-          "line": 78,
+          "line": 88,
           "exported": true,
           "signature": "export const DEFAULT_MAX_JSON_RESPONSE_BYTES = 10 * 1024 * 1024"
         },
         {
           "name": "DEFAULT_MAX_BINARY_RESPONSE_BYTES",
           "kind": "const",
-          "line": 79,
+          "line": 89,
           "exported": true,
           "signature": "export const DEFAULT_MAX_BINARY_RESPONSE_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "MAX_RESPONSE_BYTES_LIMIT",
           "kind": "const",
-          "line": 80,
+          "line": 90,
           "exported": true,
           "signature": "export const MAX_RESPONSE_BYTES_LIMIT = 1024 * 1024 * 1024"
         },
         {
           "name": "MAX_DATA_FILE_BYTES",
           "kind": "const",
-          "line": 89,
+          "line": 99,
           "exported": true,
           "signature": "export const MAX_DATA_FILE_BYTES = 1_048_576"
         },
         {
           "name": "MAX_STDIN_BYTES",
           "kind": "const",
-          "line": 103,
+          "line": 113,
           "exported": true,
           "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
         },
         {
           "name": "MAX_CLI_SCHEMA_MISMATCH_WARNINGS",
           "kind": "const",
-          "line": 106,
+          "line": 116,
           "exported": true,
           "signature": "export const MAX_CLI_SCHEMA_MISMATCH_WARNINGS = 10"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_INPUT_BYTES",
           "kind": "const",
-          "line": 109,
+          "line": 119,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_INPUT_BYTES = 64 * 1024"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES",
           "kind": "const",
-          "line": 110,
+          "line": 120,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES = 16 * 1024"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS",
           "kind": "const",
-          "line": 111,
+          "line": 121,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS = 4096"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS",
           "kind": "const",
-          "line": 112,
+          "line": 122,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS = 2048"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_NODES",
           "kind": "const",
-          "line": 113,
+          "line": 123,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_NODES = 128"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_DEPTH",
           "kind": "const",
-          "line": 114,
+          "line": 124,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_DEPTH = 6"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_DECODE_PASSES",
           "kind": "const",
-          "line": 115,
+          "line": 125,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_DECODE_PASSES = 3"
         },
         {
           "name": "CLI_DIAGNOSTIC_FILE_MODE",
           "kind": "const",
-          "line": 116,
+          "line": 126,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_FILE_MODE = 0o600"
         },
         {
           "name": "CLI_DIAGNOSTIC_DIRECTORY_MODE",
           "kind": "const",
-          "line": 117,
+          "line": 127,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_DIRECTORY_MODE = 0o700"
         },
         {
           "name": "CLI_DIAGNOSTIC_PERMISSION_MASK",
           "kind": "const",
-          "line": 118,
+          "line": 128,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_PERMISSION_MASK = 0o777"
         },
         {
           "name": "CLI_DIAGNOSTIC_ACL_TIMEOUT_MS",
           "kind": "const",
-          "line": 120,
+          "line": 130,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_ACL_TIMEOUT_MS = 1000"
         },
         {
           "name": "MULTIPART_FIELD_NAME",
           "kind": "const",
-          "line": 132,
+          "line": 142,
           "exported": true,
           "signature": "export const MULTIPART_FIELD_NAME = 'attachment'"
         },
         {
           "name": "MAX_STDIN_UPLOAD_BYTES",
           "kind": "const",
-          "line": 148,
+          "line": 158,
           "exported": true,
           "signature": "export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "STDIN_READ_TIMEOUT_MS",
           "kind": "const",
-          "line": 162,
+          "line": 172,
           "exported": true,
           "signature": "export const STDIN_READ_TIMEOUT_MS = 30000"
         },
         {
+          "name": "STDIN_FD",
+          "kind": "const",
+          "line": 175,
+          "exported": true,
+          "signature": "export const STDIN_FD = 0"
+        },
+        {
+          "name": "STDIN_RETRY_INTERVAL_MS",
+          "kind": "const",
+          "line": 182,
+          "exported": true,
+          "signature": "export const STDIN_RETRY_INTERVAL_MS = 10"
+        },
+        {
           "name": "YAML_INDENT_SPACES",
           "kind": "const",
-          "line": 170,
+          "line": 190,
           "exported": true,
           "signature": "export const YAML_INDENT_SPACES = 2"
         },
         {
           "name": "DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS",
           "kind": "const",
-          "line": 173,
+          "line": 193,
           "exported": true,
           "signature": "export const DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS = 5_000"
         }
@@ -7666,6 +7963,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/errors.ts",
       "imports": [
+        "./constants.js",
         "./pagination.js",
         "zod"
       ],
@@ -7674,77 +7972,119 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TestRailApiError",
           "kind": "class",
-          "line": 11,
+          "line": 12,
           "exported": true,
           "signature": "export class TestRailApiError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 12
+              "line": 13
             }
           ]
         },
         {
+          "name": "networkError",
+          "kind": "function",
+          "line": 33,
+          "exported": true,
+          "signature": "export function networkError(reason: unknown, context = '', options?: { readonly cause: unknown }): TestRailApiError"
+        },
+        {
+          "name": "dnsLookupFailures",
+          "kind": "const",
+          "line": 39,
+          "exported": false,
+          "signature": "const dnsLookupFailures = new WeakSet<object>()"
+        },
+        {
+          "name": "dnsLookupError",
+          "kind": "function",
+          "line": 46,
+          "exported": true,
+          "signature": "export function dnsLookupError(reason: unknown, hostname: string): TestRailApiError"
+        },
+        {
+          "name": "isDnsLookupFailure",
+          "kind": "function",
+          "line": 53,
+          "exported": true,
+          "signature": "export function isDnsLookupFailure(error: unknown): boolean"
+        },
+        {
+          "name": "SAFE_CAUSE_FIELDS",
+          "kind": "const",
+          "line": 57,
+          "exported": false,
+          "signature": "const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const"
+        },
+        {
+          "name": "sanitizedCause",
+          "kind": "function",
+          "line": 68,
+          "exported": true,
+          "signature": "export function sanitizedCause(reason: unknown, depth = 0): unknown"
+        },
+        {
           "name": "TestRailLicenseError",
           "kind": "class",
-          "line": 30,
+          "line": 107,
           "exported": true,
           "signature": "export class TestRailLicenseError extends TestRailApiError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 31
+              "line": 108
             }
           ]
         },
         {
           "name": "LICENSE_RESTRICTION_RE",
           "kind": "const",
-          "line": 58,
+          "line": 135,
           "exported": false,
           "signature": "const LICENSE_RESTRICTION_RE = /(?:not an|requires)\\s+enterprise (?:licen|subscription)/i"
         },
         {
           "name": "isLicenseRestriction",
           "kind": "function",
-          "line": 69,
+          "line": 146,
           "exported": true,
           "signature": "export function isLicenseRestriction(status: number, body: unknown): boolean"
         },
         {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 90,
+          "line": 167,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 91
+              "line": 168
             }
           ]
         },
         {
           "name": "TestRailPaginationError",
           "kind": "class",
-          "line": 105,
+          "line": 182,
           "exported": true,
           "signature": "export class TestRailPaginationError extends TestRailValidationError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 106
+              "line": 183
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 121,
+          "line": 198,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }
@@ -7783,21 +8123,21 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "RequestBody",
           "kind": "type",
-          "line": 76,
+          "line": 79,
           "exported": true,
           "signature": "export type RequestBody = | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'multipart'; readonly file: UploadFileInput; readonly filename: string }"
         },
         {
           "name": "RequestIntent",
           "kind": "type",
-          "line": 101,
+          "line": 104,
           "exported": true,
           "signature": "export type RequestIntent = 'side-effecting-read' | 'fresh-read'"
         },
         {
           "name": "RequestSpec",
           "kind": "interface",
-          "line": 126,
+          "line": 129,
           "exported": true,
           "signature": "export interface RequestSpec<T> { readonly __t?: T; readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'; readonly endpoint: string; readonly body?: RequestBody; readonly schema?: ZodType; readonly resp…"
         }
@@ -7810,15 +8150,18 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "./client.js",
         "./constants.js",
         "./errors.js",
+        "./http-pipeline-types.js",
         "./modules/attachments.js",
         "./modules/bdd.js",
         "./modules/cases.js",
+        "./modules/configurations.js",
         "./modules/datasets.js",
         "./modules/labels.js",
         "./modules/metadata.js",
         "./modules/milestones.js",
         "./modules/plans.js",
         "./modules/projects.js",
+        "./modules/reports.js",
         "./modules/results.js",
         "./modules/runs.js",
         "./modules/sections.js",
@@ -7830,6 +8173,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         "./operation-tracking.js",
         "./pagination.js",
         "./schemas.js",
+        "./schemas/common.js",
         "./types.js"
       ],
       "symbols": []
@@ -8111,71 +8455,61 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "CASE_HISTORY_PAGINATION",
           "kind": "const",
-          "line": 92,
+          "line": 96,
           "exported": true,
           "signature": "export const CASE_HISTORY_PAGINATION = createPaginatedListExecutor< { readonly caseId: number }, GetHistoryForCaseOptions, GetAllHistoryForCaseOptions, HistoryEntry >({ operations: ['get_history_for_c…"
         },
         {
           "name": "CaseModule",
           "kind": "class",
-          "line": 109,
+          "line": 113,
           "exported": true,
           "signature": "export class CaseModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 110
+              "line": 114
             },
             {
               "name": "getCase",
               "kind": "method",
-              "line": 113
+              "line": 117
             },
             {
               "name": "getCaseTitles",
               "kind": "method",
-              "line": 123
+              "line": 127
             },
             {
               "name": "getCases",
               "kind": "method",
-              "line": 137
+              "line": 141
             },
             {
               "name": "getCasesPage",
               "kind": "method",
-              "line": 142
+              "line": 146
             },
             {
               "name": "getAllCases",
               "kind": "method",
-              "line": 147
+              "line": 151
             },
             {
               "name": "addCase",
               "kind": "method",
-              "line": 152
+              "line": 156
             },
             {
               "name": "addCases",
               "kind": "method",
-              "line": 172
+              "line": 176
             },
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 203
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 222
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 223
+              "line": 210
             },
             {
               "name": "deleteCase",
@@ -8188,54 +8522,64 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
               "line": 230
             },
             {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 236
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 237
+            },
+            {
               "name": "updateCases",
               "kind": "method",
-              "line": 260
+              "line": 267
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 293
+              "line": 301
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 299
+              "line": 307
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 306
+              "line": 314
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 312
+              "line": 320
             },
             {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 341
+              "line": 350
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 357
+              "line": 367
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 367
+              "line": 378
             },
             {
               "name": "getHistoryForCasePage",
               "kind": "method",
-              "line": 372
+              "line": 383
             },
             {
               "name": "getAllHistoryForCase",
               "kind": "method",
-              "line": 377
+              "line": 388
             }
           ]
         }
@@ -8390,7 +8734,6 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "path": "src/modules/labels.ts",
       "imports": [
         "../client-core.js",
-        "../errors.js",
         "../pagination.js",
         "../schemas.js",
         "../validation.js",
@@ -8401,75 +8744,82 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "GetLabelsOptions",
           "kind": "interface",
-          "line": 9,
+          "line": 8,
           "exported": true,
           "signature": "export interface GetLabelsOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "GetAllLabelsOptions",
           "kind": "type",
-          "line": 16,
+          "line": 15,
           "exported": true,
           "signature": "export type GetAllLabelsOptions = PaginatedRequestOptions"
         },
         {
           "name": "LABELS_PAGINATION",
           "kind": "const",
-          "line": 18,
+          "line": 17,
           "exported": true,
           "signature": "export const LABELS_PAGINATION = createPaginatedListExecutor< { readonly projectId: number }, GetLabelsOptions, GetAllLabelsOptions, Label >({ operations: ['get_labels'], collectionKey: 'labels', item…"
         },
         {
+          "name": "unwrapLabelWrite",
+          "kind": "function",
+          "line": 39,
+          "exported": false,
+          "signature": "function unwrapLabelWrite(raw: unknown): Label"
+        },
+        {
           "name": "LabelModule",
           "kind": "class",
-          "line": 40,
+          "line": 52,
           "exported": true,
           "signature": "export class LabelModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 41
+              "line": 53
             },
             {
               "name": "getLabel",
               "kind": "method",
-              "line": 44
+              "line": 56
             },
             {
               "name": "getLabels",
               "kind": "method",
-              "line": 54
+              "line": 66
             },
             {
               "name": "getLabelsPage",
               "kind": "method",
-              "line": 59
+              "line": 71
             },
             {
               "name": "getAllLabels",
               "kind": "method",
-              "line": 64
+              "line": 76
             },
             {
               "name": "addLabel",
               "kind": "method",
-              "line": 69
+              "line": 81
             },
             {
               "name": "updateLabel",
               "kind": "method",
-              "line": 80
+              "line": 93
             },
             {
               "name": "deleteLabel",
               "kind": "method",
-              "line": 92
+              "line": 106
             },
             {
               "name": "deleteLabels",
               "kind": "method",
-              "line": 101
+              "line": 115
             }
           ]
         }
@@ -8856,79 +9206,86 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export interface PreparedPaginatedRequest { readonly operation: string; readonly pathParameters?: readonly number[]; readonly query?: Readonly<Record<string, PaginatedQueryValue>>; }"
         },
         {
+          "name": "PreparedRequestSnapshot",
+          "kind": "type",
+          "line": 54,
+          "exported": false,
+          "signature": "type PreparedRequestSnapshot = Required<PreparedPaginatedRequest>"
+        },
+        {
           "name": "PaginationRegistration",
           "kind": "interface",
-          "line": 53,
+          "line": 56,
           "exported": true,
           "signature": "export interface PaginationRegistration { readonly operation: string; readonly response: 'envelope' | 'nested-envelope'; readonly requestControls: boolean; readonly collectionKey: string; }"
         },
         {
           "name": "PaginatedListDescriptor",
           "kind": "interface",
-          "line": 60,
+          "line": 63,
           "exported": false,
           "signature": "interface PaginatedListDescriptor<Args, ReadOptions extends DirectPaginationOptions, Item> { readonly operations: readonly [PaginatedOperationDeclaration, ...PaginatedOperationDeclaration[]]; readonly…"
         },
         {
           "name": "PaginatedListExecutor",
           "kind": "interface",
-          "line": 74,
+          "line": 77,
           "exported": true,
           "signature": "export interface PaginatedListExecutor< Args, ReadOptions extends DirectPaginationOptions, AllOptions extends ReadOptions & PaginationSafetyOptions, Item, > { readonly registrations: readonly Paginati…"
         },
         {
           "name": "PaginationTransport",
           "kind": "type",
-          "line": 86,
+          "line": 89,
           "exported": false,
           "signature": "type PaginationTransport = Partial<Pick<PaginationRequest, 'intent' | 'deadlineAt'>> & { readonly pageProjection?: boolean; }"
         },
         {
           "name": "isQueryArray",
           "kind": "function",
-          "line": 90,
+          "line": 93,
           "exported": false,
           "signature": "function isQueryArray(value: PaginatedQueryValue): value is readonly QueryPrimitive[]"
         },
         {
           "name": "ResolvedPaginatedOperation",
           "kind": "interface",
-          "line": 94,
+          "line": 97,
           "exported": false,
           "signature": "interface ResolvedPaginatedOperation { readonly operation: string; readonly registered: boolean; }"
         },
         {
           "name": "resolveOperation",
           "kind": "function",
-          "line": 99,
+          "line": 102,
           "exported": false,
           "signature": "function resolveOperation(declaration: PaginatedOperationDeclaration): ResolvedPaginatedOperation"
         },
         {
           "name": "endpointOptions",
           "kind": "function",
-          "line": 105,
+          "line": 108,
           "exported": false,
           "signature": "function endpointOptions<Options extends DirectPaginationOptions>( options: Options | undefined, ): EndpointOptions<Options> | undefined"
         },
         {
           "name": "snapshotPreparedRequest",
           "kind": "function",
-          "line": 114,
+          "line": 117,
           "exported": false,
-          "signature": "function snapshotPreparedRequest( request: PreparedPaginatedRequest, allowedOperations: ReadonlySet<string>, ): PreparedPaginatedRequest"
+          "signature": "function snapshotPreparedRequest( request: PreparedPaginatedRequest, allowedOperations: ReadonlySet<string>, ): PreparedRequestSnapshot"
         },
         {
           "name": "buildOperationPath",
           "kind": "function",
-          "line": 131,
+          "line": 134,
           "exported": false,
-          "signature": "function buildOperationPath(request: PreparedPaginatedRequest): string"
+          "signature": "function buildOperationPath(request: PreparedRequestSnapshot): string"
         },
         {
           "name": "createPaginatedListExecutor",
           "kind": "function",
-          "line": 140,
+          "line": 143,
           "exported": true,
           "signature": "export function createPaginatedListExecutor< Args, ReadOptions extends DirectPaginationOptions, AllOptions extends ReadOptions & PaginationSafetyOptions, Item, >( descriptor: PaginatedListDescriptor<A…"
         }
@@ -9419,69 +9776,69 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "RunModule",
           "kind": "class",
-          "line": 55,
+          "line": 57,
           "exported": true,
           "signature": "export class RunModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 56
+              "line": 58
             },
             {
               "name": "getRun",
               "kind": "method",
-              "line": 59
+              "line": 61
             },
             {
               "name": "getRuns",
               "kind": "method",
-              "line": 65
+              "line": 67
             },
             {
               "name": "getRunsPage",
               "kind": "method",
-              "line": 70
+              "line": 72
             },
             {
               "name": "getAllRuns",
               "kind": "method",
-              "line": 75
+              "line": 77
             },
             {
               "name": "addRun",
               "kind": "method",
-              "line": 80
+              "line": 82
             },
             {
               "name": "updateRun",
               "kind": "method",
-              "line": 91
+              "line": 93
             },
             {
               "name": "closeRun",
               "kind": "method",
-              "line": 102
+              "line": 104
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 119
+              "line": 121
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 120
+              "line": 122
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 123
+              "line": 125
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 124
+              "line": 126
             }
           ]
         }
@@ -9649,71 +10006,71 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "SHARED_STEP_HISTORY_PAGINATION",
           "kind": "const",
-          "line": 67,
+          "line": 72,
           "exported": true,
           "signature": "export const SHARED_STEP_HISTORY_PAGINATION = createPaginatedListExecutor< { readonly sharedStepId: number }, GetSharedStepHistoryOptions, GetAllSharedStepHistoryOptions, StepHistoryEntry >({ operatio…"
         },
         {
           "name": "SharedStepModule",
           "kind": "class",
-          "line": 84,
+          "line": 89,
           "exported": true,
           "signature": "export class SharedStepModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 85
+              "line": 90
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 88
+              "line": 93
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 98
+              "line": 103
             },
             {
               "name": "getSharedStepsPage",
               "kind": "method",
-              "line": 103
+              "line": 108
             },
             {
               "name": "getAllSharedSteps",
               "kind": "method",
-              "line": 108
+              "line": 113
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 113
+              "line": 118
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 124
+              "line": 129
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 135
+              "line": 140
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 147
+              "line": 152
             },
             {
               "name": "getSharedStepHistoryPage",
               "kind": "method",
-              "line": 155
+              "line": 160
             },
             {
               "name": "getAllSharedStepHistory",
               "kind": "method",
-              "line": 160
+              "line": 165
             }
           ]
         }
@@ -9866,19 +10223,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TestModule",
           "kind": "class",
-          "line": 73,
+          "line": 74,
           "exported": true,
           "signature": "export class TestModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 74
-            },
-            {
-              "name": "getTest",
-              "kind": "method",
-              "line": 77
+              "line": 75
             },
             {
               "name": "getTest",
@@ -9891,29 +10243,34 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
               "line": 79
             },
             {
+              "name": "getTest",
+              "kind": "method",
+              "line": 80
+            },
+            {
               "name": "getTests",
               "kind": "method",
-              "line": 98
+              "line": 99
             },
             {
               "name": "getTestsPage",
               "kind": "method",
-              "line": 103
+              "line": 104
             },
             {
               "name": "getAllTests",
               "kind": "method",
-              "line": 108
+              "line": 109
             },
             {
               "name": "updateTest",
               "kind": "method",
-              "line": 116
+              "line": 117
             },
             {
               "name": "updateTests",
               "kind": "method",
-              "line": 130
+              "line": 131
             }
           ]
         }
@@ -10164,68 +10521,68 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "observe",
               "kind": "method",
-              "line": 37
+              "line": 39
             },
             {
               "name": "release",
               "kind": "method",
-              "line": 47
+              "line": 49
             }
           ]
         },
         {
           "name": "operations",
           "kind": "const",
-          "line": 59,
+          "line": 61,
           "exported": false,
           "signature": "const operations = new AsyncLocalStorage<OperationScope | undefined>()"
         },
         {
           "name": "observeOperation",
           "kind": "function",
-          "line": 62,
+          "line": 64,
           "exported": true,
           "signature": "export function observeOperation<T>(promise: Promise<T>): Promise<T>"
         },
         {
           "name": "bindOperation",
           "kind": "function",
-          "line": 68,
+          "line": 70,
           "exported": true,
           "signature": "export function bindOperation<Args extends unknown[], Result>( callback: (...args: Args) => Result, ): (...args: Args) => Result"
         },
         {
           "name": "trackingEngaged",
           "kind": "let",
-          "line": 99,
+          "line": 101,
           "exported": false,
           "signature": "let trackingEngaged = false"
         },
         {
           "name": "engageOperationTracking",
           "kind": "function",
-          "line": 102,
+          "line": 104,
           "exported": true,
           "signature": "export function engageOperationTracking(): void"
         },
         {
           "name": "exposeRejection",
           "kind": "function",
-          "line": 111,
+          "line": 113,
           "exported": false,
           "signature": "function exposeRejection<T>(result: Promise<T>): Promise<T>"
         },
         {
           "name": "invoke",
           "kind": "function",
-          "line": 118,
+          "line": 120,
           "exported": false,
           "signature": "function invoke<T>(callback: () => T | PromiseLike<T>, run: (fn: () => Promise<T>) => Promise<T>): Promise<T>"
         },
         {
           "name": "startOperation",
           "kind": "function",
-          "line": 137,
+          "line": 139,
           "exported": true,
           "signature": "export function startOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T>"
         }
@@ -10673,69 +11030,69 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "kind": "interface",
           "line": 16,
           "exported": true,
-          "signature": "export interface CacheResolution<T> { readonly key: string | undefined; readonly pendingKey?: string; readonly shareInFlight: boolean; readonly wait: (promise: Promise<T>) => Promise<T>; readonly load…"
+          "signature": "export interface CacheResolution<Raw, T> { readonly key: string | undefined; readonly pendingKey?: string; readonly shareInFlight: boolean; readonly wait: (promise: Promise<T>) => Promise<T>; readonly…"
         },
         {
           "name": "RequestCache",
           "kind": "class",
-          "line": 39,
+          "line": 41,
           "exported": true,
           "signature": "export class RequestCache",
           "members": [
             {
               "name": "entries",
               "kind": "property",
-              "line": 40
+              "line": 42
             },
             {
               "name": "pending",
               "kind": "property",
-              "line": 41
+              "line": 43
             },
             {
               "name": "generation",
               "kind": "property",
-              "line": 42
+              "line": 44
             },
             {
               "name": "cleanupTimer",
               "kind": "property",
-              "line": 43
+              "line": 45
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 45
+              "line": 47
             },
             {
               "name": "resolve",
               "kind": "method",
-              "line": 56
+              "line": 58
             },
             {
               "name": "invalidate",
               "kind": "method",
-              "line": 114
+              "line": 126
             },
             {
               "name": "dispose",
               "kind": "method",
-              "line": 121
+              "line": 133
             },
             {
               "name": "read",
               "kind": "method",
-              "line": 129
+              "line": 141
             },
             {
               "name": "write",
               "kind": "method",
-              "line": 149
+              "line": 161
             },
             {
               "name": "removeExpiredEntries",
               "kind": "method",
-              "line": 168
+              "line": 180
             }
           ]
         }
@@ -10847,13 +11204,6 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "line": 52,
           "exported": true,
           "signature": "export const AttachmentSchema = zObject({ attachment_id: z.number().nullish(), id: z.union([z.number(), z.string()]).nullish(), name: z.string().nullish(), filename: z.string().nullish(), filetype: z.…"
-        },
-        {
-          "name": "Attachment",
-          "kind": "type",
-          "line": 82,
-          "exported": true,
-          "signature": "export type Attachment = KnownResponse<typeof AttachmentSchema>"
         }
       ]
     },
@@ -10897,156 +11247,142 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const CaseSchema = zObject({ id: z.number(), title: z.string(), section_id: z.number(), template_id: z.number().nullish(), type_id: z.number().nullish(), priority_id: z.number().nullish(), mile…"
         },
         {
-          "name": "Case",
-          "kind": "type",
-          "line": 45,
-          "exported": true,
-          "signature": "export type Case = KnownResponse<typeof CaseSchema>"
-        },
-        {
           "name": "CaseTitleSchema",
           "kind": "const",
-          "line": 48,
+          "line": 46,
           "exported": true,
           "signature": "export const CaseTitleSchema = zObject({ id: z.number(), title: z.string(), })"
         },
         {
           "name": "CaseTitle",
           "kind": "type",
-          "line": 53,
+          "line": 51,
           "exported": true,
           "signature": "export type CaseTitle = KnownResponse<typeof CaseTitleSchema>"
         },
         {
           "name": "HistoryChangeSchema",
           "kind": "const",
-          "line": 59,
+          "line": 57,
           "exported": true,
           "signature": "export const HistoryChangeSchema = zObject({ field: z.string().nullish(), type_id: z.number().nullish(), old_text: z.string().nullish(), new_text: z.string().nullish(), label: z.string().nullish(), op…"
         },
         {
           "name": "HistoryEntrySchema",
           "kind": "const",
-          "line": 94,
+          "line": 92,
           "exported": true,
           "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
         },
         {
-          "name": "HistoryEntry",
-          "kind": "type",
-          "line": 108,
-          "exported": true,
-          "signature": "export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>"
-        },
-        {
           "name": "AddCasePayloadSchema",
           "kind": "const",
-          "line": 112,
+          "line": 108,
           "exported": true,
           "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
         },
         {
           "name": "AddCasePayload",
           "kind": "type",
-          "line": 125,
+          "line": 121,
           "exported": true,
           "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>"
         },
         {
           "name": "UpdateCasePayloadSchema",
           "kind": "const",
-          "line": 127,
+          "line": 123,
           "exported": true,
           "signature": "export const UpdateCasePayloadSchema = zObject({ section_id: z.number().optional(), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.num…"
         },
         {
           "name": "UpdateCasePayload",
           "kind": "type",
-          "line": 141,
+          "line": 137,
           "exported": true,
           "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>"
         },
         {
           "name": "AddCasesBulkPayloadSchema",
           "kind": "const",
-          "line": 151,
+          "line": 149,
           "exported": true,
           "signature": "export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1)"
         },
         {
           "name": "AddCasesBulkPayload",
           "kind": "type",
-          "line": 153,
+          "line": 151,
           "exported": true,
           "signature": "export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>"
         },
         {
           "name": "UpdateCasesPayloadSchema",
           "kind": "const",
-          "line": 161,
+          "line": 159,
           "exported": true,
-          "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), section_id: z.number().optional(), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number(…"
+          "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), section_id: z.number().optional(), title: z.string().optional(), template_id: z.number().option…"
         },
         {
           "name": "UpdateCasesPayload",
           "kind": "type",
-          "line": 176,
+          "line": 174,
           "exported": true,
           "signature": "export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>"
         },
         {
           "name": "DeleteCasesPayloadSchema",
           "kind": "const",
-          "line": 185,
+          "line": 183,
           "exported": true,
-          "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
+          "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is …"
         },
         {
           "name": "DeleteCasesPayload",
           "kind": "type",
-          "line": 193,
+          "line": 191,
           "exported": true,
           "signature": "export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>"
         },
         {
           "name": "SoftDeletePreviewSchema",
           "kind": "const",
-          "line": 206,
+          "line": 204,
           "exported": true,
           "signature": "export const SoftDeletePreviewSchema = zObject({ affected_tests: z.number().nullish(), affected_cases: z.number().nullish(), affected_sections: z.number().nullish(), affected_runs: z.number().nullish(…"
         },
         {
           "name": "SoftDeletePreview",
           "kind": "type",
-          "line": 216,
+          "line": 214,
           "exported": true,
           "signature": "export type SoftDeletePreview = KnownResponse<typeof SoftDeletePreviewSchema>"
         },
         {
           "name": "CopyCasesToSectionPayloadSchema",
           "kind": "const",
-          "line": 221,
+          "line": 219,
           "exported": true,
-          "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
+          "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), })"
         },
         {
           "name": "CopyCasesToSectionPayload",
           "kind": "type",
-          "line": 225,
+          "line": 223,
           "exported": true,
           "signature": "export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>"
         },
         {
           "name": "MoveCasesToSectionPayloadSchema",
           "kind": "const",
-          "line": 233,
+          "line": 231,
           "exported": true,
-          "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), suite_id: z.number(), })"
+          "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number().int().positive()).min(1), suite_id: z.number(), })"
         },
         {
           "name": "MoveCasesToSectionPayload",
           "kind": "type",
-          "line": 238,
+          "line": 236,
           "exported": true,
           "signature": "export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>"
         }
@@ -11163,79 +11499,65 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const ConfigurationSchema = zObject({ id: z.number(), name: z.string(), group_id: z.number(), })"
         },
         {
-          "name": "Configuration",
-          "kind": "type",
-          "line": 12,
-          "exported": true,
-          "signature": "export type Configuration = KnownResponse<typeof ConfigurationSchema>"
-        },
-        {
           "name": "ConfigurationGroupSchema",
           "kind": "const",
-          "line": 14,
+          "line": 12,
           "exported": true,
           "signature": "export const ConfigurationGroupSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number(), configs: z.array(ConfigurationSchema), })"
         },
         {
-          "name": "ConfigurationGroup",
-          "kind": "type",
-          "line": 21,
-          "exported": true,
-          "signature": "export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>"
-        },
-        {
           "name": "AddConfigurationGroupPayloadSchema",
           "kind": "const",
-          "line": 31,
+          "line": 27,
           "exported": true,
           "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddConfigurationGroupPayload",
           "kind": "type",
-          "line": 35,
+          "line": 31,
           "exported": true,
           "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>"
         },
         {
           "name": "UpdateConfigurationGroupPayloadSchema",
           "kind": "const",
-          "line": 37,
+          "line": 33,
           "exported": true,
           "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateConfigurationGroupPayload",
           "kind": "type",
-          "line": 41,
+          "line": 37,
           "exported": true,
           "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>"
         },
         {
           "name": "AddConfigurationPayloadSchema",
           "kind": "const",
-          "line": 43,
+          "line": 39,
           "exported": true,
           "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddConfigurationPayload",
           "kind": "type",
-          "line": 47,
+          "line": 43,
           "exported": true,
           "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>"
         },
         {
           "name": "UpdateConfigurationPayloadSchema",
           "kind": "const",
-          "line": 49,
+          "line": 45,
           "exported": true,
           "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateConfigurationPayload",
           "kind": "type",
-          "line": 53,
+          "line": 49,
           "exported": true,
           "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>"
         }
@@ -11417,219 +11739,156 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
         },
         {
-          "name": "Status",
-          "kind": "type",
-          "line": 66,
-          "exported": true,
-          "signature": "export type Status = KnownResponse<typeof StatusSchema>"
-        },
-        {
           "name": "PrioritySchema",
           "kind": "const",
-          "line": 68,
+          "line": 66,
           "exported": true,
           "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
         },
         {
-          "name": "Priority",
-          "kind": "type",
-          "line": 76,
-          "exported": true,
-          "signature": "export type Priority = KnownResponse<typeof PrioritySchema>"
-        },
-        {
           "name": "CaseStatusSchema",
           "kind": "const",
-          "line": 83,
+          "line": 79,
           "exported": true,
           "signature": "export const CaseStatusSchema = zObject({ case_status_id: z.number(), name: z.string(), abbreviation: z.string().nullish(), is_default: z.boolean(), is_approved: z.boolean(), is_untested: z.boolean().…"
         },
         {
-          "name": "CaseStatus",
-          "kind": "type",
-          "line": 100,
-          "exported": true,
-          "signature": "export type CaseStatus = KnownResponse<typeof CaseStatusSchema>"
-        },
-        {
           "name": "FieldConfigOptionsSchema",
           "kind": "const",
-          "line": 104,
+          "line": 98,
           "exported": false,
           "signature": "const FieldConfigOptionsSchema = zObject({ is_required: z.boolean(), default_value: z.string().nullish(), items: z.union([z.string(), z.array(z.unknown())]).nullish(), format: z.string().nullish(), ro…"
         },
         {
           "name": "FieldConfigContextSchema",
           "kind": "const",
-          "line": 125,
+          "line": 119,
           "exported": false,
           "signature": "const FieldConfigContextSchema = zObject({ is_global: z.boolean(), project_ids: z.union([z.array(z.number()), z.string()]).nullish(), })"
         },
         {
           "name": "CaseFieldConfigSchema",
           "kind": "const",
-          "line": 143,
+          "line": 137,
           "exported": true,
           "signature": "export const CaseFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
         },
         {
-          "name": "CaseFieldConfig",
-          "kind": "type",
-          "line": 152,
-          "exported": true,
-          "signature": "export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>"
-        },
-        {
           "name": "CaseFieldSchema",
           "kind": "const",
-          "line": 154,
+          "line": 146,
           "exported": true,
           "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
         },
         {
-          "name": "CaseField",
-          "kind": "type",
-          "line": 174,
-          "exported": true,
-          "signature": "export type CaseField = KnownResponse<typeof CaseFieldSchema>"
-        },
-        {
           "name": "AddCaseFieldResponseSchema",
           "kind": "const",
-          "line": 195,
+          "line": 185,
           "exported": true,
           "signature": "export const AddCaseFieldResponseSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.string(), i…"
         },
         {
           "name": "AddCaseFieldResponse",
           "kind": "type",
-          "line": 220,
+          "line": 210,
           "exported": true,
           "signature": "export type AddCaseFieldResponse = KnownResponse<typeof AddCaseFieldResponseSchema>"
         },
         {
           "name": "ResultFieldConfigSchema",
           "kind": "const",
-          "line": 222,
+          "line": 212,
           "exported": true,
           "signature": "export const ResultFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
         },
         {
-          "name": "ResultFieldConfig",
-          "kind": "type",
-          "line": 230,
-          "exported": true,
-          "signature": "export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>"
-        },
-        {
           "name": "ResultFieldSchema",
           "kind": "const",
-          "line": 232,
+          "line": 220,
           "exported": true,
           "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
         },
         {
-          "name": "ResultField",
-          "kind": "type",
-          "line": 250,
-          "exported": true,
-          "signature": "export type ResultField = KnownResponse<typeof ResultFieldSchema>"
-        },
-        {
           "name": "CaseTypeSchema",
           "kind": "const",
-          "line": 254,
+          "line": 240,
           "exported": true,
           "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
         },
         {
-          "name": "CaseType",
-          "kind": "type",
-          "line": 262,
-          "exported": true,
-          "signature": "export type CaseType = KnownResponse<typeof CaseTypeSchema>"
-        },
-        {
           "name": "TemplateSchema",
           "kind": "const",
-          "line": 264,
+          "line": 248,
           "exported": true,
           "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
         },
         {
-          "name": "Template",
-          "kind": "type",
-          "line": 272,
-          "exported": true,
-          "signature": "export type Template = KnownResponse<typeof TemplateSchema>"
-        },
-        {
           "name": "DynamicFilterFieldSchema",
           "kind": "const",
-          "line": 282,
+          "line": 264,
           "exported": true,
           "signature": "export const DynamicFilterFieldSchema = zObject({ type_id: z.number(), system_name: z.string(), label: z.string(), options: z.string().nullish(), sub_filters: z.string().nullish(), })"
         },
         {
           "name": "DynamicFilterField",
           "kind": "type",
-          "line": 290,
+          "line": 272,
           "exported": true,
           "signature": "export type DynamicFilterField = KnownResponse<typeof DynamicFilterFieldSchema>"
         },
         {
           "name": "DynamicFiltersPayloadSchema",
           "kind": "const",
-          "line": 297,
+          "line": 279,
           "exported": true,
           "signature": "export const DynamicFiltersPayloadSchema = zObject({ mode: z.string(), filters: z.record(z.string(), z.record(z.string(), z.unknown())), })"
         },
         {
           "name": "DynamicFiltersPayload",
           "kind": "type",
-          "line": 302,
+          "line": 284,
           "exported": true,
           "signature": "export type DynamicFiltersPayload = z.infer<typeof DynamicFiltersPayloadSchema>"
         },
         {
           "name": "TestRailVersionSchema",
           "kind": "const",
-          "line": 305,
+          "line": 287,
           "exported": true,
           "signature": "export const TestRailVersionSchema = zObject({ version: z.string(), })"
         },
         {
           "name": "TestRailVersion",
           "kind": "type",
-          "line": 309,
+          "line": 291,
           "exported": true,
           "signature": "export type TestRailVersion = KnownResponse<typeof TestRailVersionSchema>"
         },
         {
           "name": "AddCaseFieldConfigPayloadSchema",
           "kind": "const",
-          "line": 326,
+          "line": 308,
           "exported": true,
           "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.union([z.array(z.number().int().positive()), z.literal('')]), }), options: zObject({ …"
         },
         {
           "name": "AddCaseFieldConfigPayload",
           "kind": "type",
-          "line": 340,
+          "line": 322,
           "exported": true,
           "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>"
         },
         {
           "name": "AddCaseFieldPayloadSchema",
           "kind": "const",
-          "line": 342,
+          "line": 324,
           "exported": true,
           "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), is_indexed: z.boolean…"
         },
         {
           "name": "AddCaseFieldPayload",
           "kind": "type",
-          "line": 353,
+          "line": 335,
           "exported": true,
           "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>"
         }
@@ -11679,37 +11938,30 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const MilestoneSchema = zObject({ ...MilestoneBaseSchema.shape, milestones: z.array(MilestoneNodeSchema).nullish(), })"
         },
         {
-          "name": "Milestone",
-          "kind": "type",
-          "line": 46,
-          "exported": true,
-          "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>"
-        },
-        {
           "name": "AddMilestonePayloadSchema",
           "kind": "const",
-          "line": 50,
+          "line": 48,
           "exported": true,
           "signature": "export const AddMilestonePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.number().optional(…"
         },
         {
           "name": "AddMilestonePayload",
           "kind": "type",
-          "line": 59,
+          "line": 57,
           "exported": true,
           "signature": "export type AddMilestonePayload = z.infer<typeof AddMilestonePayloadSchema>"
         },
         {
           "name": "UpdateMilestonePayloadSchema",
           "kind": "const",
-          "line": 61,
+          "line": 59,
           "exported": true,
           "signature": "export const UpdateMilestonePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.numb…"
         },
         {
           "name": "UpdateMilestonePayload",
           "kind": "type",
-          "line": 72,
+          "line": 70,
           "exported": true,
           "signature": "export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>"
         }
@@ -11733,121 +11985,107 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const PlanEntrySchema = zObject({ id: z.string(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), assignedto_id: z.number().nullish(), include_all: z.boolean(), case_…"
         },
         {
-          "name": "PlanEntry",
-          "kind": "type",
-          "line": 35,
-          "exported": true,
-          "signature": "export type PlanEntry = KnownResponse<typeof PlanEntrySchema>"
-        },
-        {
           "name": "PlanSchema",
           "kind": "const",
-          "line": 37,
+          "line": 35,
           "exported": true,
           "signature": "export const PlanSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), is_completed: z.boolea…"
         },
         {
-          "name": "Plan",
-          "kind": "type",
-          "line": 80,
-          "exported": true,
-          "signature": "export type Plan = KnownResponse<typeof PlanSchema>"
-        },
-        {
           "name": "PlanEntryRunPayloadSchema",
           "kind": "const",
-          "line": 89,
+          "line": 85,
           "exported": true,
           "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
         },
         {
           "name": "PlanEntryRunPayload",
           "kind": "type",
-          "line": 99,
+          "line": 95,
           "exported": true,
           "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>"
         },
         {
           "name": "AddRunToPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 106,
+          "line": 102,
           "exported": true,
           "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), start_on: z.number().optional(), due_…"
         },
         {
           "name": "AddRunToPlanEntryPayload",
           "kind": "type",
-          "line": 118,
+          "line": 114,
           "exported": true,
           "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>"
         },
         {
           "name": "UpdateRunInPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 122,
+          "line": 118,
           "exported": true,
           "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(), inc…"
         },
         {
           "name": "UpdateRunInPlanEntryPayload",
           "kind": "type",
-          "line": 133,
+          "line": 129,
           "exported": true,
           "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>"
         },
         {
           "name": "AddPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 135,
+          "line": 131,
           "exported": true,
           "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: …"
         },
         {
           "name": "AddPlanEntryPayload",
           "kind": "type",
-          "line": 161,
+          "line": 157,
           "exported": true,
           "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>"
         },
         {
           "name": "UpdatePlanEntryPayloadSchema",
           "kind": "const",
-          "line": 165,
+          "line": 161,
           "exported": true,
           "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_i…"
         },
         {
           "name": "UpdatePlanEntryPayload",
           "kind": "type",
-          "line": 183,
+          "line": 179,
           "exported": true,
           "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>"
         },
         {
           "name": "AddPlanPayloadSchema",
           "kind": "const",
-          "line": 185,
+          "line": 181,
           "exported": true,
           "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(),…"
         },
         {
           "name": "AddPlanPayload",
           "kind": "type",
-          "line": 198,
+          "line": 194,
           "exported": true,
           "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>"
         },
         {
           "name": "UpdatePlanPayloadSchema",
           "kind": "const",
-          "line": 200,
+          "line": 196,
           "exported": true,
           "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number…"
         },
         {
           "name": "UpdatePlanPayload",
           "kind": "type",
-          "line": 212,
+          "line": 208,
           "exported": true,
           "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>"
         }
@@ -11869,72 +12107,65 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const ProjectSchema = zObject({ id: z.number(), name: z.string(), announcement: z.string().nullish(), show_announcement: z.boolean().nullish(), is_completed: z.boolean().nullish(), completed_on…"
         },
         {
-          "name": "Project",
-          "kind": "type",
-          "line": 55,
-          "exported": true,
-          "signature": "export type Project = KnownResponse<typeof ProjectSchema>"
-        },
-        {
           "name": "AddProjectPayloadSchema",
           "kind": "const",
-          "line": 59,
+          "line": 57,
           "exported": true,
           "signature": "export const AddProjectPayloadSchema = zObject({ name: z.string(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
         },
         {
           "name": "AddProjectPayload",
           "kind": "type",
-          "line": 66,
+          "line": 64,
           "exported": true,
           "signature": "export type AddProjectPayload = z.infer<typeof AddProjectPayloadSchema>"
         },
         {
           "name": "ProjectAccessRoleIdPayloadSchema",
           "kind": "const",
-          "line": 71,
+          "line": 69,
           "exported": false,
           "signature": "const ProjectAccessRoleIdPayloadSchema = z.number().int().nonnegative().nullable()"
         },
         {
           "name": "UpdateProjectGroupAssignmentPayloadSchema",
           "kind": "const",
-          "line": 73,
+          "line": 71,
           "exported": true,
           "signature": "export const UpdateProjectGroupAssignmentPayloadSchema = zObject({ id: z.number().int().positive(), role_id: ProjectAccessRoleIdPayloadSchema, })"
         },
         {
           "name": "UpdateProjectGroupAssignmentPayload",
           "kind": "type",
-          "line": 78,
+          "line": 76,
           "exported": true,
           "signature": "export type UpdateProjectGroupAssignmentPayload = z.infer<typeof UpdateProjectGroupAssignmentPayloadSchema>"
         },
         {
           "name": "UpdateProjectUserAssignmentPayloadSchema",
           "kind": "const",
-          "line": 84,
+          "line": 82,
           "exported": true,
           "signature": "export const UpdateProjectUserAssignmentPayloadSchema = z.union([ zObject({ id: z.number().int().positive(), user_id: z.never().optional(), role_id: ProjectAccessRoleIdPayloadSchema, }), zObject({ id:…"
         },
         {
           "name": "UpdateProjectUserAssignmentPayload",
           "kind": "type",
-          "line": 97,
+          "line": 95,
           "exported": true,
           "signature": "export type UpdateProjectUserAssignmentPayload = z.infer<typeof UpdateProjectUserAssignmentPayloadSchema>"
         },
         {
           "name": "UpdateProjectPayloadSchema",
           "kind": "const",
-          "line": 99,
+          "line": 97,
           "exported": true,
           "signature": "export const UpdateProjectPayloadSchema = zObject({ name: z.string().optional(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), defa…"
         },
         {
           "name": "UpdateProjectPayload",
           "kind": "type",
-          "line": 109,
+          "line": 107,
           "exported": true,
           "signature": "export type UpdateProjectPayload = z.infer<typeof UpdateProjectPayloadSchema>"
         }
@@ -11956,39 +12187,18 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), notify_user: z.boolean().nullish(), notify_link: z.boolean().nullish(), notify_link_recipient…"
         },
         {
-          "name": "Report",
-          "kind": "type",
-          "line": 34,
-          "exported": true,
-          "signature": "export type Report = KnownResponse<typeof ReportSchema>"
-        },
-        {
           "name": "CrossProjectReportSchema",
           "kind": "const",
-          "line": 49,
+          "line": 47,
           "exported": true,
           "signature": "export const CrossProjectReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_ids: z.array(z.number()), user_ids: z.array(z.number()).nullish(), includ…"
         },
         {
-          "name": "CrossProjectReport",
-          "kind": "type",
-          "line": 74,
-          "exported": true,
-          "signature": "export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>"
-        },
-        {
           "name": "ReportResultSchema",
           "kind": "const",
-          "line": 87,
+          "line": 83,
           "exported": true,
           "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), report_html: z.string().nullish(), report_pdf: z.string().nullish(), user_report_url: z.string().nullish(), })"
-        },
-        {
-          "name": "ReportResult",
-          "kind": "type",
-          "line": 94,
-          "exported": true,
-          "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>"
         }
       ]
     },
@@ -12008,107 +12218,100 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const ResultSchema = zObject({ id: z.number(), test_id: z.number(), status_id: z.number().nullable(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().nullish()…"
         },
         {
-          "name": "Result",
-          "kind": "type",
-          "line": 54,
-          "exported": true,
-          "signature": "export type Result = KnownResponse<typeof ResultSchema>"
-        },
-        {
           "name": "RESULT_CONTENT_MESSAGE",
           "kind": "const",
-          "line": 67,
+          "line": 69,
           "exported": false,
           "signature": "const RESULT_CONTENT_MESSAGE = 'At least one of status_id, comment or assignedto_id is required'"
         },
         {
           "name": "hasResultContent",
           "kind": "function",
-          "line": 69,
+          "line": 71,
           "exported": false,
           "signature": "function hasResultContent(result: { readonly status_id?: unknown; readonly comment?: unknown; readonly assignedto_id?: unknown; }): boolean"
         },
         {
           "name": "AddResultPayloadSchema",
           "kind": "const",
-          "line": 92,
+          "line": 94,
           "exported": true,
           "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().op…"
         },
         {
           "name": "AddResultPayload",
           "kind": "type",
-          "line": 102,
+          "line": 104,
           "exported": true,
           "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>"
         },
         {
           "name": "EditResultPayloadSchema",
           "kind": "const",
-          "line": 111,
+          "line": 113,
           "exported": true,
           "signature": "export const EditResultPayloadSchema = zObject({ status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().o…"
         },
         {
           "name": "EditResultPayload",
           "kind": "type",
-          "line": 123,
+          "line": 125,
           "exported": true,
           "signature": "export type EditResultPayload = z.infer<typeof EditResultPayloadSchema>"
         },
         {
           "name": "AddResultForCasePayloadSchema",
           "kind": "const",
-          "line": 128,
+          "line": 130,
           "exported": true,
           "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().option…"
         },
         {
           "name": "AddResultForCasePayload",
           "kind": "type",
-          "line": 139,
+          "line": 141,
           "exported": true,
           "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>"
         },
         {
           "name": "AddResultsForCasesPayloadSchema",
           "kind": "const",
-          "line": 141,
+          "line": 143,
           "exported": true,
           "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
         },
         {
           "name": "AddResultsForCasesPayload",
           "kind": "type",
-          "line": 145,
+          "line": 147,
           "exported": true,
           "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>"
         },
         {
           "name": "AddResultForTestPayloadSchema",
           "kind": "const",
-          "line": 151,
+          "line": 153,
           "exported": true,
           "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().option…"
         },
         {
           "name": "AddResultForTestPayload",
           "kind": "type",
-          "line": 162,
+          "line": 164,
           "exported": true,
           "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>"
         },
         {
           "name": "AddResultsPayloadSchema",
           "kind": "const",
-          "line": 164,
+          "line": 166,
           "exported": true,
           "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
         },
         {
           "name": "AddResultsPayload",
           "kind": "type",
-          "line": 168,
+          "line": 170,
           "exported": true,
           "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>"
         }
@@ -12131,37 +12334,30 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const RunSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), i…"
         },
         {
-          "name": "Run",
-          "kind": "type",
-          "line": 68,
-          "exported": true,
-          "signature": "export type Run = KnownResponse<typeof RunSchema>"
-        },
-        {
           "name": "AddRunPayloadSchema",
           "kind": "const",
-          "line": 72,
+          "line": 70,
           "exported": true,
           "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
         },
         {
           "name": "AddRunPayload",
           "kind": "type",
-          "line": 86,
+          "line": 84,
           "exported": true,
           "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>"
         },
         {
           "name": "UpdateRunPayloadSchema",
           "kind": "const",
-          "line": 88,
+          "line": 86,
           "exported": true,
           "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
         },
         {
           "name": "UpdateRunPayload",
           "kind": "type",
-          "line": 101,
+          "line": 99,
           "exported": true,
           "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>"
         }
@@ -12183,51 +12379,44 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const SectionSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), parent_id: z.number().nullish(), display_order: z.number(), depth: z.n…"
         },
         {
-          "name": "Section",
-          "kind": "type",
-          "line": 16,
-          "exported": true,
-          "signature": "export type Section = KnownResponse<typeof SectionSchema>"
-        },
-        {
           "name": "MoveSectionPayloadSchema",
           "kind": "const",
-          "line": 28,
+          "line": 26,
           "exported": true,
           "signature": "export const MoveSectionPayloadSchema = zObject({ parent_id: z.number().nullable().optional(), after_id: z.number().nullable().optional(), })"
         },
         {
           "name": "MoveSectionPayload",
           "kind": "type",
-          "line": 33,
+          "line": 31,
           "exported": true,
           "signature": "export type MoveSectionPayload = z.infer<typeof MoveSectionPayloadSchema>"
         },
         {
           "name": "AddSectionPayloadSchema",
           "kind": "const",
-          "line": 43,
+          "line": 41,
           "exported": true,
           "signature": "export const AddSectionPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), parent_id: z.number().optional(), description: z.string().optional(), })"
         },
         {
           "name": "AddSectionPayload",
           "kind": "type",
-          "line": 50,
+          "line": 48,
           "exported": true,
           "signature": "export type AddSectionPayload = z.infer<typeof AddSectionPayloadSchema>"
         },
         {
           "name": "UpdateSectionPayloadSchema",
           "kind": "const",
-          "line": 52,
+          "line": 50,
           "exported": true,
           "signature": "export const UpdateSectionPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
         },
         {
           "name": "UpdateSectionPayload",
           "kind": "type",
-          "line": 57,
+          "line": 55,
           "exported": true,
           "signature": "export type UpdateSectionPayload = z.infer<typeof UpdateSectionPayloadSchema>"
         }
@@ -12315,37 +12504,30 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const SuiteSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_id: z.number(), is_master: z.boolean().nullish(), is_baseline: z.boolean().nullish(), …"
         },
         {
-          "name": "Suite",
-          "kind": "type",
-          "line": 18,
-          "exported": true,
-          "signature": "export type Suite = KnownResponse<typeof SuiteSchema>"
-        },
-        {
           "name": "AddSuitePayloadSchema",
           "kind": "const",
-          "line": 22,
+          "line": 20,
           "exported": true,
           "signature": "export const AddSuitePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), })"
         },
         {
           "name": "AddSuitePayload",
           "kind": "type",
-          "line": 27,
+          "line": 25,
           "exported": true,
           "signature": "export type AddSuitePayload = z.infer<typeof AddSuitePayloadSchema>"
         },
         {
           "name": "UpdateSuitePayloadSchema",
           "kind": "const",
-          "line": 29,
+          "line": 27,
           "exported": true,
           "signature": "export const UpdateSuitePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
         },
         {
           "name": "UpdateSuitePayload",
           "kind": "type",
-          "line": 34,
+          "line": 32,
           "exported": true,
           "signature": "export type UpdateSuitePayload = z.infer<typeof UpdateSuitePayloadSchema>"
         }
@@ -12370,65 +12552,51 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const TestSchema = zObject({ id: z.number(), case_id: z.number(), status_id: z.number(), assignedto_id: z.number().nullish(), run_id: z.number(), title: z.string(), template_id: z.number().null…"
         },
         {
-          "name": "Test",
-          "kind": "type",
-          "line": 47,
-          "exported": true,
-          "signature": "export type Test = KnownResponse<typeof TestSchema>"
-        },
-        {
           "name": "TestWithDataResponseSchema",
           "kind": "const",
-          "line": 50,
+          "line": 48,
           "exported": true,
           "signature": "export const TestWithDataResponseSchema = zObject({ test: TestSchema, results: z .array(ResultSchema) .nullish() .transform((items) => items ?? []), attachments: z .array(AttachmentSchema) .nullish() …"
         },
         {
-          "name": "TestWithDataResponse",
-          "kind": "type",
-          "line": 62,
-          "exported": true,
-          "signature": "export type TestWithDataResponse = z.infer<typeof TestWithDataResponseSchema>"
-        },
-        {
           "name": "UpdateTestLabelsPayloadSchema",
           "kind": "const",
-          "line": 74,
+          "line": 70,
           "exported": true,
           "signature": "export const UpdateTestLabelsPayloadSchema = zObject({ labels: z.array(z.union([z.number(), z.string()])), })"
         },
         {
           "name": "UpdateTestLabelsPayload",
           "kind": "type",
-          "line": 78,
+          "line": 74,
           "exported": true,
           "signature": "export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSchema>"
         },
         {
           "name": "UpdateTestsLabelsPayloadSchema",
           "kind": "const",
-          "line": 85,
+          "line": 81,
           "exported": true,
-          "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(z.union([z.number(), z.string()])), })"
+          "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number().int().positive()).min(1), labels: z.array(z.union([z.number(), z.string()])), })"
         },
         {
           "name": "UpdateTestsLabelsPayload",
           "kind": "type",
-          "line": 90,
+          "line": 86,
           "exported": true,
           "signature": "export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>"
         },
         {
           "name": "UpdateTestsResponseSchema",
           "kind": "const",
-          "line": 104,
+          "line": 100,
           "exported": true,
           "signature": "export const UpdateTestsResponseSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(LabelEmbeddedSchema), })"
         },
         {
           "name": "UpdateTestsResponse",
           "kind": "type",
-          "line": 109,
+          "line": 105,
           "exported": true,
           "signature": "export type UpdateTestsResponse = KnownResponse<typeof UpdateTestsResponseSchema>"
         }
@@ -12451,100 +12619,86 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications: z.boole…"
         },
         {
-          "name": "User",
-          "kind": "type",
-          "line": 41,
-          "exported": true,
-          "signature": "export type User = KnownResponse<typeof UserSchema>"
-        },
-        {
           "name": "RoleSchema",
           "kind": "const",
-          "line": 43,
+          "line": 41,
           "exported": true,
           "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), is_project_admin: z.boolean().nullish(), })"
         },
         {
-          "name": "Role",
-          "kind": "type",
-          "line": 52,
-          "exported": true,
-          "signature": "export type Role = KnownResponse<typeof RoleSchema>"
-        },
-        {
           "name": "GroupSchema",
           "kind": "const",
-          "line": 54,
+          "line": 50,
           "exported": true,
           "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).nullish(), })"
         },
         {
           "name": "Group",
           "kind": "type",
-          "line": 60,
+          "line": 56,
           "exported": true,
           "signature": "export type Group = KnownResponse<typeof GroupSchema>"
         },
         {
           "name": "AddGroupPayloadSchema",
           "kind": "const",
-          "line": 75,
+          "line": 71,
           "exported": true,
           "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })"
         },
         {
           "name": "AddGroupPayload",
           "kind": "type",
-          "line": 80,
+          "line": 76,
           "exported": true,
           "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>"
         },
         {
           "name": "UpdateGroupPayloadSchema",
           "kind": "const",
-          "line": 82,
+          "line": 78,
           "exported": true,
           "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
         },
         {
           "name": "UpdateGroupPayload",
           "kind": "type",
-          "line": 87,
+          "line": 83,
           "exported": true,
           "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>"
         },
         {
           "name": "userEmailField",
           "kind": "const",
-          "line": 91,
+          "line": 87,
           "exported": false,
           "signature": "const userEmailField = z.string().regex(TESTRAIL_USER_EMAIL_PATTERN, { message: 'Invalid email format' })"
         },
         {
           "name": "UserAddPayloadSchema",
           "kind": "const",
-          "line": 112,
+          "line": 108,
           "exported": true,
           "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: userEmailField, is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.number().int().positive().…"
         },
         {
           "name": "UserAddPayload",
           "kind": "type",
-          "line": 125,
+          "line": 121,
           "exported": true,
           "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>"
         },
         {
           "name": "UserUpdatePayloadSchema",
           "kind": "const",
-          "line": 127,
+          "line": 123,
           "exported": true,
           "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: userEmailField.optional(), is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.n…"
         },
         {
           "name": "UserUpdatePayload",
           "kind": "type",
-          "line": 140,
+          "line": 136,
           "exported": true,
           "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>"
         }
@@ -12784,7 +12938,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "kind": "interface",
           "line": 439,
           "exported": true,
-          "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?…"
+          "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readon…"
         },
         {
           "name": "ResultFieldConfig",
@@ -12861,28 +13015,28 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "kind": "interface",
           "line": 518,
           "exported": true,
-          "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; refs?: string; limit?: number; offset?: number; c…"
+          "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?: string…"
         },
         {
           "name": "GetTestsOptions",
           "kind": "interface",
           "line": 550,
           "exported": true,
-          "signature": "export interface GetTestsOptions { statusId?: number[]; labelId?: number[]; limit?: number; offset?: number; status_id?: number[]; label_id?: number[]; }"
+          "signature": "export interface GetTestsOptions { statusId?: number | readonly number[]; labelId?: number | readonly number[]; limit?: number; offset?: number; status_id?: number | readonly number[]; label_id?: numb…"
         },
         {
           "name": "GetResultsOptions",
           "kind": "interface",
           "line": 566,
           "exported": true,
-          "signature": "export interface GetResultsOptions { statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number[]; defects_filter?: string; }"
+          "signature": "export interface GetResultsOptions { statusId?: number | readonly number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number | readonly number[]; defects_filter?: string; }"
         },
         {
           "name": "GetResultsForRunOptions",
           "kind": "interface",
           "line": 585,
           "exported": true,
-          "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; created_after?: number; created_before?: number; created_by?: …"
+          "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; created_after?: number; created_before?: num…"
         },
         {
           "name": "GetMilestonesOptions",
@@ -13096,7 +13250,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "createUploadSource",
           "kind": "function",
-          "line": 165,
+          "line": 167,
           "exported": true,
           "signature": "export function createUploadSource( file: UploadFileInput, filename: string, ): { readonly kind: 'formdata'; readonly build: () => Promise<{ body: globalThis.FormData; cleanup: (transportAborted?: boo…"
         }
@@ -13180,6 +13334,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     {
       "path": "src/utils.ts",
       "imports": [
+        "./errors.js",
         "./validation.js"
       ],
       "reExports": [],
@@ -13187,30 +13342,23 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "base64Encode",
           "kind": "function",
-          "line": 4,
+          "line": 9,
           "exported": true,
           "signature": "export function base64Encode(str: string): string"
         },
         {
           "name": "sleep",
           "kind": "function",
-          "line": 15,
+          "line": 14,
           "exported": true,
           "signature": "export function sleep(ms: number, signal?: globalThis.AbortSignal): Promise<void>"
         },
         {
-          "name": "serializeIdList",
-          "kind": "function",
-          "line": 43,
-          "exported": true,
-          "signature": "export function serializeIdList(ids?: readonly number[]): string | undefined"
-        },
-        {
           "name": "serializeIdFilter",
           "kind": "function",
-          "line": 52,
+          "line": 47,
           "exported": true,
-          "signature": "export function serializeIdFilter( value: number | readonly number[] | undefined, name: string, ): string | number | undefined"
+          "signature": "export function serializeIdFilter( value: number | readonly number[] | null | undefined, name: string, ): string | number | undefined"
         }
       ]
     },
@@ -13244,23 +13392,37 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "signature": "export function validateId(id: number, name: string): void"
         },
         {
+          "name": "validateIdList",
+          "kind": "function",
+          "line": 45,
+          "exported": true,
+          "signature": "export function validateIdList(ids: readonly number[], name: string): void"
+        },
+        {
+          "name": "validateTimestamp",
+          "kind": "function",
+          "line": 59,
+          "exported": true,
+          "signature": "export function validateTimestamp(value: number | null | undefined, name: string): void"
+        },
+        {
           "name": "validateEntryId",
           "kind": "function",
-          "line": 48,
+          "line": 76,
           "exported": true,
           "signature": "export function validateEntryId(entryId: string): void"
         },
         {
           "name": "validateAttachmentId",
           "kind": "function",
-          "line": 66,
+          "line": 94,
           "exported": true,
           "signature": "export function validateAttachmentId(id: number | string): void"
         },
         {
           "name": "validatePaginationParams",
           "kind": "function",
-          "line": 83,
+          "line": 112,
           "exported": true,
           "signature": "export function validatePaginationParams(limit?: number, offset?: number): void"
         }

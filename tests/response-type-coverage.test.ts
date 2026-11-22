@@ -1,12 +1,12 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import { zObject, type KnownResponse } from '../src/schemas/common.js';
-import type { Plan as SchemaPlan } from '../src/schemas/plans.js';
 import {
     AddCaseFieldPayloadSchema,
     CaseFieldSchema,
     HistoryChangeSchema,
     MilestoneSchema,
+    PlanSchema,
     ResultFieldSchema,
     ResultSchema,
     TestSchema,
@@ -104,7 +104,7 @@ describe('schema-derived public response types', () => {
         expectTypeOf<CaseConfig['context']['is_global']>().toEqualTypeOf<boolean>();
         expectTypeOf<ResultConfig['options']['is_required']>().toEqualTypeOf<boolean>();
         expectTypeOf<ChildMilestone['name']>().toEqualTypeOf<string>();
-        expectTypeOf<Plan>().toEqualTypeOf<SchemaPlan>();
+        expectTypeOf<Plan>().toEqualTypeOf<KnownResponse<typeof PlanSchema>>();
         expectTypeOf<IsOptional<PlanEntryNode, 'name'>>().toEqualTypeOf<false>();
         expectTypeOf<IsOptional<ProjectGroup, 'role_id'>>().toEqualTypeOf<true>();
 

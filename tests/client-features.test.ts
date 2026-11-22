@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { inspect } from 'node:util';
+import { z } from 'zod';
 import { TestRailClient, TestRailApiError, TestRailLicenseError, TestRailValidationError } from '../src/client.js';
 import { USER_EMAIL_SHAPE_CASES, mockErr, mockOk } from './helpers.js';
 
@@ -153,10 +155,19 @@ describe('TestRailClient - Enhanced Features', () => {
             // A retry of an already-admitted request must NOT be rejected with a
             // local 429 — that would mask the server 5xx that triggered the
             // retry. The retry must still be RECORDED so the sliding-window
-            // count stays accurate. With maxRequests=2 a single GET that 5xx's
+            // count stays accurate. With maxRequests=1 a single GET that 5xx's
             // then succeeds performs 2 attempts: the initial attempt is admitted
-            // and recorded, the retry is recorded but skips the admission throw
-            // (even though requests.length is already at the limit).
+            // and fills the window, the retry is recorded but skips the
+            // admission throw although requests.length is already at the limit.
+            client = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                rateLimiter: {
+                    maxRequests: 1,
+                    windowMs: 60000,
+                },
+            });
             mockFetch.mockReset();
             mockFetch
                 .mockResolvedValueOnce({
@@ -225,15 +236,22 @@ describe('TestRailClient - Enhanced Features', () => {
         it('should fail closed when DNS lookup errors (no fail-open warn-and-proceed)', async () => {
             // Previously a SERVFAIL/NXDOMAIN reply would emit console.warn and let
             // the request continue, converting validation into a no-op — that path
-            // is now treated as a hard validation failure.
-            mockDnsLookup.mockRejectedValueOnce(Object.assign(new Error('queryA ESERVFAIL'), { code: 'ESERVFAIL' }));
+            // is now treated as a hard failure. A resolver that keeps failing is a
+            // network condition (retried, then reported as such), never a licence
+            // to send the request.
+            mockDnsLookup.mockRejectedValue(Object.assign(new Error('queryA ESERVFAIL'), { code: 'ESERVFAIL' }));
             client = new TestRailClient({
                 baseUrl: 'https://public-host.example',
                 email: 'test@example.com',
                 apiKey: 'api-key',
             });
 
-            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+            const err = await client.projects.getProject(1).catch((e: unknown) => e);
+            expect(err).toBeInstanceOf(TestRailApiError);
+            expect(err).toMatchObject({
+                status: 0,
+                statusText: 'Network error: DNS lookup failed for "public-host.example": queryA ESERVFAIL',
+            });
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -318,7 +336,7 @@ describe('TestRailClient - Enhanced Features', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('custom dnsLookup failure is treated as fail-closed (throws TestRailValidationError)', async () => {
+        it('custom dnsLookup failure is treated as fail-closed (throws a network TestRailApiError)', async () => {
             const customLookup = vi.fn().mockRejectedValue(new Error('custom resolver unreachable'));
             client = new TestRailClient({
                 baseUrl: 'https://public-host.example',
@@ -327,7 +345,12 @@ describe('TestRailClient - Enhanced Features', () => {
                 dnsLookup: customLookup,
             });
 
-            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+            const err = await client.projects.getProject(1).catch((e: unknown) => e);
+            expect(err).toBeInstanceOf(TestRailApiError);
+            expect(err).toMatchObject({
+                status: 0,
+                statusText: 'Network error: DNS lookup failed for "public-host.example": custom resolver unreachable',
+            });
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -340,7 +363,12 @@ describe('TestRailClient - Enhanced Features', () => {
                 dnsLookup: customLookup,
             });
 
-            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+            const err = await client.projects.getProject(1).catch((e: unknown) => e);
+            expect(err).toBeInstanceOf(TestRailApiError);
+            expect(err).toMatchObject({
+                status: 0,
+                statusText: 'Network error: DNS lookup failed for "public-host.example": no addresses returned',
+            });
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -574,6 +602,29 @@ describe('TestRailClient - Enhanced Features', () => {
             );
         });
 
+        it('does not send a retry when destroy() runs during the retry backoff', async () => {
+            // The backoff is awaited between attempts. A client destroyed while
+            // it waits has an overwritten credential and must not fetch again.
+            const testClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 1,
+            });
+            mockFetch
+                .mockResolvedValueOnce(mockErr(500, 'Internal Server Error'))
+                .mockResolvedValueOnce(mockOk({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }));
+            vi.mocked(sleep).mockImplementationOnce(async () => {
+                testClient.destroy();
+            });
+
+            await expect(testClient.projects.getProject(1)).rejects.toThrow(
+                'Cannot use TestRailClient after destroy() has been called',
+            );
+            expect(sleep).toHaveBeenCalledTimes(1);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
         // Regression tests for BACKLOG #9: schema-invalid GET responses must
         // not be cached. Before the fix, request() cached the raw JSON before
         // the module validated it with Zod — a malformed response would
@@ -641,7 +692,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             it('does not pin the synthesized {} of an empty 200 for the cache TTL', async () => {
-                // `executeJson` turns an empty 200 body into `{}`. That fails the
+                // JSON decoding turns an empty 200 body into `{}`. That fails the
                 // schema, so under advisory validation it is returned but not
                 // cached — otherwise an LB/proxy blip would answer getProject(1)
                 // with `{}` (typed `Project`) for the whole window.
@@ -1452,16 +1503,14 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => 'Project not found',
             });
 
-            try {
-                await client.projects.getProject(999);
-            } catch (error) {
-                expect(error).toBeInstanceOf(TestRailApiError);
-                const apiError = error as TestRailApiError;
-                expect(apiError.status).toBe(404);
-                expect(apiError.statusText).toBe('Not Found');
-                expect(apiError.response).toBeDefined();
-                expect(apiError.response).toBe('Project not found');
-            }
+            const rejection = await client.projects.getProject(999).catch((error: unknown) => error);
+
+            expect(rejection).toBeInstanceOf(TestRailApiError);
+            expect(rejection).toMatchObject({
+                status: 404,
+                statusText: 'Not Found',
+                response: 'Project not found',
+            });
         });
 
         it('should handle network errors', async () => {
@@ -2577,6 +2626,49 @@ describe('TestRailClient - Enhanced Features', () => {
         });
     });
 
+    describe('credential exposure through inspection (SEC #7)', () => {
+        const CREDENTIAL = Buffer.from('test@example.com:api-key').toString('base64');
+
+        const createClient = (): TestRailClient =>
+            new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+
+        it.each([
+            ['the client itself', (c: TestRailClient): unknown => c],
+            ['a module', (c: TestRailClient): unknown => c.cases],
+            ['a withTimeout view', (c: TestRailClient): unknown => c.withTimeout(1000)],
+            ['a client nested in a context object', (c: TestRailClient): unknown => ({ ctx: { client: c } })],
+        ])('keeps the Basic credential out of util.inspect of %s', (_label, subject) => {
+            const c = createClient();
+            try {
+                // A consumer logging its own context must not spill the header
+                // credential into a log file; `private` is a compile-time
+                // keyword, so the property has to be non-enumerable.
+                expect(inspect(subject(c), { depth: 6 })).not.toContain(CREDENTIAL);
+            } finally {
+                c.destroy();
+            }
+        });
+
+        it('still authenticates requests and still zeroes the credential on destroy()', async () => {
+            const c = createClient();
+            const auth = (o: TestRailClient): string => (o as unknown as { auth: string }).auth;
+            expect(auth(c)).toBe(CREDENTIAL);
+            expect(Object.keys(c)).not.toContain('auth');
+
+            mockFetch.mockResolvedValueOnce(mockOk({ id: 1, name: 'p', suite_mode: 1, url: 'u' }));
+            await c.projects.getProject(1);
+            expect(mockFetch.mock.calls[0]?.[1]?.headers?.Authorization).toBe(`Basic ${CREDENTIAL}`);
+
+            c.destroy();
+            expect(auth(c)).toBe('');
+            expect(Object.keys(c)).not.toContain('auth');
+        });
+    });
+
     describe('Cache mutable-reference protection (SEC #14)', () => {
         it('mutating a returned cached object does not affect future cache reads', async () => {
             const wt = new TestRailClient({
@@ -2602,6 +2694,112 @@ describe('TestRailClient - Enhanced Features', () => {
     });
 
     describe('GET request coalescing (SEC #23)', () => {
+        describe.each([false, true])('custom response transformations (storage: %s)', (enableCache) => {
+            it.each(['function', 'class'] as const)('preserves %s outputs for each caller', async (kind) => {
+                class ProjectView {
+                    constructor(public name: string) {}
+                    greet(): string {
+                        return `Hello ${this.name}`;
+                    }
+                }
+                const transform = vi.fn(({ name }: { name: string }): ProjectView =>
+                    kind === 'class' ? new ProjectView(name) : { name, greet: () => `Hello ${name}` },
+                );
+                const schema = z.object({ name: z.string() }).transform(transform);
+                const wt = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowPrivateHosts: true,
+                    enableCache,
+                });
+                try {
+                    mockFetch.mockImplementation(async () => mockOk({ name: 'Ada' }));
+                    const request = (): Promise<ProjectView> =>
+                        wt.request<ProjectView>({ method: 'GET', endpoint: 'get_project/1', schema });
+                    const [first, second] = await Promise.all([request(), request()]);
+                    expect(mockFetch).toHaveBeenCalledTimes(1);
+                    expect(first.greet()).toBe('Hello Ada');
+                    expect(second.greet()).toBe('Hello Ada');
+                    expect(second).not.toBe(first);
+                    first.name = 'changed';
+                    const third = await request();
+                    expect(third.greet()).toBe('Hello Ada');
+                    expect(mockFetch).toHaveBeenCalledTimes(enableCache ? 1 : 2);
+                    expect(transform).toHaveBeenCalledTimes(3);
+                    if (kind === 'class') {
+                        expect(first).toBeInstanceOf(ProjectView);
+                        expect(second).toBeInstanceOf(ProjectView);
+                        expect(third).toBeInstanceOf(ProjectView);
+                    }
+                } finally {
+                    wt.destroy();
+                }
+            });
+
+            it('allows schemas to discard deeply nested unknown fields', async () => {
+                const json = `{"name":"Ada","extra":${'['.repeat(4_000)}0${']'.repeat(4_000)}}`;
+                const wt = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowPrivateHosts: true,
+                    enableCache,
+                });
+                try {
+                    mockFetch.mockImplementation(async () => new Response(json));
+                    const schema = z.object({ name: z.string() }).transform(({ name }) => name);
+                    const request = (): Promise<string> =>
+                        wt.request<string>({
+                            method: 'GET',
+                            endpoint: 'get_project/1',
+                            schema,
+                        });
+                    await expect(Promise.all([request(), request()])).resolves.toEqual(['Ada', 'Ada']);
+                    await expect(request()).resolves.toBe('Ada');
+                    expect(mockFetch).toHaveBeenCalledTimes(enableCache ? 1 : 2);
+                } finally {
+                    wt.destroy();
+                }
+            });
+
+            it('applies each caller schema to the original response', async () => {
+                const wt = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowPrivateHosts: true,
+                    enableCache,
+                });
+                const schema = z.object({ name: z.string() });
+                try {
+                    mockFetch.mockImplementation(async () => mockOk({ name: 'Ada' }));
+                    const first = wt.request<string>({
+                        method: 'GET',
+                        endpoint: 'get_project/1',
+                        schema: schema.transform(({ name }) => name),
+                    });
+                    const second = wt.request<number>({
+                        method: 'GET',
+                        endpoint: 'get_project/1',
+                        schema: schema.transform(({ name }) => name.length),
+                    });
+                    await expect(Promise.all([first, second])).resolves.toEqual(['Ada', 3]);
+                    expect(mockFetch).toHaveBeenCalledTimes(1);
+                    await expect(
+                        wt.request<{ name: string }>({
+                            method: 'GET',
+                            endpoint: 'get_project/1',
+                            schema,
+                        }),
+                    ).resolves.toEqual({ name: 'Ada' });
+                    expect(mockFetch).toHaveBeenCalledTimes(enableCache ? 1 : 2);
+                } finally {
+                    wt.destroy();
+                }
+            });
+        });
+
         it('deduplicates concurrent identical GET requests into a single upstream call', async () => {
             const wt = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',

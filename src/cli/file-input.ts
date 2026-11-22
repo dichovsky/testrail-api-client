@@ -12,7 +12,7 @@ import type { CliStdin } from './stdin.js';
  * one byte-for-byte comparison; no other call site should hand-roll the
  * `=== '-'` check.
  */
-export const STDIN_SENTINEL = '-';
+const STDIN_SENTINEL = '-';
 
 /**
  * Raw inputs for the file-source resolver. Parallels `BodyInput` but for

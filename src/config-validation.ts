@@ -100,6 +100,18 @@ function validateBaseUrl(baseUrl: string, config: Readonly<Record<string, unknow
                     'Use the email and apiKey config fields instead.',
             );
         }
+        // Endpoints are appended as `{baseUrl}/index.php?/api/v2/...`, which
+        // neither delimiter survives: a fragment drops the entire API path, so
+        // the credentialed request goes to the site root, and a query string
+        // swallows it as a parameter value. Tested against the raw string
+        // because a trailing bare `?` or `#` leaves `search`/`hash` empty yet
+        // still moves the path off the API.
+        if (baseUrl.includes('?') || baseUrl.includes('#')) {
+            throw new TestRailValidationError(
+                'baseUrl must not contain a query string or fragment. ' +
+                    'Use the instance origin, optionally with a path prefix (for example https://example.testrail.io).',
+            );
+        }
         if (config['allowPrivateHosts'] !== true) {
             if (isPrivateHostLiteral(url.hostname)) {
                 throw new TestRailValidationError(
@@ -114,6 +126,14 @@ function validateBaseUrl(baseUrl: string, config: Readonly<Record<string, unknow
     }
 }
 
+/**
+ * Message for the first schema issue. `email` and `apiKey` have no arm: the
+ * pre-checks in {@link validateTestRailConfig} apply the same rules to the same
+ * values (the identical flag-free regex, and the same reject-unless-non-empty
+ * string), so for plain-data config the schema cannot be the first to report
+ * them. `baseUrl` keeps its arm because `z.string().url()` and `new URL()` are
+ * separate parsers that could disagree on an input the pre-check accepts.
+ */
 function issueMessage(path: readonly PropertyKey[]): string {
     const field = path[0];
     const nestedField = path[1];
@@ -121,10 +141,6 @@ function issueMessage(path: readonly PropertyKey[]): string {
     switch (field) {
         case 'baseUrl':
             return 'baseUrl must be a valid URL';
-        case 'email':
-            return 'email must be a valid email address';
-        case 'apiKey':
-            return 'apiKey is required and must be a string';
         case 'timeout':
             return 'timeout must be a positive number not exceeding 5 minutes';
         case 'maxRetries':

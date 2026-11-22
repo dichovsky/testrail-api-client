@@ -15,26 +15,25 @@ export class IdParseError extends Error {
 // cannot smuggle through unexpected coercion.
 const POSITIVE_INT_RE = /^[1-9]\d*$/;
 
-// Non-negative integer pattern for optional pagination params (--limit /
-// --offset). Mirrors POSITIVE_INT_RE but additionally accepts "0" as its own
-// branch since `offset=0` is a valid pagination value; "01", "007", etc. are
-// rejected for the same reason POSITIVE_INT_RE rejects them — leading zeros
-// are not part of the canonical decimal form and would silently coerce.
-// Like parseId, the regex closes the holes Number() opens ("1e2", "0x1",
-// "  5  ", "+1", "01"); unlike parseId, optInt's contract is "silently drop
-// bad input → undefined" so downstream code can simply omit the param.
-// parseId is the strict variant for path-required ids; keeping the two
-// contracts distinct is intentional.
-const NON_NEG_INT_RE = /^(0|[1-9]\d*)$/;
+/**
+ * Convert a string the caller has already matched against POSITIVE_INT_RE.
+ * The pattern does not bound the length, and `Number()` rounds anything past
+ * 2^53 - 1 to a neighbouring double — the request would then name a different
+ * id from the one typed. Refuse instead.
+ */
+function toSafeInteger(digits: string, name: string): number {
+    const value = Number(digits);
+    if (!Number.isSafeInteger(value)) {
+        throw new IdParseError(`${name} must be a safe integer (got: ${digits})`);
+    }
+    return value;
+}
 
 export function parseId(raw: string | undefined, name: string): number {
     if (raw === undefined || raw === '' || !POSITIVE_INT_RE.test(raw)) {
         throw new IdParseError(`${name} must be a positive integer (got: ${raw ?? '(none)'})`);
     }
-    // Safe: the regex guarantees a decimal-digit-only string with no leading
-    // zeros, so Number() is lossless for any value that fits in a double
-    // (>= 2^53 ids would already be impossible from the TestRail API).
-    return Number(raw);
+    return toSafeInteger(raw, name);
 }
 
 /**
@@ -69,19 +68,13 @@ export function parseEntryId(raw: string | undefined, name: string): string {
  */
 export function parseAttachmentId(raw: string | undefined, name: string): number | string {
     if (raw !== undefined && POSITIVE_INT_RE.test(raw)) {
-        return Number(raw);
+        return toSafeInteger(raw, name);
     }
     const trimmed = typeof raw === 'string' ? raw.trim() : '';
     if (ENTRY_ID_RE.test(trimmed)) {
         return trimmed;
     }
     throw new IdParseError(`${name} must be a positive integer or a UUID string (got: ${raw ?? '(none)'})`);
-}
-
-export function optInt(raw: string | undefined): number | undefined {
-    if (raw === undefined || !NON_NEG_INT_RE.test(raw)) return undefined;
-    const n = Number(raw);
-    return Number.isSafeInteger(n) ? n : undefined;
 }
 
 /**
@@ -105,7 +98,7 @@ export function parseIdList(raw: string | undefined, name: string): number[] | u
         if (!POSITIVE_INT_RE.test(trimmed)) {
             throw new IdParseError(`${name} must be a comma-separated list of positive integers (got: ${raw})`);
         }
-        ids.push(Number(trimmed));
+        ids.push(toSafeInteger(trimmed, name));
     }
     return ids;
 }

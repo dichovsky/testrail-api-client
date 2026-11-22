@@ -308,6 +308,58 @@ describe('bounded CLI error diagnostics', () => {
         expect(duration).toBeLessThan(750);
     });
 
+    it('redacts URL userinfo in linear time on colon-heavy input at the input cap', () => {
+        // No `@` ever follows, so nothing is redacted. The earlier pattern let
+        // the user part span colons and retried the rest of the message from
+        // each one: seconds for a single message within the input cap.
+        const message = `http://${'a:'.repeat(Math.floor((MAX_CLI_DIAGNOSTIC_INPUT_BYTES - 64) / 2))}`;
+        const started = performance.now();
+        const diagnostic = record({ error: message });
+        const duration = performance.now() - started;
+        expect(diagnostic.server.messages).toEqual([message.slice(0, MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS)]);
+        expect(diagnostic.server.truncated).toBe(true);
+        expect(duration).toBeLessThan(750);
+    });
+
+    it('redacts URL userinfo exactly as the quadratic pattern it replaced did', () => {
+        // Differential check against the earlier pattern. One symbol stands
+        // for each character class either pattern distinguishes (ordinary,
+        // colon, at, slash, whitespace), plus a second scheme start. Every
+        // sequence of up to five symbols follows each scheme spelling.
+        const earlier = /(https?:\/\/)[^\s/@]+:[^\s/@]+@/giu;
+        const symbols = ['a', ':', '@', '/', ' ', 'http://'];
+        const longest = 5;
+        // Below MAX_CLI_DIAGNOSTIC_NODES, so no message is dropped.
+        const batchSize = 100;
+        let inputs = ['http://', 'https://', 'HTTP://'];
+        let redacted = 0;
+        for (let length = 0; ; length += 1) {
+            for (let start = 0; start < inputs.length; start += batchSize) {
+                const batch = inputs.slice(start, start + batchSize);
+                const expected = batch.map((message) => message.replace(earlier, '$1[REDACTED]@'));
+                redacted += expected.filter((message, index) => message !== batch[index]).length;
+                expect(record({ errors: batch }).server.messages).toEqual(expected);
+            }
+            if (length === longest) break;
+            inputs = inputs.flatMap((message) => symbols.map((symbol) => message + symbol));
+        }
+        // The comparison proves nothing unless some inputs are redacted.
+        expect(redacted).toBeGreaterThan(100);
+    });
+
+    it('omits messages that announce a traceback or stack trace', () => {
+        expect(
+            record({
+                errors: [
+                    'Traceback (most recent call last): boom',
+                    'PHP stack trace follows',
+                    'See the STACK TRACE in the server log',
+                    'Field :title is a required field.',
+                ],
+            }).server.messages,
+        ).toEqual(['[OMITTED]', '[OMITTED]', '[OMITTED]', 'Field :title is a required field.']);
+    });
+
     it('distinguishes validation prose from frames with locations or native markers', () => {
         const messages = [
             'at least one option is required for this field',
@@ -496,6 +548,16 @@ describe.skipIf(process.platform === 'win32')('private exclusive diagnostic dest
 
     it('rejects sharing the requested download destination', () => {
         expect(() => prepareDiagnosticDestination(path, join(directory, '.', 'error.json'))).toThrow(
+            /distinct from --out/,
+        );
+        expect(existsSync(path)).toBe(false);
+    });
+
+    it('refuses a download destination that cannot be inspected and removes the reservation', () => {
+        // A regular file used as a directory makes lstat fail with ENOTDIR,
+        // not ENOENT, so the two destinations cannot be shown to be distinct.
+        writeFileSync(join(directory, 'plain'), 'not a directory');
+        expect(() => prepareDiagnosticDestination(path, join(directory, 'plain', 'child'))).toThrow(
             /distinct from --out/,
         );
         expect(existsSync(path)).toBe(false);

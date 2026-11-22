@@ -33,8 +33,36 @@ export function validateTimeout(ms: number): void {
  * @throws {TestRailValidationError} When ID is invalid
  */
 export function validateId(id: number, name: string): void {
-    if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+    if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) {
         throw new TestRailValidationError(`${name} must be a positive integer`);
+    }
+}
+
+/**
+ * Validates a body-carried ID list: a non-empty array of positive integers.
+ * @throws {TestRailValidationError} When the list is not an array, is empty, or holds an invalid ID
+ */
+export function validateIdList(ids: readonly number[], name: string): void {
+    if (!Array.isArray(ids) || ids.length === 0) {
+        throw new TestRailValidationError(`${name} must contain at least one positive integer`);
+    }
+    // `entries()` visits holes as `undefined`, which validateId rejects;
+    // `forEach` would skip them and let a sparse list reach the wire as null.
+    for (const [index, id] of (ids as readonly unknown[]).entries()) validateId(id as number, `${name}[${index}]`);
+}
+
+/**
+ * Validates an optional Unix-timestamp list filter (seconds): a non-negative
+ * safe integer. `undefined` and `null` mean the filter was not supplied.
+ * @throws {TestRailValidationError} When a supplied value is not a non-negative integer
+ */
+export function validateTimestamp(value: number | null | undefined, name: string): void {
+    if (
+        value !== undefined &&
+        value !== null &&
+        (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)
+    ) {
+        throw new TestRailValidationError(`${name} must be a non-negative integer Unix timestamp`);
     }
 }
 
@@ -65,7 +93,8 @@ export function validateEntryId(entryId: string): void {
  */
 export function validateAttachmentId(id: number | string): void {
     const ok =
-        (typeof id === 'number' && Number.isInteger(id) && id > 0) || (typeof id === 'string' && ENTRY_ID_RE.test(id));
+        (typeof id === 'number' && Number.isSafeInteger(id) && id > 0) ||
+        (typeof id === 'string' && ENTRY_ID_RE.test(id));
     if (!ok) {
         throw new TestRailValidationError('attachmentId must be a positive integer or a UUID string');
     }
@@ -90,7 +119,7 @@ export function validatePaginationParams(limit?: number, offset?: number): void 
         }
     }
     if (offset !== undefined) {
-        if (typeof offset !== 'number' || !Number.isInteger(offset) || offset < 0) {
+        if (typeof offset !== 'number' || !Number.isSafeInteger(offset) || offset < 0) {
             throw new TestRailValidationError('offset must be a non-negative integer');
         }
     }

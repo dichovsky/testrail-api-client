@@ -43,6 +43,7 @@ export {
     PlanEntrySchema,
     PlanSchema,
     TestSchema,
+    TestWithDataResponseSchema,
     ResultSchema,
     MilestoneSchema,
     StatusSchema,
@@ -223,6 +224,31 @@ export type { GetAllDatasetsOptions } from './modules/datasets.js';
 export type { GetAllVariablesOptions } from './modules/variables.js';
 export type { GetAllCaseStatusesOptions, GetAllRolesOptions } from './modules/metadata.js';
 export type { GetAllGroupsOptions } from './modules/users.js';
+// Type-only names a consumer needs when it emits declarations (`declaration:
+// true`): the module classes behind `client.<module>`, the helper that the
+// response types expand to, and the argument types of `client.request()`.
+// The module classes are constructed by `TestRailClient` only.
+export type { ProjectModule } from './modules/projects.js';
+export type { SuiteModule } from './modules/suites.js';
+export type { SectionModule } from './modules/sections.js';
+export type { CaseModule } from './modules/cases.js';
+export type { PlanModule } from './modules/plans.js';
+export type { RunModule } from './modules/runs.js';
+export type { TestModule } from './modules/tests.js';
+export type { ResultModule } from './modules/results.js';
+export type { MilestoneModule } from './modules/milestones.js';
+export type { UsersModule } from './modules/users.js';
+export type { MetadataModule } from './modules/metadata.js';
+export type { ConfigurationModule } from './modules/configurations.js';
+export type { AttachmentModule } from './modules/attachments.js';
+export type { BddModule } from './modules/bdd.js';
+export type { SharedStepModule } from './modules/sharedSteps.js';
+export type { VariableModule } from './modules/variables.js';
+export type { DatasetModule } from './modules/datasets.js';
+export type { ReportModule } from './modules/reports.js';
+export type { LabelModule } from './modules/labels.js';
+export type { KnownResponse } from './schemas/common.js';
+export type { RequestBody, RequestIntent, RequestSpec } from './http-pipeline-types.js';
 export type {
     TestRailConfig,
     SchemaMismatch,

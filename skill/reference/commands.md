@@ -176,7 +176,7 @@ Do not pass values to boolean flags. Use `--strict-responses`, not `--strict-res
 | `--timeout <ms>` | All API commands | Per-attempt timeout in milliseconds, covering DNS resolution as well as the request; overrides TESTRAIL_TIMEOUT. Default 30000, maximum 300000. |
 | `--strict-responses` | All API commands | Fail on the first response-schema mismatch instead of emitting advisory warnings. |
 | `--diagnostic-file <path>` | All API commands | Save bounded, redacted error JSON to a new private file. Existing paths are rejected before dispatch; success leaves no file. |
-| `--quiet` | All commands | Suppress normal output and advisory warnings; rely on the exit code. |
+| `--quiet` | All commands | Suppress normal output, error messages, and advisory warnings; rely on the exit code. |
 | `--help` | Top level | Print CLI help and exit. After a resource name, as in testrail case --help, print only that resource's actions. |
 | `--version` | Top level | Print the package CLI version and exit. |
 | `--project-id <id>` | case, suite, run, plan, milestone, shared-step, user, and bdd lists; case delete-bulk | Select the TestRail project for actions whose endpoint does not carry project_id positionally. |

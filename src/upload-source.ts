@@ -60,7 +60,9 @@ export function ownUploadStreams(formData: globalThis.FormData): (transportAbort
             const reader = originalStream().getReader();
             let outputController: globalThis.ReadableStreamDefaultController<Uint8Array> | undefined;
             let finished = false;
-            let finish: () => void = () => undefined;
+            // Definitely assigned: the executor below runs synchronously, so a
+            // placeholder initializer here could never be called.
+            let finish!: () => void;
             void observeOperation(
                 new Promise<void>((resolve) => {
                     finish = resolve;

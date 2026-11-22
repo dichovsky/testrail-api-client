@@ -1,8 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
 import { LabelSchema, LabelWriteResponseSchema } from '../schemas.js';
 import type { AddLabelPayload, DeleteLabelsPayload, Label, UpdateLabelPayload } from '../schemas.js';
-import { TestRailValidationError } from '../errors.js';
-import { validateId } from '../validation.js';
+import { validateId, validateIdList } from '../validation.js';
 import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
 
@@ -31,6 +30,19 @@ export const LABELS_PAGINATION = createPaginatedListExecutor<
         return { operation: 'get_labels', pathParameters: [projectId] };
     },
 });
+
+/**
+ * Entity drift remains advisory: a mismatch returns the raw body, so the
+ * `{ label }` transform of `LabelWriteResponseSchema` never runs. Normalize the
+ * structural wrapper here as well. A flat label carries `id` and is unchanged.
+ */
+function unwrapLabelWrite(raw: unknown): Label {
+    if (typeof raw === 'object' && raw !== null && !Array.isArray(raw) && !('id' in raw)) {
+        const label = (raw as Record<string, unknown>)['label'];
+        if (typeof label === 'object' && label !== null && !Array.isArray(label)) return label as Label;
+    }
+    return raw as Label;
+}
 
 /**
  * Stand-alone TestRail Labels API (TestRail 10.5+). Label *reads* embedded in
@@ -68,24 +80,26 @@ export class LabelModule {
     /** @testrail POST add_label/{project_id} */
     async addLabel(projectId: number, payload: AddLabelPayload): Promise<Label> {
         validateId(projectId, 'projectId');
-        return this.client.request<Label>({
+        const response = await this.client.request<unknown>({
             method: 'POST',
             endpoint: `add_label/${projectId}`,
             schema: LabelWriteResponseSchema,
             body: { kind: 'json', data: payload },
         });
+        return unwrapLabelWrite(response);
     }
 
     /** @testrail POST update_label/{label_id} */
     async updateLabel(labelId: number, payload: UpdateLabelPayload): Promise<Label> {
         validateId(labelId, 'labelId');
         validateId(payload.project_id, 'projectId');
-        return this.client.request<Label>({
+        const response = await this.client.request<unknown>({
             method: 'POST',
             endpoint: `update_label/${labelId}`,
             schema: LabelWriteResponseSchema,
             body: { kind: 'json', data: payload },
         });
+        return unwrapLabelWrite(response);
     }
 
     /** @testrail POST delete_label/{label_id} */
@@ -99,10 +113,7 @@ export class LabelModule {
 
     /** @testrail POST delete_labels */
     async deleteLabels(payload: DeleteLabelsPayload): Promise<void> {
-        if (!Array.isArray(payload.label_ids) || payload.label_ids.length === 0) {
-            throw new TestRailValidationError('labelIds must contain at least one positive integer');
-        }
-        payload.label_ids.forEach((labelId, index) => validateId(labelId, `labelIds[${index}]`));
+        validateIdList(payload.label_ids, 'labelIds');
         await this.client.request<void>({
             method: 'POST',
             endpoint: 'delete_labels',

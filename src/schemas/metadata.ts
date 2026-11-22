@@ -63,8 +63,6 @@ export const StatusSchema = zObject({
     i18n_custom_id: z.string().nullish(),
 });
 
-export type Status = KnownResponse<typeof StatusSchema>;
-
 export const PrioritySchema = zObject({
     id: z.number(),
     name: z.string(),
@@ -72,8 +70,6 @@ export const PrioritySchema = zObject({
     is_default: z.boolean(),
     priority: z.number(),
 });
-
-export type Priority = KnownResponse<typeof PrioritySchema>;
 
 // ── Case Status Schema ────────────────────────────────────────────────────────
 
@@ -96,8 +92,6 @@ export const CaseStatusSchema = zObject({
     // deleted) so an instance that does send it still parses into the type.
     is_untested: z.boolean().nullish(),
 });
-
-export type CaseStatus = KnownResponse<typeof CaseStatusSchema>;
 
 // ── Field Config Schemas ──────────────────────────────────────────────────────
 
@@ -149,8 +143,6 @@ export const CaseFieldConfigSchema = zObject({
     options: FieldConfigOptionsSchema,
 });
 
-export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>;
-
 export const CaseFieldSchema = zObject({
     id: z.number(),
     system_name: z.string(),
@@ -170,8 +162,6 @@ export const CaseFieldSchema = zObject({
     // Older responses encode this flag as 0/1; newer responses may use JSON booleans.
     is_system: z.union([z.boolean(), z.literal(0), z.literal(1)]).nullish(),
 });
-
-export type CaseField = KnownResponse<typeof CaseFieldSchema>;
 
 // ── add_case_field response (string-vs-array divergence) ──────────────────────
 // SPEC #2.1.12 — TestRail's `add_case_field` POST response shape differs
@@ -227,8 +217,6 @@ export const ResultFieldConfigSchema = zObject({
     options: FieldConfigOptionsSchema,
 });
 
-export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>;
-
 export const ResultFieldSchema = zObject({
     id: z.number(),
     system_name: z.string(),
@@ -247,8 +235,6 @@ export const ResultFieldSchema = zObject({
     is_system: z.union([z.boolean(), z.literal(0), z.literal(1)]).nullish(),
 });
 
-export type ResultField = KnownResponse<typeof ResultFieldSchema>;
-
 // ── Case Type & Template Schemas ──────────────────────────────────────────────
 
 export const CaseTypeSchema = zObject({
@@ -259,8 +245,6 @@ export const CaseTypeSchema = zObject({
     i18n_custom_id: z.string().nullish(),
 });
 
-export type CaseType = KnownResponse<typeof CaseTypeSchema>;
-
 export const TemplateSchema = zObject({
     id: z.number(),
     name: z.string(),
@@ -268,8 +252,6 @@ export const TemplateSchema = zObject({
     // Live-instance audit: i18n translation key (string|null); was unmodeled.
     i18n_custom_id: z.string().nullish(),
 });
-
-export type Template = KnownResponse<typeof TemplateSchema>;
 
 // ── Dynamic-filter discovery & server version ───────────────────────────────
 

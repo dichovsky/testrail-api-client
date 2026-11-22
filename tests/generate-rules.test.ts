@@ -1,6 +1,6 @@
 /**
  * Tests for the agent-instruction generator: `AGENTS.md`. The renderer
- * uses `scripts/rules-content.mjs` so the tests cover both the pure
+ * uses `scripts/rules-content.ts` so the tests cover both the pure
  * renderer and the committed output (drift gates run via the script at
  * `verify` time).
  *

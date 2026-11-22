@@ -76,11 +76,13 @@ function rebindModules(target: Mutable<TestRailClient>, client: TestRailClientCo
 /**
  * TestRail API Client
  *
- * Type-safe client covering Projects, Suites, Sections, Cases, Plans, Runs,
- * Tests, Results, Milestones, Users, Statuses, and Priorities. Each domain is
- * reached through its `public readonly` module field — e.g.
- * `client.projects.getProject(1)`, `client.runs.addRun(2, payload)`. The
- * modules are the single access path; there is no flat facade.
+ * Type-safe client for the TestRail API. Each domain is reached through its
+ * `public readonly` module field: `projects`, `suites`, `sections`, `cases`,
+ * `plans`, `runs`, `tests`, `results`, `milestones`, `users`, `metadata`,
+ * `configurations`, `attachments`, `bdd`, `sharedSteps`, `variables`,
+ * `datasets`, `reports`, and `labels` — e.g. `client.projects.getProject(1)`,
+ * `client.runs.addRun(2, payload)`. The modules are the single access path;
+ * there is no flat facade.
  *
  * Extends {@link TestRailClientCore} for HTTP pipeline, caching, rate limiting, and retry.
  */

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject, type KnownResponse } from './common.js';
+import { zObject } from './common.js';
 import { RunSchema } from './runs.js';
 import { DynamicFiltersPayloadSchema } from './metadata.js';
 
@@ -31,8 +31,6 @@ export const PlanEntrySchema = zObject({
     due_on: z.number().nullish(),
     refs: z.string().nullish(),
 });
-
-export type PlanEntry = KnownResponse<typeof PlanEntrySchema>;
 
 export const PlanSchema = zObject({
     id: z.number(),
@@ -76,8 +74,6 @@ export const PlanSchema = zObject({
     due_on: z.number().nullish(),
     refs: z.string().nullish(),
 });
-
-export type Plan = KnownResponse<typeof PlanSchema>;
 
 // ── Plan write payloads ───────────────────────────────────────────────────────
 // Plans nest entries, and entries nest runs. The run shape inside a plan entry
