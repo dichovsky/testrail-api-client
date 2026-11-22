@@ -4,25 +4,26 @@ import { zObject, type KnownResponse } from './common.js';
 // ── Label Schemas (stand-alone TestRail Labels API) ───────────────────────────
 
 /**
- * `LabelSchema` — the canonical stand-alone label entity returned by the
- * Labels API (`get_label`, `get_labels`, `add_label`, `update_label`). Distinct from
- * `LabelEmbeddedSchema` (the label shape nested inside `get_case` / `get_test`
- * responses): the two are structurally near-identical today but are kept
- * separate on purpose, because the stand-alone endpoint may diverge
- * independently of the embedded form (schema-conventions §1 — `XSchema` is the
- * canonical GET entity; §4 — keep sub-schemas separate).
+ * `LabelSchema` — the canonical stand-alone label entity that the Labels API
+ * returns (`get_label`, `get_labels`, `add_label`, `update_label`). This schema
+ * is different from `LabelEmbeddedSchema`, which is the label shape nested in
+ * `get_case` / `get_test` responses. Today, the two schemas are structurally
+ * almost identical. They are intentionally separate, because the stand-alone
+ * endpoint can change independently of the embedded form. See
+ * schema-conventions §1 (`XSchema` is the canonical GET entity) and §4 (keep
+ * sub-schemas separate).
  *
  * Naming divergence (verified against the TestRail Labels API doc, support
  * article 38961149782036, captured 2026-06-07):
  *   - `get_label` emits `name` ({ id, name, created_by, created_on }).
  *   - `get_labels` (paginated) and `update_label` emit `title`
  *     ({ id, title, ... }).
- * Both `name` and `title` are therefore `.nullish()` so a single schema parses
- * every Labels-API response. `id` stays required `z.number()` — every
- * documented response carries a concrete integer ID; making it nullish would
- * mask a malformed-response regression. `created_by` / `created_on` are
- * `.nullish()` because `update_label`'s `{ id, title }` response omits them.
- * `.passthrough()` (via `zObject`) preserves forward-compat keys.
+ * Thus, both `name` and `title` are `.nullish()`, so that a single schema
+ * parses all Labels-API responses. `id` stays a required `z.number()`. Each
+ * documented response contains a concrete integer ID. A nullish `id` would
+ * hide a malformed-response regression. `created_by` / `created_on` are
+ * `.nullish()` because the `update_label` `{ id, title }` response does not
+ * include them. `.passthrough()` (through `zObject`) keeps forward-compat keys.
  */
 export const LabelSchema = zObject({
     id: z.number(),
@@ -45,8 +46,8 @@ export type Label = KnownResponse<typeof LabelSchema>;
  * `cmd_labels.py` lines 53–55 and 90–92):
  * - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L53-L55
  * - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L90-L92
- * Normalize either official-client shape to the same flat entity returned by
- * the public SDK methods.
+ * Normalize either official-client shape to the same flat entity that the
+ * public SDK methods return.
  */
 export const LabelWriteResponseSchema = z.union([
     LabelSchema,
@@ -54,9 +55,10 @@ export const LabelWriteResponseSchema = z.union([
 ]);
 
 /**
- * `add_label/{project_id}` body — the new label title. TestRail caps the title
- * at 20 characters; the limit is intentionally left to the server so the
- * client does not duplicate a rule TestRail may change independently.
+ * `add_label/{project_id}` body — the new label title. TestRail limits the
+ * title to 20 characters. The client intentionally leaves this limit to the
+ * server, so that the client does not duplicate a rule that TestRail can
+ * change independently.
  */
 export const AddLabelPayloadSchema = zObject({
     title: z.string(),
@@ -65,12 +67,12 @@ export const AddLabelPayloadSchema = zObject({
 export type AddLabelPayload = z.infer<typeof AddLabelPayloadSchema>;
 
 /**
- * `update_label/{label_id}` body — the owning project and new label title.
- * TestRail caps the title at 20
- * characters; the limit is intentionally NOT enforced client-side (the
- * "let TestRail be the source of truth" precedent — we surface the server's
- * 400 rather than duplicating the rule). `custom_*` / forward-compat extras
- * flow through `zObject()`'s passthrough.
+ * `update_label/{label_id}` body — the owning project and the new label title.
+ * TestRail limits the title to 20 characters. The client intentionally does
+ * NOT apply this limit. This choice follows the "let TestRail be the source of
+ * truth" precedent. The client shows the 400 response of the server and does
+ * not duplicate the rule. `custom_*` / forward-compat extras flow through
+ * `zObject()`'s passthrough.
  */
 export const UpdateLabelPayloadSchema = zObject({
     project_id: z.number().int().positive(),

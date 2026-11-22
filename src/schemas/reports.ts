@@ -8,14 +8,18 @@ import { zObject } from './common.js';
  * Cross-Project Reports" API doc (support article 7077825062036) on
  * 2026-05-23. Per the "system fields always included in the response"
  * table, `get_reports` returns `id`, `name`, `description`, and six
- * `notify_*` fields. `id` and `name` are required scalars; `description`
- * is documented as a string but the doc example shows `"description":
- * null`, so `.nullish()` matches the wire. The six `notify_*` fields are
- * always-included per the doc, but modelled as `.nullish()` for
- * defensive back-compat: older TestRail versions may omit them and
- * `notify_link_recipients` is documented as a string that the doc
- * example also shows as `null`. `is_shared` is NOT in the current doc
- * field table; it remains `.nullish()` as a forward-compat placeholder.
+ * `notify_*` fields. `id` and `name` are required scalars. The doc gives
+ * `description` as a string, but the doc example shows
+ * `"description": null`. Thus, `.nullish()` matches the wire.
+ *
+ * Per the doc, the six `notify_*` fields are always included. The schema
+ * still models them as `.nullish()` for defensive back-compat. In older
+ * TestRail versions, these fields can be missing. Also, the doc gives
+ * `notify_link_recipients` as a string, but the doc example shows it as
+ * `null`.
+ *
+ * `is_shared` is NOT in the current doc field table. It stays `.nullish()`
+ * as a forward-compat placeholder.
  */
 export const ReportSchema = zObject({
     id: z.number(),
@@ -32,17 +36,17 @@ export const ReportSchema = zObject({
 });
 
 /**
- * Enterprise cross-project report template returned by
- * `get_cross_project_reports`.
+ * An Enterprise cross-project report template that
+ * `get_cross_project_reports` returns.
  *
  * Verified against the official TestRail "Reports and Cross-Project Reports"
  * API documentation on 2026-08-29. `project_ids`, the run/plan inclusion
  * switches, and `report_timeframe` appear in both documented report families,
  * so they form the required common response shape. Summary-only and User
- * Workload-only selections remain optional because TestRail omits them from
- * the other family. `included_statuses` accepts both the documentation table's
- * list representation and the comma-separated string shown in its wire
- * example.
+ * Workload-only selections stay optional, because TestRail does not include
+ * them in the other family. `included_statuses` accepts both the
+ * documentation table's list representation and the comma-separated string
+ * shown in its wire example.
  */
 export const CrossProjectReportSchema = zObject({
     id: z.number(),
@@ -74,10 +78,10 @@ export const CrossProjectReportSchema = zObject({
  * Cross-Project Reports" API doc (support article 7077825062036) on
  * 2026-05-23. `run_report` returns three URLs per the current doc
  * example: `report_url` (the report view), `report_html`, and
- * `report_pdf`. `report_url` is required; `report_html` and `report_pdf`
- * are modelled as `.nullish()` since the endpoint requires TestRail 5.7+
- * and older servers may emit fewer keys. `user_report_url` is NOT in
- * the current doc but remains `.nullish()` as a forward/legacy-compat
+ * `report_pdf`. `report_url` is required. The schema models `report_html`
+ * and `report_pdf` as `.nullish()`, because the endpoint requires TestRail
+ * 5.7+ and older servers can emit fewer keys. `user_report_url` is NOT in
+ * the current doc, but it stays `.nullish()` as a forward/legacy-compat
  * placeholder for TestRail revisions that emitted it.
  */
 export const ReportResultSchema = zObject({

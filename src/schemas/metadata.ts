@@ -4,29 +4,31 @@ import { zObject, type KnownResponse } from './common.js';
 // ── Label-Embedded Schema (shared between Case/Test response labels) ──────────
 
 /**
- * Shape of a Label object as embedded inside a parent resource response —
- * notably `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two
- * endpoints emit the same logical shape but the wider TestRail Labels API
- * has historically diverged on naming (`title` on embedded forms vs `name`
- * on the stand-alone `get_label`), so the inner schema accepts both.
+ * The shape of a Label object that is embedded in a parent resource response,
+ * mainly `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two
+ * endpoints emit the same logical shape. But the names in the wider TestRail
+ * Labels API have historically been different (`title` on embedded forms vs
+ * `name` on the stand-alone `get_label`). Thus, the inner schema accepts both
+ * names.
  *
  * Field choices, per `get_case` / `get_test` response examples in the
  * TestRail API docs:
- *   - `id`: required `z.number()`. Every documented response example carries
- *     a concrete integer ID; making it nullish would silently mask a
- *     malformed-response regression where TestRail stops sending it.
+ *   - `id`: required `z.number()`. Each documented response example contains
+ *     a concrete integer ID. A nullish `id` would silently hide a
+ *     malformed-response regression in which TestRail stops sending the ID.
  *   - `title`: `.nullish()` for the cross-endpoint `name`-vs-`title` split.
- *     Case- and Test-embedded labels use `title`; the stand-alone Labels API
- *     (`get_label`) uses `name`. Accepting either keeps a single shape
- *     viable across both endpoints.
+ *     Case- and Test-embedded labels use `title`. The stand-alone Labels API
+ *     (`get_label`) uses `name`. Because the schema accepts either name, a
+ *     single shape stays usable across both endpoints.
  *   - `name`: `.nullish()` for the same cross-endpoint reason.
- *   - `created_by` / `created_on`: `.nullish()` because TestRail's
- *     `get_test` response example does not emit them at all, while
- *     `get_case` does. Accepting both shapes lets consumers carry the same
- *     `LabelEmbedded` object between endpoints without a re-cast.
+ *   - `created_by` / `created_on`: `.nullish()` because the TestRail
+ *     `get_test` response example does not emit them at all, but the
+ *     `get_case` example does. Because the schema accepts both shapes,
+ *     consumers can use the same `LabelEmbedded` object for both endpoints,
+ *     with no re-cast.
  *
- * `.passthrough()` (via `zObject`) preserves any future inner keys without
- * rejecting the parse.
+ * `.passthrough()` (through `zObject`) keeps any future inner keys and does
+ * not reject the parse.
  */
 export const LabelEmbeddedSchema = zObject({
     id: z.number(),
@@ -256,10 +258,10 @@ export const TemplateSchema = zObject({
 // ── Dynamic-filter discovery & server version ───────────────────────────────
 
 /**
- * One field definition returned by `get_dynamic_filter_fields/{project_id}`.
- * `options` and `sub_filters` are mutually endpoint-dependent and therefore
- * nullish; `zObject` preserves any additional field metadata introduced by a
- * future TestRail release.
+ * One field definition that `get_dynamic_filter_fields/{project_id}` returns.
+ * `options` and `sub_filters` are mutually endpoint-dependent and thus
+ * nullish. `zObject` keeps any additional field metadata that a future
+ * TestRail release adds.
  */
 export const DynamicFilterFieldSchema = zObject({
     type_id: z.number(),
@@ -272,9 +274,9 @@ export const DynamicFilterFieldSchema = zObject({
 export type DynamicFilterField = KnownResponse<typeof DynamicFilterFieldSchema>;
 
 /**
- * Forward-compatible object accepted by run and plan-entry `dynamic_filters`
- * fields. TestRail requires top-level `mode` and `filters`; each field-specific
- * criterion remains open because its shape varies by field type.
+ * A forward-compatible object that run and plan-entry `dynamic_filters` fields
+ * accept. TestRail requires top-level `mode` and `filters`. Each field-specific
+ * criterion stays open, because its shape changes with the field type.
  */
 export const DynamicFiltersPayloadSchema = zObject({
     mode: z.string(),

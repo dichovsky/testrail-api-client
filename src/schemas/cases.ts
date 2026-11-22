@@ -23,9 +23,9 @@ export const CaseSchema = zObject({
     display_order: z.number().nullish(),
     is_deleted: z.number().nullish(),
     /**
-     * @deprecated TestRail response custom fields are emitted as flat
-     * `custom_*` properties. Retained for compatibility with older servers
-     * and proxies that still return a nested container.
+     * @deprecated TestRail returns response custom fields as flat
+     * `custom_*` properties. The schema keeps this field for compatibility
+     * with older servers and proxies that still return a nested container.
      */
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
     // SPEC #2.1.3 — `labels` array uses the shared `LabelEmbeddedSchema` so the
