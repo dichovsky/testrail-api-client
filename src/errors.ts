@@ -40,15 +40,17 @@ const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const;
 
 /**
  * A plain copy of a failure raised by caller-supplied code (a custom `fetch`):
- * its name, message, and primitive `code`, `errno`, and `syscall`, recursing
+ * its string name, message, and primitive `code`, `errno`, and `syscall`, recursing
  * into `cause`. HTTP adapters often embed the request they were given in their
  * errors, and the client passes the Authorization header to `fetch` in
  * `init.headers`. Attaching the raw object would expose that credential to any
- * logger that walks the cause chain. A non-Error object is dropped; a primitive
- * is kept.
+ * logger that walks the cause chain. Non-Error objects and functions are dropped;
+ * primitives are kept.
  */
 export function sanitizedCause(reason: unknown, depth = 0): unknown {
-    if (!(reason instanceof Error)) return typeof reason === 'object' && reason !== null ? undefined : reason;
+    if (!(reason instanceof Error)) {
+        return (typeof reason === 'object' && reason !== null) || typeof reason === 'function' ? undefined : reason;
+    }
     const nested =
         depth < MAX_SANITIZED_CAUSE_DEPTH && reason.cause !== undefined
             ? { cause: sanitizedCause(reason.cause, depth + 1) }
@@ -65,7 +67,8 @@ export function sanitizedCause(reason: unknown, depth = 0): unknown {
                   nested,
               )
             : new Error(reason.message, nested);
-    copy.name = reason.name;
+    const name: unknown = reason.name;
+    if (typeof name === 'string') copy.name = name;
     for (const field of SAFE_CAUSE_FIELDS) {
         const value: unknown = Reflect.get(reason, field);
         if (typeof value === 'string' || typeof value === 'number') {

@@ -187,7 +187,10 @@ Schema mismatches never enter the cache.
 Concurrent JSON GETs share work only when their header and body timeouts match, even when `enableCache` is `false`.
 Completed entries remain shared across timeout views. Call `client.clearCache()` to clear the cache explicitly.
 
-The cache copies values on storage and retrieval, and callers that join an in-flight request each receive their own copy. Changing a returned object cannot alter a cached entry or another caller's result.
+The cache stores raw JSON text after the initiating caller's response validation succeeds.
+Cache hits and callers sharing a request parse the JSON separately, then apply their own response schemas.
+Custom `client.request()` transformations run once per successful call, including cache hits, and preserve functions and class instances.
+Changing a returned object cannot alter a cached entry or another caller's result.
 Copying costs increase with payload size, and `maxCacheSize` counts entries rather than bytes.
 Reduce `maxCacheSize` or `maxJsonResponseBytes` for large responses; setting `maxCacheSize` to 0 removes its memory bound.
 

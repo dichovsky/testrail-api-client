@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "10.0.0"
   },
-  "sourceHash": "3b26c8c67531e40ee4adae08a7955f2f33de14d2f628f2fa980a14b4c64c72d2",
+  "sourceHash": "aec942c150e51a3a31cc9c64b4318675f6e907b30f1705fd8b230983ff95ebb6",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1121,7 +1121,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 177,
+      "line": 180,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
       "jsdoc": "Utility to convert ZodError into TestRailValidationError."
     },
@@ -1820,7 +1820,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailLicenseError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 86,
+      "line": 89,
       "signature": "export class TestRailLicenseError extends TestRailApiError",
       "jsdoc": "Thrown when TestRail rejects a request because the instance lacks the required Enterprise license/subscription (HTTP 403 with a \"Not an Enterprise license/subscription.\" body — live-audit findings B.22/B.33). A subclass of , so existing `catch (TestRailApiError)` handlers still catch it; callers that want to branch on license gating specifically can use `instanceof TestRailLicenseError`."
     },
@@ -1828,7 +1828,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailPaginationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 161,
+      "line": 164,
       "signature": "export class TestRailPaginationError extends TestRailValidationError",
       "jsdoc": "Thrown when a bounded multi-page read cannot complete safely. HTTP and network failures remain ; this subtype represents client-side page structure, continuation, and aggregation-policy failures."
     },
@@ -1836,7 +1836,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 146,
+      "line": 149,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -7302,59 +7302,54 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
               "line": 617
             },
             {
-              "name": "executeJson",
-              "kind": "method",
-              "line": 715
-            },
-            {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 757
+              "line": 725
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 774
+              "line": 741
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 807
+              "line": 774
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 839
+              "line": 806
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 854
+              "line": 821
             },
             {
               "name": "raceAttemptDeadline",
               "kind": "method",
-              "line": 1131
+              "line": 1098
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1150
+              "line": 1117
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1175
+              "line": 1142
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1211
+              "line": 1178
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1223
+              "line": 1190
             }
           ]
         }
@@ -8012,63 +8007,63 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TestRailLicenseError",
           "kind": "class",
-          "line": 86,
+          "line": 89,
           "exported": true,
           "signature": "export class TestRailLicenseError extends TestRailApiError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 87
+              "line": 90
             }
           ]
         },
         {
           "name": "LICENSE_RESTRICTION_RE",
           "kind": "const",
-          "line": 114,
+          "line": 117,
           "exported": false,
           "signature": "const LICENSE_RESTRICTION_RE = /(?:not an|requires)\\s+enterprise (?:licen|subscription)/i"
         },
         {
           "name": "isLicenseRestriction",
           "kind": "function",
-          "line": 125,
+          "line": 128,
           "exported": true,
           "signature": "export function isLicenseRestriction(status: number, body: unknown): boolean"
         },
         {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 146,
+          "line": 149,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 147
+              "line": 150
             }
           ]
         },
         {
           "name": "TestRailPaginationError",
           "kind": "class",
-          "line": 161,
+          "line": 164,
           "exported": true,
           "signature": "export class TestRailPaginationError extends TestRailValidationError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 162
+              "line": 165
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 177,
+          "line": 180,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }
@@ -11014,69 +11009,69 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
           "kind": "interface",
           "line": 16,
           "exported": true,
-          "signature": "export interface CacheResolution<T> { readonly key: string | undefined; readonly pendingKey?: string; readonly shareInFlight: boolean; readonly wait: (promise: Promise<T>) => Promise<T>; readonly load…"
+          "signature": "export interface CacheResolution<Raw, T> { readonly key: string | undefined; readonly pendingKey?: string; readonly shareInFlight: boolean; readonly wait: (promise: Promise<T>) => Promise<T>; readonly…"
         },
         {
           "name": "RequestCache",
           "kind": "class",
-          "line": 39,
+          "line": 41,
           "exported": true,
           "signature": "export class RequestCache",
           "members": [
             {
               "name": "entries",
               "kind": "property",
-              "line": 40
+              "line": 42
             },
             {
               "name": "pending",
               "kind": "property",
-              "line": 41
+              "line": 43
             },
             {
               "name": "generation",
               "kind": "property",
-              "line": 42
+              "line": 44
             },
             {
               "name": "cleanupTimer",
               "kind": "property",
-              "line": 43
+              "line": 45
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 45
+              "line": 47
             },
             {
               "name": "resolve",
               "kind": "method",
-              "line": 56
+              "line": 58
             },
             {
               "name": "invalidate",
               "kind": "method",
-              "line": 118
+              "line": 126
             },
             {
               "name": "dispose",
               "kind": "method",
-              "line": 125
+              "line": 133
             },
             {
               "name": "read",
               "kind": "method",
-              "line": 133
+              "line": 141
             },
             {
               "name": "write",
               "kind": "method",
-              "line": 153
+              "line": 161
             },
             {
               "name": "removeExpiredEntries",
               "kind": "method",
-              "line": 172
+              "line": 180
             }
           ]
         }

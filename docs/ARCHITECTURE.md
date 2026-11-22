@@ -118,8 +118,9 @@ See [SDK configuration](SDK.md#configuration) for limits and timeout controls.
 
 `RequestCache.resolve()` owns lookup, loading, and request sharing. Entries live
 in an insertion-ordered `Map<string, { data, expiry }>`; reads refresh order and
-capacity eviction removes the oldest key. Both reads and writes use
-`structuredClone`, so callers cannot mutate cached data.
+capacity eviction removes the oldest key. Entries and shared requests hold raw
+JSON text snapshots. Each caller parses and decodes its own response; transformed values
+are never passed through `structuredClone`.
 
 | Key                          | Eligible response                         |
 | ---------------------------- | ----------------------------------------- |
@@ -128,7 +129,9 @@ capacity eviction removes the oldest key. Both reads and writes use
 | `PAGE:PARSED:GET:{endpoint}` | Strict page read (`cacheVariant: 'page'`) |
 
 Separate namespaces keep raw, advisory list, and strict page responses apart.
-A mismatch returns `cacheable: false`, so later calls fetch and report it again.
+The initiating decoder runs inside the upstream operation scope. Only a successful,
+cacheable decode can publish the raw snapshot; a mismatch or throwing hook cannot.
+Raw snapshots are taken before decoding, so transforms cannot change data retained for other callers.
 Text, binary, non-GET, side-effecting reads, and `getAll*()` calls bypass caching;
 aggregate reads also bypass in-flight sharing.
 

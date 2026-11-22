@@ -133,10 +133,12 @@ export interface RequestSpec<T> {
     readonly endpoint: string;
     readonly body?: RequestBody;
     /**
-     * Zod schema for validating the response. When set on a GET, the parsed
-     * value is cached under `PARSED:GET:{endpoint}` only after validation
-     * succeeds (schema-invalid responses are never cached). When omitted on a
-     * GET, the raw body is cached under `GET:{endpoint}`.
+     * Zod schema for validating and transforming the response. When set on a
+     * GET, the raw JSON text is cached under `PARSED:GET:{endpoint}` only after the
+     * initiating caller's validation succeeds. Each caller applies its schema
+     * to its own raw response, including cache hits and shared requests, so
+     * transformed functions and class instances are preserved. When omitted
+     * on a GET, the raw body is cached under `GET:{endpoint}`.
      *
      * Typed as untyped `ZodType` (no `<T>` generic) deliberately — Zod 4 +
      * TypeScript `exactOptionalPropertyTypes` make `ZodType<T>` invariant in

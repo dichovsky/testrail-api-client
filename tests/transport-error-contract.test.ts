@@ -89,6 +89,30 @@ describe('transport error contract', () => {
                 (init) => Promise.reject({ request: { headers: init?.headers } }),
             ],
             [
+                'a rejection with a callable object',
+                // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the callable reason is the case under test
+                (init) => Promise.reject(Object.assign(() => undefined, { request: { headers: init?.headers } })),
+            ],
+            [
+                'a callable nested cause',
+                (init) =>
+                    Promise.reject(
+                        new Error('adapter failed', {
+                            cause: Object.assign(() => undefined, { request: { headers: init?.headers } }),
+                        }),
+                    ),
+            ],
+            [
+                'a callable AggregateError member',
+                (init) =>
+                    Promise.reject(
+                        new AggregateError(
+                            [Object.assign(() => undefined, { request: { headers: init?.headers } })],
+                            'adapter failed',
+                        ),
+                    ),
+            ],
+            [
                 'a body stream that fails with the request attached',
                 async (init) =>
                     new Response(
@@ -124,6 +148,31 @@ describe('transport error contract', () => {
             const printed = inspect(error, { depth: 20, showHidden: true });
             expect(printed).not.toContain(credential);
             expect(printed).not.toContain('Authorization');
+        });
+
+        it.each<[string, (init: RequestInit | undefined) => unknown]>([
+            ['object', (init) => ({ request: { headers: init?.headers } })],
+            ['function', (init) => Object.assign(() => undefined, { request: { headers: init?.headers } })],
+        ])('does not copy a custom fetch error name containing a %s', async (_label, makeName) => {
+            const original = new Error('adapter failed');
+            let originalName: unknown;
+            const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
+                originalName = makeName(init);
+                Object.defineProperty(original, 'name', { value: originalName });
+                throw original;
+            });
+            const client = createClient({ fetch, maxRetries: 0 });
+            const credential = Buffer.from('agent@example.test:key').toString('base64');
+
+            const error: unknown = await client.projects.getProject(1).catch((caught: unknown) => caught);
+
+            expect(error).toBeInstanceOf(TestRailApiError);
+            const { inspect } = await import('node:util');
+            const printed = inspect(error, { depth: 20, showHidden: true });
+            expect(printed).not.toContain(credential);
+            expect(printed).not.toContain('Authorization');
+            expect((error as TestRailApiError).cause).toMatchObject({ name: 'Error', message: 'adapter failed' });
+            expect(original.name).toBe(originalName);
         });
 
         it('keeps the per-address members of an AggregateError from a custom fetch', async () => {

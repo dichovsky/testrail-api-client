@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { inspect } from 'node:util';
+import { z } from 'zod';
 import { TestRailClient, TestRailApiError, TestRailLicenseError, TestRailValidationError } from '../src/client.js';
 import { USER_EMAIL_SHAPE_CASES, mockErr, mockOk } from './helpers.js';
 
@@ -691,7 +692,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             it('does not pin the synthesized {} of an empty 200 for the cache TTL', async () => {
-                // `executeJson` turns an empty 200 body into `{}`. That fails the
+                // JSON decoding turns an empty 200 body into `{}`. That fails the
                 // schema, so under advisory validation it is returned but not
                 // cached — otherwise an LB/proxy blip would answer getProject(1)
                 // with `{}` (typed `Project`) for the whole window.
@@ -2693,6 +2694,112 @@ describe('TestRailClient - Enhanced Features', () => {
     });
 
     describe('GET request coalescing (SEC #23)', () => {
+        describe.each([false, true])('custom response transformations (storage: %s)', (enableCache) => {
+            it.each(['function', 'class'] as const)('preserves %s outputs for each caller', async (kind) => {
+                class ProjectView {
+                    constructor(public name: string) {}
+                    greet(): string {
+                        return `Hello ${this.name}`;
+                    }
+                }
+                const transform = vi.fn(({ name }: { name: string }): ProjectView =>
+                    kind === 'class' ? new ProjectView(name) : { name, greet: () => `Hello ${name}` },
+                );
+                const schema = z.object({ name: z.string() }).transform(transform);
+                const wt = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowPrivateHosts: true,
+                    enableCache,
+                });
+                try {
+                    mockFetch.mockImplementation(async () => mockOk({ name: 'Ada' }));
+                    const request = (): Promise<ProjectView> =>
+                        wt.request<ProjectView>({ method: 'GET', endpoint: 'get_project/1', schema });
+                    const [first, second] = await Promise.all([request(), request()]);
+                    expect(mockFetch).toHaveBeenCalledTimes(1);
+                    expect(first.greet()).toBe('Hello Ada');
+                    expect(second.greet()).toBe('Hello Ada');
+                    expect(second).not.toBe(first);
+                    first.name = 'changed';
+                    const third = await request();
+                    expect(third.greet()).toBe('Hello Ada');
+                    expect(mockFetch).toHaveBeenCalledTimes(enableCache ? 1 : 2);
+                    expect(transform).toHaveBeenCalledTimes(3);
+                    if (kind === 'class') {
+                        expect(first).toBeInstanceOf(ProjectView);
+                        expect(second).toBeInstanceOf(ProjectView);
+                        expect(third).toBeInstanceOf(ProjectView);
+                    }
+                } finally {
+                    wt.destroy();
+                }
+            });
+
+            it('allows schemas to discard deeply nested unknown fields', async () => {
+                const json = `{"name":"Ada","extra":${'['.repeat(4_000)}0${']'.repeat(4_000)}}`;
+                const wt = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowPrivateHosts: true,
+                    enableCache,
+                });
+                try {
+                    mockFetch.mockImplementation(async () => new Response(json));
+                    const schema = z.object({ name: z.string() }).transform(({ name }) => name);
+                    const request = (): Promise<string> =>
+                        wt.request<string>({
+                            method: 'GET',
+                            endpoint: 'get_project/1',
+                            schema,
+                        });
+                    await expect(Promise.all([request(), request()])).resolves.toEqual(['Ada', 'Ada']);
+                    await expect(request()).resolves.toBe('Ada');
+                    expect(mockFetch).toHaveBeenCalledTimes(enableCache ? 1 : 2);
+                } finally {
+                    wt.destroy();
+                }
+            });
+
+            it('applies each caller schema to the original response', async () => {
+                const wt = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowPrivateHosts: true,
+                    enableCache,
+                });
+                const schema = z.object({ name: z.string() });
+                try {
+                    mockFetch.mockImplementation(async () => mockOk({ name: 'Ada' }));
+                    const first = wt.request<string>({
+                        method: 'GET',
+                        endpoint: 'get_project/1',
+                        schema: schema.transform(({ name }) => name),
+                    });
+                    const second = wt.request<number>({
+                        method: 'GET',
+                        endpoint: 'get_project/1',
+                        schema: schema.transform(({ name }) => name.length),
+                    });
+                    await expect(Promise.all([first, second])).resolves.toEqual(['Ada', 3]);
+                    expect(mockFetch).toHaveBeenCalledTimes(1);
+                    await expect(
+                        wt.request<{ name: string }>({
+                            method: 'GET',
+                            endpoint: 'get_project/1',
+                            schema,
+                        }),
+                    ).resolves.toEqual({ name: 'Ada' });
+                    expect(mockFetch).toHaveBeenCalledTimes(enableCache ? 1 : 2);
+                } finally {
+                    wt.destroy();
+                }
+            });
+        });
+
         it('deduplicates concurrent identical GET requests into a single upstream call', async () => {
             const wt = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',

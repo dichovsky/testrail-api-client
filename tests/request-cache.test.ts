@@ -21,6 +21,7 @@ const resolve = <T>(
         shareInFlight,
         wait: (promise) => promise,
         load,
+        decode: (result) => result,
     });
 
 describe('RequestCache', () => {
@@ -120,6 +121,57 @@ describe('RequestCache', () => {
         expect(joiner).not.toBe(initiator);
         initiator.nested.value = 99;
         expect(joiner).toEqual({ nested: { value: 1 } });
+        cache.dispose();
+    });
+
+    it('keeps raw snapshots pristine when a decoder changes its input', async () => {
+        const cache = createCache();
+        const load = vi.fn(async () => ({ count: 0 }));
+        const decode = vi.fn((raw: { count: number }) => {
+            // A caller-supplied transform can mutate its own input. That must
+            // not affect the raw snapshot used for another caller.
+            raw.count += 1;
+            return { value: { read: (): number => raw.count }, cacheable: true };
+        });
+        const request = (): Promise<{ read: () => number }> =>
+            cache.resolve({
+                key: 'counter',
+                shareInFlight: true,
+                wait: (promise) => promise,
+                load,
+                decode,
+            });
+
+        const [first, second] = await Promise.all([request(), request()]);
+        const third = await request();
+        expect([first.read(), second.read(), third.read()]).toEqual([1, 1, 1]);
+        expect(load).toHaveBeenCalledTimes(1);
+        expect(decode).toHaveBeenCalledTimes(3);
+        cache.dispose();
+    });
+
+    it('does not publish raw data when the initiating decoder throws', async () => {
+        const cache = createCache();
+        const failure = new Error('strict response mismatch');
+        const load = vi.fn(async () => ({ id: 'wrong' }));
+        const request = (): Promise<unknown> =>
+            cache.resolve({
+                key: 'project:1',
+                shareInFlight: true,
+                wait: (promise) => promise,
+                load,
+                decode: () => {
+                    throw failure;
+                },
+            });
+        const results = await Promise.allSettled([request(), request()]);
+        expect(results).toEqual([
+            { status: 'rejected', reason: failure },
+            { status: 'rejected', reason: failure },
+        ]);
+        expect(load).toHaveBeenCalledTimes(1);
+        await expect(request()).rejects.toBe(failure);
+        expect(load).toHaveBeenCalledTimes(2);
         cache.dispose();
     });
 

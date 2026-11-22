@@ -673,25 +673,33 @@ export class TestRailClientCore {
         }
 
         // The cache module owns read/coalesce/load/publish as one protocol. The
-        // loader reports schema-match disposition so advisory mismatches remain
-        // available to the caller without being pinned for the cache TTL.
-        const load = async (): Promise<CacheLoadResult<T>> => {
+        // decoder reports schema-match disposition so advisory mismatches remain
+        // available without being pinned for the cache TTL. Store/share raw JSON text
+        // and apply each caller's schema after copying it; transformed results
+        // can contain functions or class instances.
+        const load = async (): Promise<unknown> => {
             if (responseKind === 'binary') {
-                return { value: await this.executeBinary<T>(endpoint, retryPolicy, timeouts), cacheable: false };
+                return this.executeBinary<unknown>(endpoint, retryPolicy, timeouts);
             }
-            if (responseKind === 'text') {
-                return {
-                    value: await this.executeText<T>(method, endpoint, body, retryPolicy, timeouts),
-                    cacheable: false,
-                };
+            return this.executeText<unknown>(method, endpoint, body, retryPolicy, timeouts);
+        };
+        const decode = (raw: unknown): CacheLoadResult<T> => {
+            if (responseKind !== 'json') return { value: raw as T, cacheable: false };
+            // Keep the bounded JSON text until each caller decodes it. Cloning
+            // a parsed object can overflow on valid, deeply nested fields that
+            // a caller's schema would simply discard. Parsing also gives each
+            // caller independent input for transforms without cloning outputs.
+            let data: unknown;
+            try {
+                data = raw === '' ? {} : JSON.parse(raw as string);
+            } catch {
+                throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
             }
-
-            const raw = await this.executeJson<unknown>(method, endpoint, body, retryPolicy, timeouts);
             if (schema !== undefined) {
-                const { value, matched } = this.parseAdvisory<T>(schema, raw, { method, endpoint });
+                const { value, matched } = this.parseAdvisory<T>(schema, data, { method, endpoint });
                 return { value, cacheable: cacheKey !== undefined && matched };
             }
-            return { value: raw as T, cacheable: cacheKey !== undefined };
+            return { value: data as T, cacheable: cacheKey !== undefined };
         };
 
         return this.requestCache.resolve({
@@ -704,48 +712,8 @@ export class TestRailClientCore {
             shareInFlight: !timeouts.budget.bounded,
             wait: (promise) => timeouts.budget.bound(promise),
             load,
+            decode,
         });
-    }
-
-    /**
-     * JSON pipeline (`responseKind: 'json'`). Builds the JSON `PipelineSpec`
-     * and delegates to {@link executePipeline}. Caching is deliberately outside
-     * the transport pipeline and owned by {@link RequestCache}.
-     */
-    private async executeJson<T>(
-        method: string,
-        endpoint: string,
-        body: RequestSpec<unknown>['body'],
-        retryPolicy: RetryPolicy,
-        timeouts: ResolvedTimeouts,
-    ): Promise<T> {
-        const pipelineSpec: PipelineSpec<T> = {
-            method,
-            endpoint,
-            body: this.buildPipelineBody(body),
-            sendJsonContentType: body?.kind !== 'multipart',
-            timeout: timeouts.timeout,
-            bodyTimeout: timeouts.bodyTimeout,
-            budget: timeouts.budget,
-            retryPolicy,
-            parseSuccess: async (response: Response) => {
-                const responseText = await readWithinBudget(
-                    readBodyAsText,
-                    response,
-                    this.maxJsonResponseBytes,
-                    timeouts,
-                    this.fetchOverride !== undefined,
-                );
-                if (!responseText) return {} as T;
-                try {
-                    return JSON.parse(responseText) as T;
-                } catch {
-                    throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
-                }
-            },
-            ...this.cacheInvalidationHook(method, body),
-        };
-        return this.executePipeline<T>(pipelineSpec);
     }
 
     /**
@@ -765,11 +733,10 @@ export class TestRailClientCore {
     }
 
     /**
-     * Text pipeline (`responseKind: 'text'`). Returns the raw response body
-     * as a `string`. Used for the BDD endpoint (`get_bdd/{case_id}`), which
-     * returns a Gherkin `.feature` file as `text/plain`. Intentionally
-     * bypasses the GET cache so its key cannot collide with a JSON
-     * `request<T>()` to the same endpoint.
+     * Reads a bounded response body as text. JSON requests keep this text for
+     * per-caller decoding after cache lookup or in-flight sharing. Text-only
+     * endpoints such as `get_bdd/{case_id}` return it unchanged and bypass the
+     * cache through requestAccepted's response-kind policy.
      */
     private async executeText<T>(
         method: string,
@@ -1216,7 +1183,7 @@ export class TestRailClientCore {
      * {@link parse} plus whether the body actually matched its schema.
      * `request()` uses the flag to skip the GET cache write on a mismatch:
      * caching a body the schema rejected would pin it — including the `{}` that
-     * {@link executeJson} synthesizes for an empty 200 — for the full TTL,
+     * JSON decoding synthesizes for an empty 200 — for the full TTL,
      * turning a transient proxy blip into minutes of wrong-but-cached answers
      * with no further hook notifications.
      */
