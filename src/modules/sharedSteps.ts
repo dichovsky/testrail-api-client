@@ -32,7 +32,7 @@ export type GetAllSharedStepsOptions = Omit<GetSharedStepsOptions, 'limit' | 'of
 export type GetAllSharedStepHistoryOptions = PaginationSafetyOptions;
 
 export interface DeleteSharedStepOptions {
-    /** Preserve shared-step contents in referencing cases. TestRail defaults to true. */
+    /** Keep the shared-step contents in the cases that reference the shared step. TestRail defaults to true. */
     keepInCases?: boolean;
 }
 
@@ -104,12 +104,12 @@ export class SharedStepModule {
         return SHARED_STEPS_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Get one response page, preserving TestRail pagination metadata. */
+    /** Get one response page and keep the TestRail pagination metadata. */
     async getSharedStepsPage(projectId: number, options?: GetSharedStepsOptions): Promise<Page<SharedStep>> {
         return SHARED_STEPS_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Get every shared step under the configured pagination safety bounds. */
+    /** Get all shared steps. The configured pagination safety limits apply. */
     async getAllSharedSteps(projectId: number, options?: GetAllSharedStepsOptions): Promise<SharedStep[]> {
         return SHARED_STEPS_PAGINATION.all(this.client, { projectId }, options);
     }
@@ -156,12 +156,12 @@ export class SharedStepModule {
         return SHARED_STEP_HISTORY_PAGINATION.items(this.client, { sharedStepId }, options);
     }
 
-    /** Get one history response page without sending undocumented request controls. */
+    /** Get one history response page. The method does not send undocumented request controls. */
     async getSharedStepHistoryPage(sharedStepId: number): Promise<Page<StepHistoryEntry>> {
         return SHARED_STEP_HISTORY_PAGINATION.page(this.client, { sharedStepId });
     }
 
-    /** Get every history entry under the configured pagination safety bounds. */
+    /** Get all history entries. The configured pagination safety limits apply. */
     async getAllSharedStepHistory(
         sharedStepId: number,
         options?: GetAllSharedStepHistoryOptions,

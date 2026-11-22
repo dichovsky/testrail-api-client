@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "10.0.0"
   },
-  "sourceHash": "9706c5c7a2a5dcbd37b373877b2a19c6ffc108d199d9aef30caf5859d2af1136",
+  "sourceHash": "66278de867ea9766758adce6b5a91020ba7d30db0f7b2e9b7da9014796fe9cba",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -21,7 +21,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldConfigPayload",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 322,
+      "line": 324,
       "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>",
       "typeOnly": true
     },
@@ -29,14 +29,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldConfigPayloadSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 308,
+      "line": 310,
       "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.union([z.array(z.number().int().positive()), z.literal('')]), }), options: zObject({ …"
     },
     {
       "name": "AddCaseFieldPayload",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 335,
+      "line": 337,
       "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>",
       "typeOnly": true
     },
@@ -44,14 +44,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldPayloadSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 324,
+      "line": 326,
       "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), is_indexed: z.boolean…"
     },
     {
       "name": "AddCaseFieldResponse",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 210,
+      "line": 212,
       "signature": "export type AddCaseFieldResponse = KnownResponse<typeof AddCaseFieldResponseSchema>",
       "typeOnly": true
     },
@@ -59,7 +59,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddCaseFieldResponseSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 185,
+      "line": 187,
       "signature": "export const AddCaseFieldResponseSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.string(), i…"
     },
     {
@@ -126,7 +126,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddDatasetPayload",
       "kind": "type",
       "file": "src/schemas/datasets.ts",
-      "line": 62,
+      "line": 68,
       "signature": "export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>",
       "typeOnly": true
     },
@@ -134,14 +134,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddDatasetPayloadSchema",
       "kind": "const",
       "file": "src/schemas/datasets.ts",
-      "line": 57,
+      "line": 63,
       "signature": "export const AddDatasetPayloadSchema = zObject({ name: z.string(), variables: DatasetVariablesPayloadSchema.optional(), })"
     },
     {
       "name": "AddGroupPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 76,
+      "line": 80,
       "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -149,15 +149,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 71,
+      "line": 75,
       "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })",
-      "jsdoc": "Group write-payload schemas (TestRail 7.5+). Mirror the variable/shared-step/milestone payload-migration precedent: each schema is declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future `custom_*`-style fields TestRail may add to either endpoint."
+      "jsdoc": "Group write-payload schemas (TestRail 7.5+). These schemas follow the variable/shared-step/milestone payload-migration precedent. This file declares each schema one time, as the source of truth for both of these items:"
     },
     {
       "name": "AddLabelPayload",
       "kind": "type",
       "file": "src/schemas/labels.ts",
-      "line": 65,
+      "line": 67,
       "signature": "export type AddLabelPayload = z.infer<typeof AddLabelPayloadSchema>",
       "typeOnly": true
     },
@@ -165,9 +165,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddLabelPayloadSchema",
       "kind": "const",
       "file": "src/schemas/labels.ts",
-      "line": 61,
+      "line": 63,
       "signature": "export const AddLabelPayloadSchema = zObject({ title: z.string(), })",
-      "jsdoc": "`add_label/{project_id}` body — the new label title. TestRail caps the title at 20 characters; the limit is intentionally left to the server so the client does not duplicate a rule TestRail may change independently."
+      "jsdoc": "`add_label/{project_id}` body — the new label title. TestRail limits the title to 20 characters. The client intentionally leaves this limit to the server, so that the client does not duplicate a rule that TestRail can change independently."
     },
     {
       "name": "AddMilestonePayload",
@@ -354,7 +354,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddSharedStepPayload",
       "kind": "type",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 70,
+      "line": 74,
       "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>",
       "typeOnly": true
     },
@@ -362,9 +362,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddSharedStepPayloadSchema",
       "kind": "const",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 65,
+      "line": 69,
       "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })",
-      "jsdoc": "SPEC #2.1.15 — verified against the `add_shared_step` request-body field table (Support article 7077919815572): only `title` is `required=true`; `custom_steps_separated` is `required=false`. The doc's request example also shows step entries with a subset of fields (just `content`), which the `z.record(string, unknown())` per-step shape accepts."
+      "jsdoc": "SPEC #2.1.15 — verified against the `add_shared_step` request-body field table (Support article 7077919815572): only `title` is `required=true`. `custom_steps_separated` is `required=false`. The request example of the doc also shows step entries with a subset of fields (only `content`). The `z.record(string, unknown())` per-step shape accepts these entries."
     },
     {
       "name": "AddSuitePayload",
@@ -385,7 +385,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddVariablePayload",
       "kind": "type",
       "file": "src/schemas/variables.ts",
-      "line": 30,
+      "line": 32,
       "signature": "export type AddVariablePayload = z.infer<typeof AddVariablePayloadSchema>",
       "typeOnly": true
     },
@@ -393,14 +393,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AddVariablePayloadSchema",
       "kind": "const",
       "file": "src/schemas/variables.ts",
-      "line": 26,
+      "line": 28,
       "signature": "export const AddVariablePayloadSchema = zObject({ name: z.string(), })"
     },
     {
       "name": "Attachment",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 649,
+      "line": 672,
       "signature": "export type Attachment = KnownResponse<typeof AttachmentSchema>",
       "jsdoc": "An attachment metadata record returned by attachment list and upload endpoints.",
       "typeOnly": true
@@ -409,7 +409,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "AttachmentModule",
       "kind": "class",
       "file": "src/modules/attachments.ts",
-      "line": 64,
+      "line": 65,
       "signature": "export class AttachmentModule",
       "typeOnly": true
     },
@@ -432,9 +432,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "BddModule",
       "kind": "class",
       "file": "src/modules/bdd.ts",
-      "line": 76,
+      "line": 77,
       "signature": "export class BddModule",
-      "jsdoc": "BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints.",
+      "jsdoc": "The BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints.",
       "typeOnly": true
     },
     {
@@ -443,13 +443,13 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/bdd.ts",
       "line": 12,
       "signature": "export const BddSchema = z.record(z.string(), z.unknown())",
-      "jsdoc": "One entry returned by TestRail 10.5+'s bulk `get_bdds` endpoint."
+      "jsdoc": "One entry that the TestRail 10.5+ bulk `get_bdds` endpoint returns."
     },
     {
       "name": "Case",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 329,
+      "line": 349,
       "signature": "export type Case = ResponseWithCustomFields<typeof CaseSchema>",
       "typeOnly": true
     },
@@ -457,7 +457,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseField",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 478,
+      "line": 501,
       "signature": "export type CaseField = KnownResponse<typeof CaseFieldSchema>",
       "jsdoc": "Custom case field definition returned by get_case_fields.",
       "typeOnly": true
@@ -466,7 +466,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseFieldConfig",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 475,
+      "line": 498,
       "signature": "export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>",
       "jsdoc": "Context/options configuration block shared by CaseField entries.",
       "typeOnly": true
@@ -475,14 +475,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseFieldConfigSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 137,
+      "line": 139,
       "signature": "export const CaseFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
     },
     {
       "name": "CaseFieldSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 146,
+      "line": 148,
       "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
     },
     {
@@ -504,7 +504,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseStatus",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 358,
+      "line": 378,
       "signature": "export type CaseStatus = KnownResponse<typeof CaseStatusSchema>",
       "typeOnly": true
     },
@@ -512,7 +512,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseStatusSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 79,
+      "line": 81,
       "signature": "export const CaseStatusSchema = zObject({ case_status_id: z.number(), name: z.string(), abbreviation: z.string().nullish(), is_default: z.boolean(), is_approved: z.boolean(), is_untested: z.boolean().…"
     },
     {
@@ -534,7 +534,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseType",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 481,
+      "line": 504,
       "signature": "export type CaseType = KnownResponse<typeof CaseTypeSchema>",
       "jsdoc": "Case type definition returned by get_case_types.",
       "typeOnly": true
@@ -543,14 +543,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CaseTypeSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 240,
+      "line": 242,
       "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
     },
     {
       "name": "Configuration",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 491,
+      "line": 514,
       "signature": "export type Configuration = KnownResponse<typeof ConfigurationSchema>",
       "jsdoc": "An individual configuration (e.g. \"Windows 10\", \"Chrome\") within a group.",
       "typeOnly": true
@@ -559,7 +559,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ConfigurationGroup",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 494,
+      "line": 517,
       "signature": "export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>",
       "jsdoc": "A configuration group (e.g. \"Operating Systems\", \"Browsers\").",
       "typeOnly": true
@@ -605,7 +605,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CrossProjectReport",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 689,
+      "line": 713,
       "signature": "export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>",
       "jsdoc": "Enterprise report template spanning multiple projects.",
       "typeOnly": true
@@ -614,15 +614,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "CrossProjectReportSchema",
       "kind": "const",
       "file": "src/schemas/reports.ts",
-      "line": 47,
+      "line": 51,
       "signature": "export const CrossProjectReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_ids: z.array(z.number()), user_ids: z.array(z.number()).nullish(), includ…",
-      "jsdoc": "Enterprise cross-project report template returned by `get_cross_project_reports`."
+      "jsdoc": "An Enterprise cross-project report template that `get_cross_project_reports` returns."
     },
     {
       "name": "Dataset",
       "kind": "type",
       "file": "src/schemas/datasets.ts",
-      "line": 48,
+      "line": 53,
       "signature": "export type Dataset = KnownResponse<typeof DatasetSchema>",
       "typeOnly": true
     },
@@ -638,15 +638,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DatasetSchema",
       "kind": "const",
       "file": "src/schemas/datasets.ts",
-      "line": 42,
+      "line": 47,
       "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), variables: z.array(DatasetVariableSchema).nullish(), })",
-      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Datasets\" API doc (support article 7077300491540) on 2026-05-23. Documented response fields are `id`, `name`, and `variables[]`; `id` and `name` are required scalars, `variables` is the array of `DatasetVariable` entries. `variables` is modelled as `.nullish()` for defensive back-compat — TestRail's `add_dataset` example also shows the same shape but older API revisions or edge cases (e.g. an empty dataset mid-creation) may omit the key. Any forward-compat keys the server might add (e.g. `project_id`, `created_on`, `created_by`) survive at runtime via `zObject()`'s passthrough; they are intentionally not declared here until the upstream doc lists them (SPEC #1.5)."
+      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Datasets\" API doc (support article 7077300491540) on 2026-05-23. The documented response fields are `id`, `name`, and `variables[]`. `id` and `name` are required scalars. `variables` is the array of `DatasetVariable` entries."
     },
     {
       "name": "DatasetVariable",
       "kind": "type",
       "file": "src/schemas/datasets.ts",
-      "line": 22,
+      "line": 23,
       "signature": "export type DatasetVariable = KnownResponse<typeof DatasetVariableSchema>",
       "typeOnly": true
     },
@@ -654,43 +654,43 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DatasetVariableSchema",
       "kind": "const",
       "file": "src/schemas/datasets.ts",
-      "line": 16,
+      "line": 17,
       "signature": "export const DatasetVariableSchema = zObject({ id: z.number(), name: z.string(), value: z.string().nullable(), })",
-      "jsdoc": "SPEC #2.1.16 — embedded variable/value entry inside a Dataset response. Per the official TestRail \"Datasets\" API doc (support article 7077300491540), `get_dataset` returns a `variables` array where each entry has `id` (integer), `name` (string), and `value`. `id` and `name` are documented as plain non-nullable scalars; `value` may be null when the variable is unset/cleared on the server side, so it is modelled as nullable per SPEC #2.1.16 review. `zObject()`'s passthrough preserves any forward-compat keys."
+      "jsdoc": "SPEC #2.1.16 — an embedded variable/value entry in a Dataset response."
     },
     {
       "name": "DEFAULT_MAX_ITEMS",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 61,
+      "line": 65,
       "signature": "export const DEFAULT_MAX_ITEMS = 25_000"
     },
     {
       "name": "DEFAULT_MAX_PAGES",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 60,
+      "line": 64,
       "signature": "export const DEFAULT_MAX_PAGES = 100"
     },
     {
       "name": "DEFAULT_MAX_PAGINATION_BYTES",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 63,
+      "line": 67,
       "signature": "export const DEFAULT_MAX_PAGINATION_BYTES = 100 * 1024 * 1024"
     },
     {
       "name": "DEFAULT_MAX_PAGINATION_DURATION_MS",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 62,
+      "line": 66,
       "signature": "export const DEFAULT_MAX_PAGINATION_DURATION_MS = MAX_TIMEOUT_MS"
     },
     {
       "name": "DEFAULT_PAGE_SIZE",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 59,
+      "line": 63,
       "signature": "export const DEFAULT_PAGE_SIZE = MAX_PAGINATION_LIMIT",
       "jsdoc": "Defaults and hard bounds for bounded multi-page aggregation."
     },
@@ -713,7 +713,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DeleteLabelsPayload",
       "kind": "type",
       "file": "src/schemas/labels.ts",
-      "line": 87,
+      "line": 89,
       "signature": "export type DeleteLabelsPayload = z.infer<typeof DeleteLabelsPayloadSchema>",
       "typeOnly": true
     },
@@ -721,7 +721,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DeleteLabelsPayloadSchema",
       "kind": "const",
       "file": "src/schemas/labels.ts",
-      "line": 83,
+      "line": 85,
       "signature": "export const DeleteLabelsPayloadSchema = zObject({ label_ids: z.array(z.number().int().positive()).min(1), })",
       "jsdoc": "`delete_labels` body — one or more positive label IDs."
     },
@@ -737,7 +737,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DynamicFilterField",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 272,
+      "line": 274,
       "signature": "export type DynamicFilterField = KnownResponse<typeof DynamicFilterFieldSchema>",
       "typeOnly": true
     },
@@ -745,15 +745,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DynamicFilterFieldSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 264,
+      "line": 266,
       "signature": "export const DynamicFilterFieldSchema = zObject({ type_id: z.number(), system_name: z.string(), label: z.string(), options: z.string().nullish(), sub_filters: z.string().nullish(), })",
-      "jsdoc": "One field definition returned by `get_dynamic_filter_fields/{project_id}`. `options` and `sub_filters` are mutually endpoint-dependent and therefore nullish; `zObject` preserves any additional field metadata introduced by a future TestRail release."
+      "jsdoc": "One field definition that `get_dynamic_filter_fields/{project_id}` returns. `options` and `sub_filters` are mutually endpoint-dependent and thus nullish. `zObject` keeps any additional field metadata that a future TestRail release adds."
     },
     {
       "name": "DynamicFiltersPayload",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 284,
+      "line": 286,
       "signature": "export type DynamicFiltersPayload = z.infer<typeof DynamicFiltersPayloadSchema>",
       "typeOnly": true
     },
@@ -761,9 +761,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "DynamicFiltersPayloadSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 279,
+      "line": 281,
       "signature": "export const DynamicFiltersPayloadSchema = zObject({ mode: z.string(), filters: z.record(z.string(), z.record(z.string(), z.unknown())), })",
-      "jsdoc": "Forward-compatible object accepted by run and plan-entry `dynamic_filters` fields. TestRail requires top-level `mode` and `filters`; each field-specific criterion remains open because its shape varies by field type."
+      "jsdoc": "A forward-compatible object that run and plan-entry `dynamic_filters` fields accept. TestRail requires top-level `mode` and `filters`. Each field-specific criterion stays open, because its shape changes with the field type."
     },
     {
       "name": "EditResultPayload",
@@ -779,13 +779,13 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/results.ts",
       "line": 113,
       "signature": "export const EditResultPayloadSchema = zObject({ status_id: z.number().optional(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().o…",
-      "jsdoc": "Partial payload accepted by `edit_result/{result_id}` (TestRail 10.4+). Every standard result field is optional because the endpoint changes only the fields supplied by the caller. Flat `custom_*` fields pass through via `zObject`; the built-in separated-step field is declared explicitly so its replacement-array contract is visible to TypeScript consumers."
+      "jsdoc": "The partial payload that `edit_result/{result_id}` accepts (TestRail 10.4+). Each standard result field is optional, because the endpoint changes only the fields that the caller supplies. Flat `custom_*` fields pass through `zObject`. The schema declares the built-in separated-step field explicitly, so that its replacement-array contract is visible to TypeScript consumers."
     },
     {
       "name": "GetAllAttachmentsOptions",
       "kind": "type",
       "file": "src/modules/attachments.ts",
-      "line": 22,
+      "line": 23,
       "signature": "export type GetAllAttachmentsOptions = PaginatedRequestOptions",
       "typeOnly": true
     },
@@ -953,9 +953,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetAttachmentsOptions",
       "kind": "interface",
       "file": "src/modules/attachments.ts",
-      "line": 15,
+      "line": 16,
       "signature": "export interface GetAttachmentsOptions { limit?: number; offset?: number; }",
-      "jsdoc": "Optional pagination params. TestRail documents them for case-, run-, and plan-scoped attachment lists. The test-scoped method retains its historical support for these options even though current upstream docs omit them.",
+      "jsdoc": "Optional pagination parameters. TestRail documents these parameters for case-, run-, and plan-scoped attachment lists. The test-scoped method keeps its historical support for these options, even though the current upstream documentation does not include them.",
       "typeOnly": true
     },
     {
@@ -964,14 +964,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/modules/bdd.ts",
       "line": 12,
       "signature": "export interface GetBddsOptions { suiteId?: number; sectionId?: number; labelId?: number | readonly number[]; refs?: string | readonly string[]; limit?: number; offset?: number; }",
-      "jsdoc": "Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`.",
+      "jsdoc": "Filters and pagination controls that the TestRail 10.5+ `get_bdds` endpoint accepts.",
       "typeOnly": true
     },
     {
       "name": "GetCasesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 388,
+      "line": 409,
       "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number | readonly number[]; priorityId?: number | readonly number[]; templateId?: number | readonly number[]; mileston…",
       "jsdoc": "Filter options for `getCases()`. All date filters accept Unix timestamps (seconds since epoch).",
       "typeOnly": true
@@ -996,7 +996,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetMilestonesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 603,
+      "line": 626,
       "signature": "export interface GetMilestonesOptions { isCompleted?: boolean; isStarted?: boolean; limit?: number; offset?: number; is_completed?: 0 | 1; is_started?: 0 | 1; }",
       "jsdoc": "Filter options for `getMilestones()`.",
       "typeOnly": true
@@ -1005,7 +1005,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetPlansOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 518,
+      "line": 541,
       "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?: string…",
       "jsdoc": "Filter options for `getPlans()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -1031,7 +1031,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetResultsForRunOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 585,
+      "line": 608,
       "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; created_after?: number; created_before?: num…",
       "jsdoc": "Filter options for `getResultsForRun()`. Date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -1040,7 +1040,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetResultsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 566,
+      "line": 589,
       "signature": "export interface GetResultsOptions { statusId?: number | readonly number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number | readonly number[]; defects_filter?: string; }",
       "jsdoc": "Filter options shared by `getResults()` and `getResultsForCase()`.",
       "typeOnly": true
@@ -1049,7 +1049,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetRunsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 439,
+      "line": 461,
       "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readon…",
       "typeOnly": true
     },
@@ -1097,7 +1097,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetTestsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 550,
+      "line": 573,
       "signature": "export interface GetTestsOptions { statusId?: number | readonly number[]; labelId?: number | readonly number[]; limit?: number; offset?: number; status_id?: number | readonly number[]; label_id?: numb…",
       "jsdoc": "Filter options for `getTests()`.",
       "typeOnly": true
@@ -1121,15 +1121,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 198,
+      "line": 210,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
-      "jsdoc": "Utility to convert ZodError into TestRailValidationError."
+      "jsdoc": "Converts a `ZodError` into a `TestRailValidationError`."
     },
     {
       "name": "HistoryChange",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 360,
+      "line": 380,
       "signature": "export type HistoryChange = KnownResponse<typeof HistoryChangeSchema>",
       "typeOnly": true
     },
@@ -1144,7 +1144,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "HistoryEntry",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 362,
+      "line": 382,
       "signature": "export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>",
       "typeOnly": true
     },
@@ -1161,14 +1161,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/common.ts",
       "line": 53,
       "signature": "export type KnownResponse<TSchema extends z.ZodObject> = KnownObject<TSchema['shape']>",
-      "jsdoc": "Infer only the keys declared throughout a response schema. Runtime response objects remain passthrough at every level, but public types do not advertise unrestricted string indexes unless a field deliberately uses `z.record()`. Optional object keys, arrays, unions, and nullability retain their schema output semantics.",
+      "jsdoc": "Infer only the keys that a response schema declares, at all levels. Runtime response objects stay passthrough at all levels, but public types do not advertise unrestricted string indexes unless a field deliberately uses `z.record()`. Optional object keys, arrays, unions, and nullability keep their schema output semantics.",
       "typeOnly": true
     },
     {
       "name": "Label",
       "kind": "type",
       "file": "src/schemas/labels.ts",
-      "line": 39,
+      "line": 40,
       "signature": "export type Label = KnownResponse<typeof LabelSchema>",
       "typeOnly": true
     },
@@ -1176,7 +1176,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "LabelEmbedded",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 46,
+      "line": 48,
       "signature": "export type LabelEmbedded = KnownResponse<typeof LabelEmbeddedSchema>",
       "typeOnly": true
     },
@@ -1184,47 +1184,47 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "LabelEmbeddedSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 31,
+      "line": 33,
       "signature": "export const LabelEmbeddedSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.union([z.number(), z.string()]).nullish(), created_on: z.number().nu…",
-      "jsdoc": "Shape of a Label object as embedded inside a parent resource response — notably `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two endpoints emit the same logical shape but the wider TestRail Labels API has historically diverged on naming (`title` on embedded forms vs `name` on the stand-alone `get_label`), so the inner schema accepts both."
+      "jsdoc": "The shape of a Label object that is embedded in a parent resource response, mainly `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two endpoints emit the same logical shape. But the names in the wider TestRail Labels API have historically been different (`title` on embedded forms vs `name` on the stand-alone `get_label`). Thus, the inner schema accepts both names."
     },
     {
       "name": "LabelModule",
       "kind": "class",
       "file": "src/modules/labels.ts",
-      "line": 52,
+      "line": 53,
       "signature": "export class LabelModule",
-      "jsdoc": "Stand-alone TestRail Labels API (TestRail 10.5+). Label *reads* embedded in case/test responses are handled by `LabelEmbeddedSchema`; this module manages the label definitions themselves.",
+      "jsdoc": "The stand-alone TestRail Labels API (TestRail 10.5+). `LabelEmbeddedSchema` handles label *reads* that are embedded in case and test responses. This module manages the label definitions themselves.",
       "typeOnly": true
     },
     {
       "name": "LabelSchema",
       "kind": "const",
       "file": "src/schemas/labels.ts",
-      "line": 27,
+      "line": 28,
       "signature": "export const LabelSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.union([z.number(), z.string()]).nullish(), created_on: z.number().nullish(),…",
-      "jsdoc": "`LabelSchema` — the canonical stand-alone label entity returned by the Labels API (`get_label`, `get_labels`, `add_label`, `update_label`). Distinct from `LabelEmbeddedSchema` (the label shape nested inside `get_case` / `get_test` responses): the two are structurally near-identical today but are kept separate on purpose, because the stand-alone endpoint may diverge independently of the embedded form (schema-conventions §1 — `XSchema` is the canonical GET entity; §4 — keep sub-schemas separate)."
+      "jsdoc": "`LabelSchema` — the canonical stand-alone label entity that the Labels API returns (`get_label`, `get_labels`, `add_label`, `update_label`). This schema is different from `LabelEmbeddedSchema`, which is the label shape nested in `get_case` / `get_test` responses. Today, the two schemas are structurally almost identical. They are intentionally separate, because the stand-alone endpoint can change independently of the embedded form. See schema-conventions §1 (`XSchema` is the canonical GET entity) and §4 (keep sub-schemas separate)."
     },
     {
       "name": "LabelWriteResponseSchema",
       "kind": "const",
       "file": "src/schemas/labels.ts",
-      "line": 51,
+      "line": 52,
       "signature": "export const LabelWriteResponseSchema = z.union([ LabelSchema, zObject({ label: LabelSchema }).transform((response) => response.label), ])",
-      "jsdoc": "Label mutations have shipped with both a flat label response and a `{ label: ... }` wrapper. The official TestRail CLI handles both forms for `add_label` and `update_label` (gurock/trcli commit e723052, `cmd_labels.py` lines 53–55 and 90–92): - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L53-L55 - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L90-L92 Normalize either official-client shape to the same flat entity returned by the public SDK methods."
+      "jsdoc": "Label mutations have shipped with both a flat label response and a `{ label: ... }` wrapper. The official TestRail CLI handles both forms for `add_label` and `update_label` (gurock/trcli commit e723052, `cmd_labels.py` lines 53–55 and 90–92): - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L53-L55 - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L90-L92 Normalize either official-client shape to the same flat entity that the public SDK methods return."
     },
     {
       "name": "MAX_PAGINATION_BYTES",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 64,
+      "line": 68,
       "signature": "export const MAX_PAGINATION_BYTES = 1024 * 1024 * 1024"
     },
     {
       "name": "MAX_PAGINATION_LIMIT",
       "kind": "const",
       "file": "src/constants.ts",
-      "line": 56,
+      "line": 60,
       "signature": "export const MAX_PAGINATION_LIMIT = 250",
       "jsdoc": "Maximum page size accepted by TestRail's paginated/bulk API endpoints."
     },
@@ -1240,7 +1240,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Milestone",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 350,
+      "line": 370,
       "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>",
       "typeOnly": true
     },
@@ -1336,7 +1336,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PaginationRequestSchema",
       "kind": "const",
       "file": "src/schemas/common.ts",
-      "line": 69,
+      "line": 70,
       "signature": "export const PaginationRequestSchema = zObject({ limit: z.number().int().positive().max(MAX_PAGINATION_LIMIT).optional(), offset: z.number().int().nonnegative().optional(), })",
       "jsdoc": "Caller-supplied controls for one TestRail list request."
     },
@@ -1353,15 +1353,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PaginationSchema",
       "kind": "const",
       "file": "src/schemas/common.ts",
-      "line": 80,
+      "line": 82,
       "signature": "export const PaginationSchema = zObject({ limit: z.number().optional(), offset: z.number().optional(), })",
-      "jsdoc": "Legacy permissive pagination schema retained for runtime compatibility. New request-boundary code should use , which enforces the same integer/range contract as the client methods. @deprecated Use for request validation."
+      "jsdoc": "A legacy permissive pagination schema. The package keeps this schema for runtime compatibility. New request-boundary code should use , which applies the same integer/range contract as the client methods. @deprecated Use for request validation."
     },
     {
       "name": "Plan",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 340,
+      "line": 360,
       "signature": "export type Plan = KnownResponse<typeof PlanSchema>",
       "typeOnly": true
     },
@@ -1369,7 +1369,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PlanEntry",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 342,
+      "line": 362,
       "signature": "export type PlanEntry = KnownResponse<typeof PlanEntrySchema>",
       "typeOnly": true
     },
@@ -1414,7 +1414,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Priority",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 356,
+      "line": 376,
       "signature": "export type Priority = KnownResponse<typeof PrioritySchema>",
       "typeOnly": true
     },
@@ -1422,14 +1422,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "PrioritySchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 66,
+      "line": 68,
       "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
     },
     {
       "name": "Project",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 338,
+      "line": 358,
       "signature": "export type Project = KnownResponse<typeof ProjectSchema>",
       "typeOnly": true
     },
@@ -1452,7 +1452,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "RateLimiterConfig",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 506,
+      "line": 529,
       "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }",
       "typeOnly": true
     },
@@ -1460,7 +1460,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Report",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 686,
+      "line": 710,
       "signature": "export type Report = KnownResponse<typeof ReportSchema>",
       "jsdoc": "A report template returned by GET /get_reports/{project_id}.",
       "typeOnly": true
@@ -1477,7 +1477,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ReportResult",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 699,
+      "line": 724,
       "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>",
       "jsdoc": "Result returned by GET /run_report/{report_template_id}.",
       "typeOnly": true
@@ -1486,17 +1486,17 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ReportResultSchema",
       "kind": "const",
       "file": "src/schemas/reports.ts",
-      "line": 83,
+      "line": 87,
       "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), report_html: z.string().nullish(), report_pdf: z.string().nullish(), user_report_url: z.string().nullish(), })",
-      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. `run_report` returns three URLs per the current doc example: `report_url` (the report view), `report_html`, and `report_pdf`. `report_url` is required; `report_html` and `report_pdf` are modelled as `.nullish()` since the endpoint requires TestRail 5.7+ and older servers may emit fewer keys. `user_report_url` is NOT in the current doc but remains `.nullish()` as a forward/legacy-compat placeholder for TestRail revisions that emitted it."
+      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. `run_report` returns three URLs per the current doc example: `report_url` (the report view), `report_html`, and `report_pdf`. `report_url` is required. The schema models `report_html` and `report_pdf` as `.nullish()`, because the endpoint requires TestRail 5.7+ and older servers can emit fewer keys. `user_report_url` is NOT in the current doc, but it stays `.nullish()` as a forward/legacy-compat placeholder for TestRail revisions that emitted it."
     },
     {
       "name": "ReportSchema",
       "kind": "const",
       "file": "src/schemas/reports.ts",
-      "line": 20,
+      "line": 24,
       "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), notify_user: z.boolean().nullish(), notify_link: z.boolean().nullish(), notify_link_recipient…",
-      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. Per the \"system fields always included in the response\" table, `get_reports` returns `id`, `name`, `description`, and six `notify_*` fields. `id` and `name` are required scalars; `description` is documented as a string but the doc example shows `\"description\": null`, so `.nullish()` matches the wire. The six `notify_*` fields are always-included per the doc, but modelled as `.nullish()` for defensive back-compat: older TestRail versions may omit them and `notify_link_recipients` is documented as a string that the doc example also shows as `null`. `is_shared` is NOT in the current doc field table; it remains `.nullish()` as a forward-compat placeholder."
+      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. Per the \"system fields always included in the response\" table, `get_reports` returns `id`, `name`, `description`, and six `notify_*` fields. `id` and `name` are required scalars. The doc gives `description` as a string, but the doc example shows `\"description\": null`. Thus, `.nullish()` matches the wire."
     },
     {
       "name": "RequestBody",
@@ -1529,7 +1529,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Result",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 348,
+      "line": 368,
       "signature": "export type Result = ResponseWithCustomFields<typeof ResultSchema>",
       "typeOnly": true
     },
@@ -1537,7 +1537,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ResultField",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 470,
+      "line": 493,
       "signature": "export type ResultField = KnownResponse<typeof ResultFieldSchema>",
       "typeOnly": true
     },
@@ -1545,7 +1545,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ResultFieldConfig",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 468,
+      "line": 491,
       "signature": "export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>",
       "typeOnly": true
     },
@@ -1553,14 +1553,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "ResultFieldConfigSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 212,
+      "line": 214,
       "signature": "export const ResultFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
     },
     {
       "name": "ResultFieldSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 220,
+      "line": 222,
       "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
     },
     {
@@ -1583,7 +1583,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Role",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 621,
+      "line": 644,
       "signature": "export type Role = KnownResponse<typeof RoleSchema>",
       "jsdoc": "A user role returned by GET /get_roles (TestRail 7.3+)",
       "typeOnly": true
@@ -1599,7 +1599,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Run",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 344,
+      "line": 364,
       "signature": "export type Run = KnownResponse<typeof RunSchema>",
       "typeOnly": true
     },
@@ -1622,16 +1622,16 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "SchemaMismatch",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 65,
+      "line": 66,
       "signature": "export interface SchemaMismatch { method: string; endpoint: string; error: ZodError; data: unknown; }",
-      "jsdoc": "Detail passed to when a response does not conform to its Zod schema.",
+      "jsdoc": "Detail passed to when a response does not match its Zod schema.",
       "typeOnly": true
     },
     {
       "name": "Section",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 336,
+      "line": 356,
       "signature": "export type Section = KnownResponse<typeof SectionSchema>",
       "typeOnly": true
     },
@@ -1654,7 +1654,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "SharedStep",
       "kind": "type",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 48,
+      "line": 52,
       "signature": "export type SharedStep = KnownResponse<typeof SharedStepSchema>",
       "typeOnly": true
     },
@@ -1670,17 +1670,17 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "SharedStepSchema",
       "kind": "const",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 36,
+      "line": 40,
       "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().nullish(), case_ids: z.array(z.number()).nullish(), created_on: z.number().nullish(), created_by: z.…",
-      "jsdoc": "SPEC #2.1.15 — verified against the official Shared Steps API doc (TestRail Support article 7077919815572). Endpoint requires TestRail 7.0+."
+      "jsdoc": "SPEC #2.1.15 — verified against the official Shared Steps API doc (TestRail Support article 7077919815572). The endpoint requires TestRail 7.0+."
     },
     {
       "name": "SoftDeleteOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 379,
+      "line": 400,
       "signature": "export interface SoftDeleteOptions { soft?: boolean; }",
-      "jsdoc": "Options for delete endpoints that support TestRail's `soft=1` server-side preview (`delete_case`, `delete_cases`, `delete_run`, `delete_section`, `delete_suite`). `delete_milestone` and `delete_project` do not accept `soft`; passing this option to those endpoints would be a no-op server-side, so the CLI rejects it instead to keep destructive intent unambiguous.",
+      "jsdoc": "Options for delete endpoints that support TestRail's `soft=1` server-side preview (`delete_case`, `delete_cases`, `delete_run`, `delete_section`, `delete_suite`). `delete_milestone` and `delete_project` do not accept `soft`. On those endpoints, this option would be a no-op on the server. Thus, the CLI rejects the option, so that the destructive intent stays unambiguous.",
       "typeOnly": true
     },
     {
@@ -1702,7 +1702,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Status",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 354,
+      "line": 374,
       "signature": "export type Status = KnownResponse<typeof StatusSchema>",
       "typeOnly": true
     },
@@ -1710,14 +1710,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "StatusSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 50,
+      "line": 52,
       "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
     },
     {
       "name": "StepHistoryEntry",
       "kind": "type",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 105,
+      "line": 112,
       "signature": "export type StepHistoryEntry = KnownResponse<typeof StepHistoryEntrySchema>",
       "typeOnly": true
     },
@@ -1725,15 +1725,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "StepHistoryEntrySchema",
       "kind": "const",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 97,
+      "line": 104,
       "signature": "export const StepHistoryEntrySchema = zObject({ id: z.union([z.number(), z.string()]), title: z.string().nullish(), timestamp: z.number().nullish(), user_id: z.union([z.number(), z.string()]).nullish(…",
-      "jsdoc": "SPEC #1.7 — `get_shared_step_history/{shared_step_id}` returns entries under `step_history` (NOT `history`). Live-instance audit correction: TestRail Cloud returns `id` and `user_id` as INTEGERS (e.g. 23, 40), but the doc field table says string — a bare `z.string()` on `id` rejected the real response. Accept BOTH forms (a union, like `AttachmentSchema.data_id` / `entity_id` and `UserSchema.mfa_required`) so neither Cloud's integers nor a doc-compliant self-hosted server's strings throw. Every other field is `.nullish()`-widened."
+      "jsdoc": "SPEC #1.7 — `get_shared_step_history/{shared_step_id}` returns entries in `step_history` (NOT `history`). Live-instance audit correction: TestRail Cloud returns `id` and `user_id` as INTEGERS (for example 23, 40), but the doc field table gives string. A bare `z.string()` on `id` rejected the real response. The schema accepts BOTH forms (a union, like `AttachmentSchema.data_id` / `entity_id` and `UserSchema.mfa_required`). Thus, neither the integers from Cloud nor the strings from a doc-compliant self-hosted server throw. All other fields are `.nullish()`-widened."
     },
     {
       "name": "Suite",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 331,
+      "line": 351,
       "signature": "export type Suite = KnownResponse<typeof SuiteSchema>",
       "typeOnly": true
     },
@@ -1756,7 +1756,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "Template",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 486,
+      "line": 509,
       "signature": "export type Template = KnownResponse<typeof TemplateSchema>",
       "jsdoc": "Case template returned by get_templates (requires TestRail 5.2+).",
       "typeOnly": true
@@ -1765,14 +1765,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TemplateSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 248,
+      "line": 250,
       "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
     },
     {
       "name": "Test",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 346,
+      "line": 366,
       "signature": "export type Test = ResponseWithCustomFields<typeof TestSchema>",
       "typeOnly": true
     },
@@ -1788,9 +1788,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailApiError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 12,
+      "line": 13,
       "signature": "export class TestRailApiError extends Error",
-      "jsdoc": "Thrown when communication with TestRail fails or a successful response cannot be used safely. This includes non-2xx responses, network/body-processing failures, and unrecognized outer response structures. The optional `response` retains the raw server value for programmatic inspection; callers should not expose it in logs because it can contain instance data."
+      "jsdoc": "Thrown when communication with TestRail fails, or when the client cannot use a successful response safely. Causes include non-2xx responses, network and body-processing failures, and unrecognized outer response structures. The optional `response` keeps the raw server value for programmatic inspection. Callers should not put `response` in logs, because it can contain instance data."
     },
     {
       "name": "TestRailClient",
@@ -1804,7 +1804,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailConfig",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 102,
+      "line": 104,
       "signature": "export interface TestRailConfig { baseUrl: string; email: string; apiKey: string; timeout?: number; maxRetries?: number; enableCache?: boolean; cacheTtl?: number; cacheCleanupInterval?: number; maxCac…",
       "jsdoc": "TestRail API client configuration options",
       "typeOnly": true
@@ -1813,30 +1813,30 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailConfigSchema",
       "kind": "const",
       "file": "src/schemas/common.ts",
-      "line": 135,
+      "line": 137,
       "signature": "export const TestRailConfigSchema = zObject(testRailConfigShape)"
     },
     {
       "name": "TestRailLicenseError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 107,
+      "line": 115,
       "signature": "export class TestRailLicenseError extends TestRailApiError",
-      "jsdoc": "Thrown when TestRail rejects a request because the instance lacks the required Enterprise license/subscription (HTTP 403 with a \"Not an Enterprise license/subscription.\" body — live-audit findings B.22/B.33). A subclass of , so existing `catch (TestRailApiError)` handlers still catch it; callers that want to branch on license gating specifically can use `instanceof TestRailLicenseError`."
+      "jsdoc": "Thrown when TestRail rejects a request because the instance does not have the required Enterprise license or subscription. TestRail returns HTTP 403 with a body such as \"Not an Enterprise license/subscription.\" (live-audit findings B.22/B.33). This class is a subclass of , so existing `catch (TestRailApiError)` handlers still catch it. Callers that want to branch on the license restriction specifically can use `instanceof TestRailLicenseError`."
     },
     {
       "name": "TestRailPaginationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 182,
+      "line": 194,
       "signature": "export class TestRailPaginationError extends TestRailValidationError",
-      "jsdoc": "Thrown when a bounded multi-page read cannot complete safely. HTTP and network failures remain ; this subtype represents client-side page structure, continuation, and aggregation-policy failures."
+      "jsdoc": "Thrown when a bounded multi-page read cannot complete safely. HTTP and network failures stay errors. This subtype is for client-side failures of page structure, continuation, and aggregation policy."
     },
     {
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 167,
+      "line": 179,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -1844,7 +1844,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailVersion",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
-      "line": 291,
+      "line": 293,
       "signature": "export type TestRailVersion = KnownResponse<typeof TestRailVersionSchema>",
       "typeOnly": true
     },
@@ -1852,7 +1852,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailVersionSchema",
       "kind": "const",
       "file": "src/schemas/metadata.ts",
-      "line": 287,
+      "line": 289,
       "signature": "export const TestRailVersionSchema = zObject({ version: z.string(), })",
       "jsdoc": "Response from the authenticated `get_version` endpoint (TestRail 10.6+)."
     },
@@ -1867,7 +1867,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestWithData",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 652,
+      "line": 675,
       "signature": "export type TestWithData = Test & { results: Result[]; attachments: Attachment[]; }",
       "jsdoc": "Test enriched by `get_test` with `with_data=1`.",
       "typeOnly": true
@@ -1878,7 +1878,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/schemas/tests.ts",
       "line": 48,
       "signature": "export const TestWithDataResponseSchema = zObject({ test: TestSchema, results: z .array(ResultSchema) .nullish() .transform((items) => items ?? []), attachments: z .array(AttachmentSchema) .nullish() …",
-      "jsdoc": "Wire wrapper returned by `get_test/{test_id}&with_data=1`."
+      "jsdoc": "The wire wrapper that `get_test/{test_id}&with_data=1` returns."
     },
     {
       "name": "UpdateCasePayload",
@@ -1944,7 +1944,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateDatasetPayload",
       "kind": "type",
       "file": "src/schemas/datasets.ts",
-      "line": 75,
+      "line": 81,
       "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>",
       "typeOnly": true
     },
@@ -1952,15 +1952,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateDatasetPayloadSchema",
       "kind": "const",
       "file": "src/schemas/datasets.ts",
-      "line": 70,
+      "line": 76,
       "signature": "export const UpdateDatasetPayloadSchema = zObject({ name: z.string().optional(), variables: DatasetVariablesPayloadSchema.optional(), })",
-      "jsdoc": "`update_dataset` accepts a partial body: callers may rename the dataset, replace its variable-value map, or do both. Empty `{}` is intentionally allowed and forwarded to TestRail, which treats it as a no-op. `custom_*` extras flow through `zObject()`'s passthrough."
+      "jsdoc": "`update_dataset` accepts a partial body. Callers may rename the dataset, replace its variable-value map, or do both. The schema intentionally allows an empty `{}`, and the client forwards it to TestRail, which treats it as a no-op. `custom_*` extras flow through `zObject()`'s passthrough."
     },
     {
       "name": "UpdateGroupPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 83,
+      "line": 87,
       "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -1968,14 +1968,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 78,
+      "line": 82,
       "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
     },
     {
       "name": "UpdateLabelPayload",
       "kind": "type",
       "file": "src/schemas/labels.ts",
-      "line": 80,
+      "line": 82,
       "signature": "export type UpdateLabelPayload = z.infer<typeof UpdateLabelPayloadSchema>",
       "typeOnly": true
     },
@@ -1983,9 +1983,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateLabelPayloadSchema",
       "kind": "const",
       "file": "src/schemas/labels.ts",
-      "line": 75,
+      "line": 77,
       "signature": "export const UpdateLabelPayloadSchema = zObject({ project_id: z.number().int().positive(), title: z.string(), })",
-      "jsdoc": "`update_label/{label_id}` body — the owning project and new label title. TestRail caps the title at 20 characters; the limit is intentionally NOT enforced client-side (the \"let TestRail be the source of truth\" precedent — we surface the server's 400 rather than duplicating the rule). `custom_*` / forward-compat extras flow through `zObject()`'s passthrough."
+      "jsdoc": "`update_label/{label_id}` body — the owning project and the new label title. TestRail limits the title to 20 characters. The client intentionally does NOT apply this limit. This choice follows the \"let TestRail be the source of truth\" precedent. The client shows the 400 response of the server and does not duplicate the rule. `custom_*` / forward-compat extras flow through `zObject()`'s passthrough."
     },
     {
       "name": "UpdateMilestonePayload",
@@ -2126,7 +2126,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateSharedStepPayload",
       "kind": "type",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 86,
+      "line": 92,
       "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>",
       "typeOnly": true
     },
@@ -2134,9 +2134,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateSharedStepPayloadSchema",
       "kind": "const",
       "file": "src/schemas/sharedSteps.ts",
-      "line": 81,
+      "line": 87,
       "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })",
-      "jsdoc": "Update payload for `update_shared_step`. Every field is optional — TestRail accepts an empty object (`{}`) as a no-op update, so the CLI's `shared-step update <id> --data '{}'` is intentionally a valid call. This mirrors `UpdateMilestonePayloadSchema` and `UpdateCasePayloadSchema`: empty bodies are accepted at the schema layer; rejecting them is the API's responsibility, not the client's. Callers that want to enforce \"non-empty update\" must do so above this schema."
+      "jsdoc": "The update payload for `update_shared_step`. All fields are optional. TestRail accepts an empty object (`{}`) as a no-op update. Thus, the CLI command `shared-step update <id> --data '{}'` is intentionally a valid command."
     },
     {
       "name": "UpdateSuitePayload",
@@ -2187,7 +2187,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateTestsResponse",
       "kind": "type",
       "file": "src/schemas/tests.ts",
-      "line": 105,
+      "line": 106,
       "signature": "export type UpdateTestsResponse = KnownResponse<typeof UpdateTestsResponseSchema>",
       "typeOnly": true
     },
@@ -2195,15 +2195,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateTestsResponseSchema",
       "kind": "const",
       "file": "src/schemas/tests.ts",
-      "line": 100,
+      "line": 101,
       "signature": "export const UpdateTestsResponseSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(LabelEmbeddedSchema), })",
-      "jsdoc": "`update_tests` acknowledges the bulk label assignment; it does **not** return the updated tests. TestRail's documented example is `{ \"test_ids\": [1, 2, 3], \"labels\": [{ \"id\": 1, \"title\": \"label1\" }] }` — the page's boilerplate status line (\"the tests are returned as part of the response\") is copy-pasted across every endpoint and contradicts the example beneath it."
+      "jsdoc": "`update_tests` acknowledges the bulk label assignment. It does **not** return the updated tests. The documented TestRail example is `{ \"test_ids\": [1, 2, 3], \"labels\": [{ \"id\": 1, \"title\": \"label1\" }] }`. TestRail copied the boilerplate status line of the page (\"the tests are returned as part of the response\") to all endpoint pages. This line contradicts the example below it."
     },
     {
       "name": "UpdateVariablePayload",
       "kind": "type",
       "file": "src/schemas/variables.ts",
-      "line": 44,
+      "line": 46,
       "signature": "export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>",
       "typeOnly": true
     },
@@ -2211,15 +2211,15 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UpdateVariablePayloadSchema",
       "kind": "const",
       "file": "src/schemas/variables.ts",
-      "line": 40,
+      "line": 42,
       "signature": "export const UpdateVariablePayloadSchema = zObject({ name: z.string().optional(), })",
-      "jsdoc": "`update_variable` accepts an empty body as a no-op: every field is optional. We intentionally do NOT enforce \"at least one field set\" client-side — TestRail itself accepts `{}` and returns the unchanged variable. Mirrors the `UpdateSectionPayloadSchema` precedent below, where empty-body updates are also passed through. `custom_*` extras flow through `zObject()`'s passthrough."
+      "jsdoc": "`update_variable` accepts an empty body as a no-op: all fields are optional. The client intentionally does NOT apply an \"at least one field set\" rule. TestRail itself accepts `{}` and returns the variable with no change. This schema follows the `UpdateSectionPayloadSchema` precedent below, which also passes through empty-body updates. `custom_*` extras flow through `zObject()`'s passthrough."
     },
     {
       "name": "UploadFileInput",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 327,
+      "line": 347,
       "signature": "export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput",
       "typeOnly": true
     },
@@ -2227,7 +2227,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UploadFilePathInput",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 301,
+      "line": 318,
       "signature": "export interface UploadFilePathInput { path: string; type?: string; fd?: number | undefined; }",
       "typeOnly": true
     },
@@ -2235,7 +2235,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "User",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 352,
+      "line": 372,
       "signature": "export type User = KnownResponse<typeof UserSchema>",
       "typeOnly": true
     },
@@ -2243,7 +2243,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UserAddPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 121,
+      "line": 130,
       "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>",
       "typeOnly": true
     },
@@ -2251,9 +2251,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UserAddPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 108,
+      "line": 117,
       "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: userEmailField, is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.number().int().positive().…",
-      "jsdoc": "User write-payload schemas (TestRail 7.3+). Mirror the group/milestone payload pattern: declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future fields TestRail may add to either endpoint."
+      "jsdoc": "User write-payload schemas (TestRail 7.3+). These schemas follow the group/milestone payload pattern. This file declares each schema one time, as the source of truth for both of these items:"
     },
     {
       "name": "UserSchema",
@@ -2274,7 +2274,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UserUpdatePayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 136,
+      "line": 145,
       "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>",
       "typeOnly": true
     },
@@ -2282,14 +2282,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UserUpdatePayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 123,
+      "line": 132,
       "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: userEmailField.optional(), is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.n…"
     },
     {
       "name": "Variable",
       "kind": "type",
       "file": "src/schemas/variables.ts",
-      "line": 24,
+      "line": 26,
       "signature": "export type Variable = KnownResponse<typeof VariableSchema>",
       "typeOnly": true
     },
@@ -2305,9 +2305,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "VariableSchema",
       "kind": "const",
       "file": "src/schemas/variables.ts",
-      "line": 19,
+      "line": 21,
       "signature": "export const VariableSchema = zObject({ id: z.number(), name: z.string(), })",
-      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Variables\" API doc (support article 7077979742868) on 2026-05-23. The documented Variable response object has exactly two fields, both required and non-nullable: `id: integer` and `name: string`. No back-compat `.nullish()` is added on either field — TestRail has emitted this shape since the endpoint was introduced and the doc shows no version gating. `zObject()`'s passthrough still preserves any forward-compat keys TestRail may add. The doc-level `get_variables` pagination envelope (`offset` / `limit` / `size` / `_links` / `variables[]`) is handled outside the schema by the `getVariables()` module method, which unwraps the envelope before parsing."
+      "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Variables\" API doc (support article 7077979742868) on 2026-05-23. The documented Variable response object has exactly two fields, both required and non-nullable: `id: integer` and `name: string`. The schema adds no back-compat `.nullish()` to either field. TestRail has emitted this shape since the introduction of the endpoint, and the doc shows no version gating."
     }
   ],
   "files": [
@@ -7157,199 +7157,199 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 222,
+          "line": 223,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 223
+              "line": 224
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 229
+              "line": 230
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 230
+              "line": 231
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 231
+              "line": 232
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 232
+              "line": 233
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 233
+              "line": 234
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 234
+              "line": 235
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 235
+              "line": 236
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 236
+              "line": 237
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 237
+              "line": 238
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 238
+              "line": 239
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 243
+              "line": 244
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 249
+              "line": 250
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 256
+              "line": 258
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 257
+              "line": 259
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 258
+              "line": 260
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 259
+              "line": 261
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 261
+              "line": 263
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 340
+              "line": 342
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 365
+              "line": 367
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 407
+              "line": 409
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 450
+              "line": 452
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 507
+              "line": 511
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 526
+              "line": 530
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 545
+              "line": 551
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 563
+              "line": 571
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 610
+              "line": 622
             },
             {
               "name": "requestAccepted",
               "kind": "method",
-              "line": 617
+              "line": 629
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 725
+              "line": 737
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 741
+              "line": 753
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 774
+              "line": 786
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 806
+              "line": 818
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 821
+              "line": 833
             },
             {
               "name": "raceAttemptDeadline",
               "kind": "method",
-              "line": 1098
+              "line": 1110
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1117
+              "line": 1129
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1142
+              "line": 1154
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1178
+              "line": 1199
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1190
+              "line": 1211
             }
           ]
         }
@@ -7709,252 +7709,252 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TESTRAIL_CONFIG_EMAIL_PATTERN",
           "kind": "const",
-          "line": 31,
+          "line": 32,
           "exported": true,
           "signature": "export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\\s@]+@[^\\s@][^\\s@.]*\\.[^\\s@]+$/"
         },
         {
           "name": "TESTRAIL_USER_EMAIL_PATTERN",
           "kind": "const",
-          "line": 43,
+          "line": 47,
           "exported": true,
           "signature": "export const TESTRAIL_USER_EMAIL_PATTERN = /^[^\\s@]+@[^\\s@]+$/"
         },
         {
           "name": "DEFAULT_MAX_CACHE_SIZE",
           "kind": "const",
-          "line": 44,
+          "line": 48,
           "exported": true,
           "signature": "export const DEFAULT_MAX_CACHE_SIZE = 1000"
         },
         {
           "name": "DEFAULT_RATE_LIMIT_MAX_REQUESTS",
           "kind": "const",
-          "line": 45,
+          "line": 49,
           "exported": true,
           "signature": "export const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100"
         },
         {
           "name": "DEFAULT_RATE_LIMIT_WINDOW_MS",
           "kind": "const",
-          "line": 46,
+          "line": 50,
           "exported": true,
           "signature": "export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000"
         },
         {
           "name": "MAX_PAGINATION_LIMIT",
           "kind": "const",
-          "line": 56,
+          "line": 60,
           "exported": true,
           "signature": "export const MAX_PAGINATION_LIMIT = 250"
         },
         {
           "name": "DEFAULT_PAGE_SIZE",
           "kind": "const",
-          "line": 59,
+          "line": 63,
           "exported": true,
           "signature": "export const DEFAULT_PAGE_SIZE = MAX_PAGINATION_LIMIT"
         },
         {
           "name": "DEFAULT_MAX_PAGES",
           "kind": "const",
-          "line": 60,
+          "line": 64,
           "exported": true,
           "signature": "export const DEFAULT_MAX_PAGES = 100"
         },
         {
           "name": "DEFAULT_MAX_ITEMS",
           "kind": "const",
-          "line": 61,
+          "line": 65,
           "exported": true,
           "signature": "export const DEFAULT_MAX_ITEMS = 25_000"
         },
         {
           "name": "DEFAULT_MAX_PAGINATION_DURATION_MS",
           "kind": "const",
-          "line": 62,
+          "line": 66,
           "exported": true,
           "signature": "export const DEFAULT_MAX_PAGINATION_DURATION_MS = MAX_TIMEOUT_MS"
         },
         {
           "name": "DEFAULT_MAX_PAGINATION_BYTES",
           "kind": "const",
-          "line": 63,
+          "line": 67,
           "exported": true,
           "signature": "export const DEFAULT_MAX_PAGINATION_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "MAX_PAGINATION_BYTES",
           "kind": "const",
-          "line": 64,
+          "line": 68,
           "exported": true,
           "signature": "export const MAX_PAGINATION_BYTES = 1024 * 1024 * 1024"
         },
         {
           "name": "DEFAULT_MAX_JSON_RESPONSE_BYTES",
           "kind": "const",
-          "line": 88,
+          "line": 94,
           "exported": true,
           "signature": "export const DEFAULT_MAX_JSON_RESPONSE_BYTES = 10 * 1024 * 1024"
         },
         {
           "name": "DEFAULT_MAX_BINARY_RESPONSE_BYTES",
           "kind": "const",
-          "line": 89,
+          "line": 95,
           "exported": true,
           "signature": "export const DEFAULT_MAX_BINARY_RESPONSE_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "MAX_RESPONSE_BYTES_LIMIT",
           "kind": "const",
-          "line": 90,
+          "line": 96,
           "exported": true,
           "signature": "export const MAX_RESPONSE_BYTES_LIMIT = 1024 * 1024 * 1024"
         },
         {
           "name": "MAX_DATA_FILE_BYTES",
           "kind": "const",
-          "line": 99,
+          "line": 106,
           "exported": true,
           "signature": "export const MAX_DATA_FILE_BYTES = 1_048_576"
         },
         {
           "name": "MAX_STDIN_BYTES",
           "kind": "const",
-          "line": 113,
+          "line": 120,
           "exported": true,
           "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
         },
         {
           "name": "MAX_CLI_SCHEMA_MISMATCH_WARNINGS",
           "kind": "const",
-          "line": 116,
+          "line": 123,
           "exported": true,
           "signature": "export const MAX_CLI_SCHEMA_MISMATCH_WARNINGS = 10"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_INPUT_BYTES",
           "kind": "const",
-          "line": 119,
+          "line": 126,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_INPUT_BYTES = 64 * 1024"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES",
           "kind": "const",
-          "line": 120,
+          "line": 127,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES = 16 * 1024"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS",
           "kind": "const",
-          "line": 121,
+          "line": 128,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS = 4096"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS",
           "kind": "const",
-          "line": 122,
+          "line": 129,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS = 2048"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_NODES",
           "kind": "const",
-          "line": 123,
+          "line": 130,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_NODES = 128"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_DEPTH",
           "kind": "const",
-          "line": 124,
+          "line": 131,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_DEPTH = 6"
         },
         {
           "name": "MAX_CLI_DIAGNOSTIC_DECODE_PASSES",
           "kind": "const",
-          "line": 125,
+          "line": 132,
           "exported": true,
           "signature": "export const MAX_CLI_DIAGNOSTIC_DECODE_PASSES = 3"
         },
         {
           "name": "CLI_DIAGNOSTIC_FILE_MODE",
           "kind": "const",
-          "line": 126,
+          "line": 133,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_FILE_MODE = 0o600"
         },
         {
           "name": "CLI_DIAGNOSTIC_DIRECTORY_MODE",
           "kind": "const",
-          "line": 127,
+          "line": 134,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_DIRECTORY_MODE = 0o700"
         },
         {
           "name": "CLI_DIAGNOSTIC_PERMISSION_MASK",
           "kind": "const",
-          "line": 128,
+          "line": 135,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_PERMISSION_MASK = 0o777"
         },
         {
           "name": "CLI_DIAGNOSTIC_ACL_TIMEOUT_MS",
           "kind": "const",
-          "line": 130,
+          "line": 137,
           "exported": true,
           "signature": "export const CLI_DIAGNOSTIC_ACL_TIMEOUT_MS = 1000"
         },
         {
           "name": "MULTIPART_FIELD_NAME",
           "kind": "const",
-          "line": 142,
+          "line": 149,
           "exported": true,
           "signature": "export const MULTIPART_FIELD_NAME = 'attachment'"
         },
         {
           "name": "MAX_STDIN_UPLOAD_BYTES",
           "kind": "const",
-          "line": 158,
+          "line": 167,
           "exported": true,
           "signature": "export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "STDIN_READ_TIMEOUT_MS",
           "kind": "const",
-          "line": 172,
+          "line": 182,
           "exported": true,
           "signature": "export const STDIN_READ_TIMEOUT_MS = 30000"
         },
         {
           "name": "STDIN_FD",
           "kind": "const",
-          "line": 175,
+          "line": 185,
           "exported": true,
           "signature": "export const STDIN_FD = 0"
         },
         {
           "name": "STDIN_RETRY_INTERVAL_MS",
           "kind": "const",
-          "line": 182,
+          "line": 192,
           "exported": true,
           "signature": "export const STDIN_RETRY_INTERVAL_MS = 10"
         },
         {
           "name": "YAML_INDENT_SPACES",
           "kind": "const",
-          "line": 190,
+          "line": 200,
           "exported": true,
           "signature": "export const YAML_INDENT_SPACES = 2"
         },
         {
           "name": "DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS",
           "kind": "const",
-          "line": 193,
+          "line": 203,
           "exported": true,
           "signature": "export const DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS = 5_000"
         }
@@ -7972,119 +7972,119 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TestRailApiError",
           "kind": "class",
-          "line": 12,
+          "line": 13,
           "exported": true,
           "signature": "export class TestRailApiError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 13
+              "line": 14
             }
           ]
         },
         {
           "name": "networkError",
           "kind": "function",
-          "line": 33,
+          "line": 35,
           "exported": true,
           "signature": "export function networkError(reason: unknown, context = '', options?: { readonly cause: unknown }): TestRailApiError"
         },
         {
           "name": "dnsLookupFailures",
           "kind": "const",
-          "line": 39,
+          "line": 41,
           "exported": false,
           "signature": "const dnsLookupFailures = new WeakSet<object>()"
         },
         {
           "name": "dnsLookupError",
           "kind": "function",
-          "line": 46,
+          "line": 48,
           "exported": true,
           "signature": "export function dnsLookupError(reason: unknown, hostname: string): TestRailApiError"
         },
         {
           "name": "isDnsLookupFailure",
           "kind": "function",
-          "line": 53,
+          "line": 58,
           "exported": true,
           "signature": "export function isDnsLookupFailure(error: unknown): boolean"
         },
         {
           "name": "SAFE_CAUSE_FIELDS",
           "kind": "const",
-          "line": 57,
+          "line": 62,
           "exported": false,
           "signature": "const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const"
         },
         {
           "name": "sanitizedCause",
           "kind": "function",
-          "line": 68,
+          "line": 75,
           "exported": true,
           "signature": "export function sanitizedCause(reason: unknown, depth = 0): unknown"
         },
         {
           "name": "TestRailLicenseError",
           "kind": "class",
-          "line": 107,
+          "line": 115,
           "exported": true,
           "signature": "export class TestRailLicenseError extends TestRailApiError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 108
+              "line": 116
             }
           ]
         },
         {
           "name": "LICENSE_RESTRICTION_RE",
           "kind": "const",
-          "line": 135,
+          "line": 146,
           "exported": false,
           "signature": "const LICENSE_RESTRICTION_RE = /(?:not an|requires)\\s+enterprise (?:licen|subscription)/i"
         },
         {
           "name": "isLicenseRestriction",
           "kind": "function",
-          "line": 146,
+          "line": 158,
           "exported": true,
           "signature": "export function isLicenseRestriction(status: number, body: unknown): boolean"
         },
         {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 167,
+          "line": 179,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 168
+              "line": 180
             }
           ]
         },
         {
           "name": "TestRailPaginationError",
           "kind": "class",
-          "line": 182,
+          "line": 194,
           "exported": true,
           "signature": "export class TestRailPaginationError extends TestRailValidationError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 183
+              "line": 195
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 198,
+          "line": 210,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }
@@ -8195,132 +8195,132 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "GetAttachmentsOptions",
           "kind": "interface",
-          "line": 15,
+          "line": 16,
           "exported": true,
           "signature": "export interface GetAttachmentsOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "GetAllAttachmentsOptions",
           "kind": "type",
-          "line": 22,
+          "line": 23,
           "exported": true,
           "signature": "export type GetAllAttachmentsOptions = PaginatedRequestOptions"
         },
         {
           "name": "AttachmentPaginationArgs",
           "kind": "type",
-          "line": 24,
+          "line": 25,
           "exported": false,
           "signature": "type AttachmentPaginationArgs = | { readonly operation: 'get_attachments_for_case'; readonly caseId: number } | { readonly operation: 'get_attachments_for_run'; readonly runId: number } | { readonly o…"
         },
         {
           "name": "ATTACHMENTS_PAGINATION",
           "kind": "const",
-          "line": 30,
+          "line": 31,
           "exported": true,
           "signature": "export const ATTACHMENTS_PAGINATION = createPaginatedListExecutor< AttachmentPaginationArgs, GetAttachmentsOptions, GetAllAttachmentsOptions, Attachment >({ operations: [ 'get_attachments_for_case', '…"
         },
         {
           "name": "AttachmentModule",
           "kind": "class",
-          "line": 64,
+          "line": 65,
           "exported": true,
           "signature": "export class AttachmentModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 65
+              "line": 66
             },
             {
               "name": "getAttachmentsForCase",
               "kind": "method",
-              "line": 68
+              "line": 69
             },
             {
               "name": "getAttachmentsForCasePage",
               "kind": "method",
-              "line": 73
+              "line": 74
             },
             {
               "name": "getAllAttachmentsForCase",
               "kind": "method",
-              "line": 78
+              "line": 79
             },
             {
               "name": "getAttachmentsForRun",
               "kind": "method",
-              "line": 83
+              "line": 84
             },
             {
               "name": "getAttachmentsForRunPage",
               "kind": "method",
-              "line": 88
+              "line": 89
             },
             {
               "name": "getAllAttachmentsForRun",
               "kind": "method",
-              "line": 93
+              "line": 94
             },
             {
               "name": "getAttachmentsForTest",
               "kind": "method",
-              "line": 98
+              "line": 99
             },
             {
               "name": "getAttachmentsForPlan",
               "kind": "method",
-              "line": 103
+              "line": 104
             },
             {
               "name": "getAttachmentsForPlanPage",
               "kind": "method",
-              "line": 108
+              "line": 109
             },
             {
               "name": "getAllAttachmentsForPlan",
               "kind": "method",
-              "line": 113
+              "line": 114
             },
             {
               "name": "getAttachmentsForPlanEntry",
               "kind": "method",
-              "line": 127
+              "line": 129
             },
             {
               "name": "getAttachment",
               "kind": "method",
-              "line": 141
+              "line": 143
             },
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 151
+              "line": 153
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 163
+              "line": 165
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 175
+              "line": 177
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 187
+              "line": 189
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 204
+              "line": 206
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 222
+              "line": 224
             }
           ]
         }
@@ -8364,44 +8364,44 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "BddModule",
           "kind": "class",
-          "line": 76,
+          "line": 77,
           "exported": true,
           "signature": "export class BddModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 77
+              "line": 78
             },
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 84
+              "line": 85
             },
             {
               "name": "getBdds",
               "kind": "method",
-              "line": 97
+              "line": 98
             },
             {
               "name": "getBddsPage",
               "kind": "method",
-              "line": 102
+              "line": 103
             },
             {
               "name": "getAllBdds",
               "kind": "method",
-              "line": 107
+              "line": 108
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 115
+              "line": 116
             },
             {
               "name": "updateBdd",
               "kind": "method",
-              "line": 131
+              "line": 132
             }
           ]
         }
@@ -8504,17 +8504,12 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "addCases",
               "kind": "method",
-              "line": 176
+              "line": 177
             },
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 210
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 229
+              "line": 211
             },
             {
               "name": "deleteCase",
@@ -8524,7 +8519,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 236
+              "line": 231
             },
             {
               "name": "deleteCase",
@@ -8532,54 +8527,59 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
               "line": 237
             },
             {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 238
+            },
+            {
               "name": "updateCases",
               "kind": "method",
-              "line": 267
+              "line": 269
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 301
+              "line": 304
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 307
+              "line": 310
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 314
+              "line": 317
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 320
+              "line": 323
             },
             {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 350
+              "line": 354
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 367
+              "line": 371
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 378
+              "line": 382
             },
             {
               "name": "getHistoryForCasePage",
               "kind": "method",
-              "line": 383
+              "line": 387
             },
             {
               "name": "getAllHistoryForCase",
               "kind": "method",
-              "line": 388
+              "line": 392
             }
           ]
         }
@@ -8765,61 +8765,61 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "unwrapLabelWrite",
           "kind": "function",
-          "line": 39,
+          "line": 40,
           "exported": false,
           "signature": "function unwrapLabelWrite(raw: unknown): Label"
         },
         {
           "name": "LabelModule",
           "kind": "class",
-          "line": 52,
+          "line": 53,
           "exported": true,
           "signature": "export class LabelModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 53
+              "line": 54
             },
             {
               "name": "getLabel",
               "kind": "method",
-              "line": 56
+              "line": 57
             },
             {
               "name": "getLabels",
               "kind": "method",
-              "line": 66
+              "line": 67
             },
             {
               "name": "getLabelsPage",
               "kind": "method",
-              "line": 71
+              "line": 72
             },
             {
               "name": "getAllLabels",
               "kind": "method",
-              "line": 76
+              "line": 77
             },
             {
               "name": "addLabel",
               "kind": "method",
-              "line": 81
+              "line": 82
             },
             {
               "name": "updateLabel",
               "kind": "method",
-              "line": 93
+              "line": 94
             },
             {
               "name": "deleteLabel",
               "kind": "method",
-              "line": 106
+              "line": 107
             },
             {
               "name": "deleteLabels",
               "kind": "method",
-              "line": 115
+              "line": 116
             }
           ]
         }
@@ -8886,42 +8886,42 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "listOf",
           "kind": "const",
-          "line": 103,
+          "line": 114,
           "exported": true,
           "signature": "export const listOf = <T extends z.ZodTypeAny>(key: string, item: T) => z.union([z.array(item), envelopeOf(key, item)])"
         },
         {
           "name": "pageOf",
           "kind": "const",
-          "line": 112,
+          "line": 124,
           "exported": true,
           "signature": "export const pageOf = <T extends z.ZodTypeAny>(key: string, item: T) => z.union([z.array(item), paginatedEnvelopeOf(key, item)])"
         },
         {
           "name": "unwrapList",
           "kind": "const",
-          "line": 124,
+          "line": 137,
           "exported": true,
           "signature": "export const unwrapList = <T>(key: string, raw: unknown): T[] => { if (Array.isArray(raw)) return raw as T[]; if (typeof raw !== 'object' || raw === null) { throw malformedListResponse(raw); } const v…"
         },
         {
           "name": "listOfNested",
           "kind": "const",
-          "line": 145,
+          "line": 161,
           "exported": true,
           "signature": "export const listOfNested = <T extends z.ZodTypeAny>(key: string, item: T) => z.union([z.array(item), envelopeOf(key, item), z.tuple([envelopeOf(key, item)])])"
         },
         {
           "name": "pageOfNested",
           "kind": "const",
-          "line": 149,
+          "line": 165,
           "exported": true,
           "signature": "export const pageOfNested = <T extends z.ZodTypeAny>(key: string, item: T) => { const envelope = paginatedEnvelopeOf(key, item); return z.union([z.array(item), envelope, z.tuple([envelope])]); }"
         },
         {
           "name": "unwrapNestedList",
           "kind": "const",
-          "line": 159,
+          "line": 176,
           "exported": true,
           "signature": "export const unwrapNestedList = <T>(key: string, raw: unknown): T[] => { if (Array.isArray(raw)) { const envelopes = raw.filter( (value) => typeof value === 'object' && value !== null && !Array.isArra…"
         }
@@ -9035,32 +9035,32 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "addCaseField",
               "kind": "method",
-              "line": 154
+              "line": 159
             },
             {
               "name": "getCaseTypes",
               "kind": "method",
-              "line": 164
+              "line": 169
             },
             {
               "name": "getTemplates",
               "kind": "method",
-              "line": 173
+              "line": 178
             },
             {
               "name": "getRoles",
               "kind": "method",
-              "line": 183
+              "line": 188
             },
             {
               "name": "getRolesPage",
               "kind": "method",
-              "line": 188
+              "line": 193
             },
             {
               "name": "getAllRoles",
               "kind": "method",
-              "line": 193
+              "line": 198
             }
           ]
         }
@@ -9315,21 +9315,21 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "snapshotOptionFields",
           "kind": "function",
-          "line": 15,
+          "line": 16,
           "exported": true,
           "signature": "export function snapshotOptionFields<T extends object, K extends Extract<keyof T, string>>( options: T | undefined, keys: readonly K[], ): Partial<Pick<T, K>>"
         },
         {
           "name": "snapshotPaginationSafetyOptions",
           "kind": "function",
-          "line": 30,
+          "line": 31,
           "exported": true,
           "signature": "export function snapshotPaginationSafetyOptions(options: PaginationSafetyOptions | undefined): PaginationSafetyOptions"
         },
         {
           "name": "snapshotPaginatedRequestOptions",
           "kind": "function",
-          "line": 35,
+          "line": 36,
           "exported": true,
           "signature": "export function snapshotPaginatedRequestOptions(options: PaginatedRequestOptions | undefined): PaginatedRequestOptions"
         }
@@ -9823,22 +9823,22 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 121
-            },
-            {
-              "name": "deleteRun",
-              "kind": "method",
               "line": 122
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 125
+              "line": 123
             },
             {
               "name": "deleteRun",
               "kind": "method",
               "line": 126
+            },
+            {
+              "name": "deleteRun",
+              "kind": "method",
+              "line": 127
             }
           ]
         }
@@ -9923,17 +9923,12 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 99
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
               "line": 100
             },
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 102
+              "line": 101
             },
             {
               "name": "deleteSection",
@@ -9941,9 +9936,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
               "line": 103
             },
             {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 104
+            },
+            {
               "name": "moveSection",
               "kind": "method",
-              "line": 131
+              "line": 133
             }
           ]
         }
@@ -10155,22 +10155,22 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 114
-            },
-            {
-              "name": "deleteSuite",
-              "kind": "method",
               "line": 115
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 117
+              "line": 116
             },
             {
               "name": "deleteSuite",
               "kind": "method",
               "line": 118
+            },
+            {
+              "name": "deleteSuite",
+              "kind": "method",
+              "line": 119
             }
           ]
         }
@@ -10733,77 +10733,77 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "decodePage",
           "kind": "function",
-          "line": 181,
+          "line": 182,
           "exported": true,
           "signature": "export function decodePage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "decodeNestedPage",
           "kind": "function",
-          "line": 198,
+          "line": 200,
           "exported": true,
           "signature": "export function decodeNestedPage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "parseCanonicalInteger",
           "kind": "function",
-          "line": 225,
+          "line": 227,
           "exported": false,
           "signature": "function parseCanonicalInteger(values: string[], name: string, allowZero: boolean, stats: CollectionStats): number"
         },
         {
           "name": "parsePaginationContinuation",
           "kind": "function",
-          "line": 260,
+          "line": 263,
           "exported": true,
           "signature": "export function parsePaginationContinuation( next: string, stats: CollectionStats = { pagesFetched: 0, itemsFetched: 0 }, ): PaginationContinuation"
         },
         {
           "name": "validatePositiveBound",
           "kind": "function",
-          "line": 308,
+          "line": 311,
           "exported": false,
           "signature": "function validatePositiveBound(value: number, name: string, maximum?: number): void"
         },
         {
           "name": "defaultWhenUndefined",
           "kind": "function",
-          "line": 315,
+          "line": 318,
           "exported": false,
           "signature": "function defaultWhenUndefined<T>(value: T | undefined, fallback: T): T"
         },
         {
           "name": "resolveCollectionOptions",
           "kind": "function",
-          "line": 320,
+          "line": 323,
           "exported": false,
           "signature": "function resolveCollectionOptions<T>(options: CollectAllPagesOptions<T>): ResolvedCollectionOptions"
         },
         {
           "name": "serializedByteLength",
           "kind": "function",
-          "line": 341,
+          "line": 344,
           "exported": false,
           "signature": "function serializedByteLength(items: readonly unknown[], stats: CollectionStats): number"
         },
         {
           "name": "appendPageItems",
           "kind": "function",
-          "line": 349,
+          "line": 352,
           "exported": false,
           "signature": "function appendPageItems<T>(target: T[], pageItems: readonly T[]): void"
         },
         {
           "name": "policyError",
           "kind": "function",
-          "line": 353,
+          "line": 356,
           "exported": false,
           "signature": "function policyError( reason: PaginationErrorReason, message: string, stats: CollectionStats, context: Readonly<Record<string, string | number | boolean | null>> = {}, ): never"
         },
         {
           "name": "collectAllPages",
           "kind": "function",
-          "line": 367,
+          "line": 371,
           "exported": true,
           "signature": "export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Promise<T[]>"
         }
@@ -11449,35 +11449,35 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "PaginationRequestSchema",
           "kind": "const",
-          "line": 69,
+          "line": 70,
           "exported": true,
           "signature": "export const PaginationRequestSchema = zObject({ limit: z.number().int().positive().max(MAX_PAGINATION_LIMIT).optional(), offset: z.number().int().nonnegative().optional(), })"
         },
         {
           "name": "PaginationSchema",
           "kind": "const",
-          "line": 80,
+          "line": 82,
           "exported": true,
           "signature": "export const PaginationSchema = zObject({ limit: z.number().optional(), offset: z.number().optional(), })"
         },
         {
           "name": "TestRailConfigSchemaShape",
           "kind": "type",
-          "line": 94,
+          "line": 96,
           "exported": false,
           "signature": "type TestRailConfigSchemaShape = { [TKey in keyof TestRailConfig]-?: z.ZodType<TestRailConfig[TKey]>; }"
         },
         {
           "name": "testRailConfigShape",
           "kind": "const",
-          "line": 98,
+          "line": 100,
           "exported": false,
           "signature": "const testRailConfigShape = { baseUrl: z.string().url(), email: z.string().regex(TESTRAIL_CONFIG_EMAIL_PATTERN), apiKey: z.string().min(1), timeout: z.number().positive().max(MAX_TIMEOUT_MS).optional(…"
         },
         {
           "name": "TestRailConfigSchema",
           "kind": "const",
-          "line": 135,
+          "line": 137,
           "exported": true,
           "signature": "export const TestRailConfigSchema = zObject(testRailConfigShape)"
         }
@@ -11574,63 +11574,63 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "DatasetVariableSchema",
           "kind": "const",
-          "line": 16,
+          "line": 17,
           "exported": true,
           "signature": "export const DatasetVariableSchema = zObject({ id: z.number(), name: z.string(), value: z.string().nullable(), })"
         },
         {
           "name": "DatasetVariable",
           "kind": "type",
-          "line": 22,
+          "line": 23,
           "exported": true,
           "signature": "export type DatasetVariable = KnownResponse<typeof DatasetVariableSchema>"
         },
         {
           "name": "DatasetSchema",
           "kind": "const",
-          "line": 42,
+          "line": 47,
           "exported": true,
           "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), variables: z.array(DatasetVariableSchema).nullish(), })"
         },
         {
           "name": "Dataset",
           "kind": "type",
-          "line": 48,
+          "line": 53,
           "exported": true,
           "signature": "export type Dataset = KnownResponse<typeof DatasetSchema>"
         },
         {
           "name": "DatasetVariablesPayloadSchema",
           "kind": "const",
-          "line": 55,
+          "line": 61,
           "exported": false,
           "signature": "const DatasetVariablesPayloadSchema = z.record(z.string(), z.string())"
         },
         {
           "name": "AddDatasetPayloadSchema",
           "kind": "const",
-          "line": 57,
+          "line": 63,
           "exported": true,
           "signature": "export const AddDatasetPayloadSchema = zObject({ name: z.string(), variables: DatasetVariablesPayloadSchema.optional(), })"
         },
         {
           "name": "AddDatasetPayload",
           "kind": "type",
-          "line": 62,
+          "line": 68,
           "exported": true,
           "signature": "export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>"
         },
         {
           "name": "UpdateDatasetPayloadSchema",
           "kind": "const",
-          "line": 70,
+          "line": 76,
           "exported": true,
           "signature": "export const UpdateDatasetPayloadSchema = zObject({ name: z.string().optional(), variables: DatasetVariablesPayloadSchema.optional(), })"
         },
         {
           "name": "UpdateDatasetPayload",
           "kind": "type",
-          "line": 75,
+          "line": 81,
           "exported": true,
           "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>"
         }
@@ -11647,63 +11647,63 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "LabelSchema",
           "kind": "const",
-          "line": 27,
+          "line": 28,
           "exported": true,
           "signature": "export const LabelSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.union([z.number(), z.string()]).nullish(), created_on: z.number().nullish(),…"
         },
         {
           "name": "Label",
           "kind": "type",
-          "line": 39,
+          "line": 40,
           "exported": true,
           "signature": "export type Label = KnownResponse<typeof LabelSchema>"
         },
         {
           "name": "LabelWriteResponseSchema",
           "kind": "const",
-          "line": 51,
+          "line": 52,
           "exported": true,
           "signature": "export const LabelWriteResponseSchema = z.union([ LabelSchema, zObject({ label: LabelSchema }).transform((response) => response.label), ])"
         },
         {
           "name": "AddLabelPayloadSchema",
           "kind": "const",
-          "line": 61,
+          "line": 63,
           "exported": true,
           "signature": "export const AddLabelPayloadSchema = zObject({ title: z.string(), })"
         },
         {
           "name": "AddLabelPayload",
           "kind": "type",
-          "line": 65,
+          "line": 67,
           "exported": true,
           "signature": "export type AddLabelPayload = z.infer<typeof AddLabelPayloadSchema>"
         },
         {
           "name": "UpdateLabelPayloadSchema",
           "kind": "const",
-          "line": 75,
+          "line": 77,
           "exported": true,
           "signature": "export const UpdateLabelPayloadSchema = zObject({ project_id: z.number().int().positive(), title: z.string(), })"
         },
         {
           "name": "UpdateLabelPayload",
           "kind": "type",
-          "line": 80,
+          "line": 82,
           "exported": true,
           "signature": "export type UpdateLabelPayload = z.infer<typeof UpdateLabelPayloadSchema>"
         },
         {
           "name": "DeleteLabelsPayloadSchema",
           "kind": "const",
-          "line": 83,
+          "line": 85,
           "exported": true,
           "signature": "export const DeleteLabelsPayloadSchema = zObject({ label_ids: z.array(z.number().int().positive()).min(1), })"
         },
         {
           "name": "DeleteLabelsPayload",
           "kind": "type",
-          "line": 87,
+          "line": 89,
           "exported": true,
           "signature": "export type DeleteLabelsPayload = z.infer<typeof DeleteLabelsPayloadSchema>"
         }
@@ -11720,175 +11720,175 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "LabelEmbeddedSchema",
           "kind": "const",
-          "line": 31,
+          "line": 33,
           "exported": true,
           "signature": "export const LabelEmbeddedSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.union([z.number(), z.string()]).nullish(), created_on: z.number().nu…"
         },
         {
           "name": "LabelEmbedded",
           "kind": "type",
-          "line": 46,
+          "line": 48,
           "exported": true,
           "signature": "export type LabelEmbedded = KnownResponse<typeof LabelEmbeddedSchema>"
         },
         {
           "name": "StatusSchema",
           "kind": "const",
-          "line": 50,
+          "line": 52,
           "exported": true,
           "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
         },
         {
           "name": "PrioritySchema",
           "kind": "const",
-          "line": 66,
+          "line": 68,
           "exported": true,
           "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
         },
         {
           "name": "CaseStatusSchema",
           "kind": "const",
-          "line": 79,
+          "line": 81,
           "exported": true,
           "signature": "export const CaseStatusSchema = zObject({ case_status_id: z.number(), name: z.string(), abbreviation: z.string().nullish(), is_default: z.boolean(), is_approved: z.boolean(), is_untested: z.boolean().…"
         },
         {
           "name": "FieldConfigOptionsSchema",
           "kind": "const",
-          "line": 98,
+          "line": 100,
           "exported": false,
           "signature": "const FieldConfigOptionsSchema = zObject({ is_required: z.boolean(), default_value: z.string().nullish(), items: z.union([z.string(), z.array(z.unknown())]).nullish(), format: z.string().nullish(), ro…"
         },
         {
           "name": "FieldConfigContextSchema",
           "kind": "const",
-          "line": 119,
+          "line": 121,
           "exported": false,
           "signature": "const FieldConfigContextSchema = zObject({ is_global: z.boolean(), project_ids: z.union([z.array(z.number()), z.string()]).nullish(), })"
         },
         {
           "name": "CaseFieldConfigSchema",
           "kind": "const",
-          "line": 137,
+          "line": 139,
           "exported": true,
           "signature": "export const CaseFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
         },
         {
           "name": "CaseFieldSchema",
           "kind": "const",
-          "line": 146,
+          "line": 148,
           "exported": true,
           "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
         },
         {
           "name": "AddCaseFieldResponseSchema",
           "kind": "const",
-          "line": 185,
+          "line": 187,
           "exported": true,
           "signature": "export const AddCaseFieldResponseSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.string(), i…"
         },
         {
           "name": "AddCaseFieldResponse",
           "kind": "type",
-          "line": 210,
+          "line": 212,
           "exported": true,
           "signature": "export type AddCaseFieldResponse = KnownResponse<typeof AddCaseFieldResponseSchema>"
         },
         {
           "name": "ResultFieldConfigSchema",
           "kind": "const",
-          "line": 212,
+          "line": 214,
           "exported": true,
           "signature": "export const ResultFieldConfigSchema = zObject({ id: z.string().nullish(), context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
         },
         {
           "name": "ResultFieldSchema",
           "kind": "const",
-          "line": 220,
+          "line": 222,
           "exported": true,
           "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
         },
         {
           "name": "CaseTypeSchema",
           "kind": "const",
-          "line": 240,
+          "line": 242,
           "exported": true,
           "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
         },
         {
           "name": "TemplateSchema",
           "kind": "const",
-          "line": 248,
+          "line": 250,
           "exported": true,
           "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), i18n_custom_id: z.string().nullish(), })"
         },
         {
           "name": "DynamicFilterFieldSchema",
           "kind": "const",
-          "line": 264,
+          "line": 266,
           "exported": true,
           "signature": "export const DynamicFilterFieldSchema = zObject({ type_id: z.number(), system_name: z.string(), label: z.string(), options: z.string().nullish(), sub_filters: z.string().nullish(), })"
         },
         {
           "name": "DynamicFilterField",
           "kind": "type",
-          "line": 272,
+          "line": 274,
           "exported": true,
           "signature": "export type DynamicFilterField = KnownResponse<typeof DynamicFilterFieldSchema>"
         },
         {
           "name": "DynamicFiltersPayloadSchema",
           "kind": "const",
-          "line": 279,
+          "line": 281,
           "exported": true,
           "signature": "export const DynamicFiltersPayloadSchema = zObject({ mode: z.string(), filters: z.record(z.string(), z.record(z.string(), z.unknown())), })"
         },
         {
           "name": "DynamicFiltersPayload",
           "kind": "type",
-          "line": 284,
+          "line": 286,
           "exported": true,
           "signature": "export type DynamicFiltersPayload = z.infer<typeof DynamicFiltersPayloadSchema>"
         },
         {
           "name": "TestRailVersionSchema",
           "kind": "const",
-          "line": 287,
+          "line": 289,
           "exported": true,
           "signature": "export const TestRailVersionSchema = zObject({ version: z.string(), })"
         },
         {
           "name": "TestRailVersion",
           "kind": "type",
-          "line": 291,
+          "line": 293,
           "exported": true,
           "signature": "export type TestRailVersion = KnownResponse<typeof TestRailVersionSchema>"
         },
         {
           "name": "AddCaseFieldConfigPayloadSchema",
           "kind": "const",
-          "line": 308,
+          "line": 310,
           "exported": true,
           "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.union([z.array(z.number().int().positive()), z.literal('')]), }), options: zObject({ …"
         },
         {
           "name": "AddCaseFieldConfigPayload",
           "kind": "type",
-          "line": 322,
+          "line": 324,
           "exported": true,
           "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>"
         },
         {
           "name": "AddCaseFieldPayloadSchema",
           "kind": "const",
-          "line": 324,
+          "line": 326,
           "exported": true,
           "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), is_indexed: z.boolean…"
         },
         {
           "name": "AddCaseFieldPayload",
           "kind": "type",
-          "line": 335,
+          "line": 337,
           "exported": true,
           "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>"
         }
@@ -12182,21 +12182,21 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "ReportSchema",
           "kind": "const",
-          "line": 20,
+          "line": 24,
           "exported": true,
           "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), notify_user: z.boolean().nullish(), notify_link: z.boolean().nullish(), notify_link_recipient…"
         },
         {
           "name": "CrossProjectReportSchema",
           "kind": "const",
-          "line": 47,
+          "line": 51,
           "exported": true,
           "signature": "export const CrossProjectReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_ids: z.array(z.number()), user_ids: z.array(z.number()).nullish(), includ…"
         },
         {
           "name": "ReportResultSchema",
           "kind": "const",
-          "line": 83,
+          "line": 87,
           "exported": true,
           "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), report_html: z.string().nullish(), report_pdf: z.string().nullish(), user_report_url: z.string().nullish(), })"
         }
@@ -12433,56 +12433,56 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "SharedStepSchema",
           "kind": "const",
-          "line": 36,
+          "line": 40,
           "exported": true,
           "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().nullish(), case_ids: z.array(z.number()).nullish(), created_on: z.number().nullish(), created_by: z.…"
         },
         {
           "name": "SharedStep",
           "kind": "type",
-          "line": 48,
+          "line": 52,
           "exported": true,
           "signature": "export type SharedStep = KnownResponse<typeof SharedStepSchema>"
         },
         {
           "name": "AddSharedStepPayloadSchema",
           "kind": "const",
-          "line": 65,
+          "line": 69,
           "exported": true,
           "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
         },
         {
           "name": "AddSharedStepPayload",
           "kind": "type",
-          "line": 70,
+          "line": 74,
           "exported": true,
           "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>"
         },
         {
           "name": "UpdateSharedStepPayloadSchema",
           "kind": "const",
-          "line": 81,
+          "line": 87,
           "exported": true,
           "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
         },
         {
           "name": "UpdateSharedStepPayload",
           "kind": "type",
-          "line": 86,
+          "line": 92,
           "exported": true,
           "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>"
         },
         {
           "name": "StepHistoryEntrySchema",
           "kind": "const",
-          "line": 97,
+          "line": 104,
           "exported": true,
           "signature": "export const StepHistoryEntrySchema = zObject({ id: z.union([z.number(), z.string()]), title: z.string().nullish(), timestamp: z.number().nullish(), user_id: z.union([z.number(), z.string()]).nullish(…"
         },
         {
           "name": "StepHistoryEntry",
           "kind": "type",
-          "line": 105,
+          "line": 112,
           "exported": true,
           "signature": "export type StepHistoryEntry = KnownResponse<typeof StepHistoryEntrySchema>"
         }
@@ -12589,14 +12589,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "UpdateTestsResponseSchema",
           "kind": "const",
-          "line": 100,
+          "line": 101,
           "exported": true,
           "signature": "export const UpdateTestsResponseSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(LabelEmbeddedSchema), })"
         },
         {
           "name": "UpdateTestsResponse",
           "kind": "type",
-          "line": 105,
+          "line": 106,
           "exported": true,
           "signature": "export type UpdateTestsResponse = KnownResponse<typeof UpdateTestsResponseSchema>"
         }
@@ -12642,63 +12642,63 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "AddGroupPayloadSchema",
           "kind": "const",
-          "line": 71,
+          "line": 75,
           "exported": true,
           "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })"
         },
         {
           "name": "AddGroupPayload",
           "kind": "type",
-          "line": 76,
+          "line": 80,
           "exported": true,
           "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>"
         },
         {
           "name": "UpdateGroupPayloadSchema",
           "kind": "const",
-          "line": 78,
+          "line": 82,
           "exported": true,
           "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
         },
         {
           "name": "UpdateGroupPayload",
           "kind": "type",
-          "line": 83,
+          "line": 87,
           "exported": true,
           "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>"
         },
         {
           "name": "userEmailField",
           "kind": "const",
-          "line": 87,
+          "line": 91,
           "exported": false,
           "signature": "const userEmailField = z.string().regex(TESTRAIL_USER_EMAIL_PATTERN, { message: 'Invalid email format' })"
         },
         {
           "name": "UserAddPayloadSchema",
           "kind": "const",
-          "line": 108,
+          "line": 117,
           "exported": true,
           "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: userEmailField, is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.number().int().positive().…"
         },
         {
           "name": "UserAddPayload",
           "kind": "type",
-          "line": 121,
+          "line": 130,
           "exported": true,
           "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>"
         },
         {
           "name": "UserUpdatePayloadSchema",
           "kind": "const",
-          "line": 123,
+          "line": 132,
           "exported": true,
           "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: userEmailField.optional(), is_active: z.boolean().optional(), is_admin: z.boolean().optional(), role_id: z.n…"
         },
         {
           "name": "UserUpdatePayload",
           "kind": "type",
-          "line": 136,
+          "line": 145,
           "exported": true,
           "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>"
         }
@@ -12715,42 +12715,42 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "VariableSchema",
           "kind": "const",
-          "line": 19,
+          "line": 21,
           "exported": true,
           "signature": "export const VariableSchema = zObject({ id: z.number(), name: z.string(), })"
         },
         {
           "name": "Variable",
           "kind": "type",
-          "line": 24,
+          "line": 26,
           "exported": true,
           "signature": "export type Variable = KnownResponse<typeof VariableSchema>"
         },
         {
           "name": "AddVariablePayloadSchema",
           "kind": "const",
-          "line": 26,
+          "line": 28,
           "exported": true,
           "signature": "export const AddVariablePayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddVariablePayload",
           "kind": "type",
-          "line": 30,
+          "line": 32,
           "exported": true,
           "signature": "export type AddVariablePayload = z.infer<typeof AddVariablePayloadSchema>"
         },
         {
           "name": "UpdateVariablePayloadSchema",
           "kind": "const",
-          "line": 40,
+          "line": 42,
           "exported": true,
           "signature": "export const UpdateVariablePayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateVariablePayload",
           "kind": "type",
-          "line": 44,
+          "line": 46,
           "exported": true,
           "signature": "export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>"
         }
@@ -12782,308 +12782,308 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "SchemaMismatch",
           "kind": "interface",
-          "line": 65,
+          "line": 66,
           "exported": true,
           "signature": "export interface SchemaMismatch { method: string; endpoint: string; error: ZodError; data: unknown; }"
         },
         {
           "name": "TestRailConfig",
           "kind": "interface",
-          "line": 102,
+          "line": 104,
           "exported": true,
           "signature": "export interface TestRailConfig { baseUrl: string; email: string; apiKey: string; timeout?: number; maxRetries?: number; enableCache?: boolean; cacheTtl?: number; cacheCleanupInterval?: number; maxCac…"
         },
         {
           "name": "UploadFilePathInput",
           "kind": "interface",
-          "line": 301,
+          "line": 318,
           "exported": true,
           "signature": "export interface UploadFilePathInput { path: string; type?: string; fd?: number | undefined; }"
         },
         {
           "name": "UploadFileInput",
           "kind": "type",
-          "line": 327,
+          "line": 347,
           "exported": true,
           "signature": "export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput"
         },
         {
           "name": "Case",
           "kind": "type",
-          "line": 329,
+          "line": 349,
           "exported": true,
           "signature": "export type Case = ResponseWithCustomFields<typeof CaseSchema>"
         },
         {
           "name": "Suite",
           "kind": "type",
-          "line": 331,
+          "line": 351,
           "exported": true,
           "signature": "export type Suite = KnownResponse<typeof SuiteSchema>"
         },
         {
           "name": "Section",
           "kind": "type",
-          "line": 336,
+          "line": 356,
           "exported": true,
           "signature": "export type Section = KnownResponse<typeof SectionSchema>"
         },
         {
           "name": "Project",
           "kind": "type",
-          "line": 338,
+          "line": 358,
           "exported": true,
           "signature": "export type Project = KnownResponse<typeof ProjectSchema>"
         },
         {
           "name": "Plan",
           "kind": "type",
-          "line": 340,
+          "line": 360,
           "exported": true,
           "signature": "export type Plan = KnownResponse<typeof PlanSchema>"
         },
         {
           "name": "PlanEntry",
           "kind": "type",
-          "line": 342,
+          "line": 362,
           "exported": true,
           "signature": "export type PlanEntry = KnownResponse<typeof PlanEntrySchema>"
         },
         {
           "name": "Run",
           "kind": "type",
-          "line": 344,
+          "line": 364,
           "exported": true,
           "signature": "export type Run = KnownResponse<typeof RunSchema>"
         },
         {
           "name": "Test",
           "kind": "type",
-          "line": 346,
+          "line": 366,
           "exported": true,
           "signature": "export type Test = ResponseWithCustomFields<typeof TestSchema>"
         },
         {
           "name": "Result",
           "kind": "type",
-          "line": 348,
+          "line": 368,
           "exported": true,
           "signature": "export type Result = ResponseWithCustomFields<typeof ResultSchema>"
         },
         {
           "name": "Milestone",
           "kind": "type",
-          "line": 350,
+          "line": 370,
           "exported": true,
           "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>"
         },
         {
           "name": "User",
           "kind": "type",
-          "line": 352,
+          "line": 372,
           "exported": true,
           "signature": "export type User = KnownResponse<typeof UserSchema>"
         },
         {
           "name": "Status",
           "kind": "type",
-          "line": 354,
+          "line": 374,
           "exported": true,
           "signature": "export type Status = KnownResponse<typeof StatusSchema>"
         },
         {
           "name": "Priority",
           "kind": "type",
-          "line": 356,
+          "line": 376,
           "exported": true,
           "signature": "export type Priority = KnownResponse<typeof PrioritySchema>"
         },
         {
           "name": "CaseStatus",
           "kind": "type",
-          "line": 358,
+          "line": 378,
           "exported": true,
           "signature": "export type CaseStatus = KnownResponse<typeof CaseStatusSchema>"
         },
         {
           "name": "HistoryChange",
           "kind": "type",
-          "line": 360,
+          "line": 380,
           "exported": true,
           "signature": "export type HistoryChange = KnownResponse<typeof HistoryChangeSchema>"
         },
         {
           "name": "HistoryEntry",
           "kind": "type",
-          "line": 362,
+          "line": 382,
           "exported": true,
           "signature": "export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>"
         },
         {
           "name": "SoftDeleteOptions",
           "kind": "interface",
-          "line": 379,
+          "line": 400,
           "exported": true,
           "signature": "export interface SoftDeleteOptions { soft?: boolean; }"
         },
         {
           "name": "GetCasesOptions",
           "kind": "interface",
-          "line": 388,
+          "line": 409,
           "exported": true,
           "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number | readonly number[]; priorityId?: number | readonly number[]; templateId?: number | readonly number[]; mileston…"
         },
         {
           "name": "GetRunsOptions",
           "kind": "interface",
-          "line": 439,
+          "line": 461,
           "exported": true,
           "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readon…"
         },
         {
           "name": "ResultFieldConfig",
           "kind": "type",
-          "line": 468,
+          "line": 491,
           "exported": true,
           "signature": "export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>"
         },
         {
           "name": "ResultField",
           "kind": "type",
-          "line": 470,
+          "line": 493,
           "exported": true,
           "signature": "export type ResultField = KnownResponse<typeof ResultFieldSchema>"
         },
         {
           "name": "CaseFieldConfig",
           "kind": "type",
-          "line": 475,
+          "line": 498,
           "exported": true,
           "signature": "export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>"
         },
         {
           "name": "CaseField",
           "kind": "type",
-          "line": 478,
+          "line": 501,
           "exported": true,
           "signature": "export type CaseField = KnownResponse<typeof CaseFieldSchema>"
         },
         {
           "name": "CaseType",
           "kind": "type",
-          "line": 481,
+          "line": 504,
           "exported": true,
           "signature": "export type CaseType = KnownResponse<typeof CaseTypeSchema>"
         },
         {
           "name": "Template",
           "kind": "type",
-          "line": 486,
+          "line": 509,
           "exported": true,
           "signature": "export type Template = KnownResponse<typeof TemplateSchema>"
         },
         {
           "name": "Configuration",
           "kind": "type",
-          "line": 491,
+          "line": 514,
           "exported": true,
           "signature": "export type Configuration = KnownResponse<typeof ConfigurationSchema>"
         },
         {
           "name": "ConfigurationGroup",
           "kind": "type",
-          "line": 494,
+          "line": 517,
           "exported": true,
           "signature": "export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>"
         },
         {
           "name": "CacheEntry",
           "kind": "interface",
-          "line": 501,
+          "line": 524,
           "exported": true,
           "signature": "export interface CacheEntry<T> { data: T; expiry: number; }"
         },
         {
           "name": "RateLimiterConfig",
           "kind": "interface",
-          "line": 506,
+          "line": 529,
           "exported": true,
           "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }"
         },
         {
           "name": "GetPlansOptions",
           "kind": "interface",
-          "line": 518,
+          "line": 541,
           "exported": true,
           "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?: string…"
         },
         {
           "name": "GetTestsOptions",
           "kind": "interface",
-          "line": 550,
+          "line": 573,
           "exported": true,
           "signature": "export interface GetTestsOptions { statusId?: number | readonly number[]; labelId?: number | readonly number[]; limit?: number; offset?: number; status_id?: number | readonly number[]; label_id?: numb…"
         },
         {
           "name": "GetResultsOptions",
           "kind": "interface",
-          "line": 566,
+          "line": 589,
           "exported": true,
           "signature": "export interface GetResultsOptions { statusId?: number | readonly number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number | readonly number[]; defects_filter?: string; }"
         },
         {
           "name": "GetResultsForRunOptions",
           "kind": "interface",
-          "line": 585,
+          "line": 608,
           "exported": true,
           "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number | readonly number[]; created_after?: number; created_before?: num…"
         },
         {
           "name": "GetMilestonesOptions",
           "kind": "interface",
-          "line": 603,
+          "line": 626,
           "exported": true,
           "signature": "export interface GetMilestonesOptions { isCompleted?: boolean; isStarted?: boolean; limit?: number; offset?: number; is_completed?: 0 | 1; is_started?: 0 | 1; }"
         },
         {
           "name": "Role",
           "kind": "type",
-          "line": 621,
+          "line": 644,
           "exported": true,
           "signature": "export type Role = KnownResponse<typeof RoleSchema>"
         },
         {
           "name": "Attachment",
           "kind": "type",
-          "line": 649,
+          "line": 672,
           "exported": true,
           "signature": "export type Attachment = KnownResponse<typeof AttachmentSchema>"
         },
         {
           "name": "TestWithData",
           "kind": "type",
-          "line": 652,
+          "line": 675,
           "exported": true,
           "signature": "export type TestWithData = Test & { results: Result[]; attachments: Attachment[]; }"
         },
         {
           "name": "Report",
           "kind": "type",
-          "line": 686,
+          "line": 710,
           "exported": true,
           "signature": "export type Report = KnownResponse<typeof ReportSchema>"
         },
         {
           "name": "CrossProjectReport",
           "kind": "type",
-          "line": 689,
+          "line": 713,
           "exported": true,
           "signature": "export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>"
         },
         {
           "name": "ReportResult",
           "kind": "type",
-          "line": 699,
+          "line": 724,
           "exported": true,
           "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>"
         }
@@ -13342,21 +13342,21 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "base64Encode",
           "kind": "function",
-          "line": 9,
+          "line": 10,
           "exported": true,
           "signature": "export function base64Encode(str: string): string"
         },
         {
           "name": "sleep",
           "kind": "function",
-          "line": 14,
+          "line": 15,
           "exported": true,
           "signature": "export function sleep(ms: number, signal?: globalThis.AbortSignal): Promise<void>"
         },
         {
           "name": "serializeIdFilter",
           "kind": "function",
-          "line": 47,
+          "line": 49,
           "exported": true,
           "signature": "export function serializeIdFilter( value: number | readonly number[] | null | undefined, name: string, ): string | number | undefined"
         }

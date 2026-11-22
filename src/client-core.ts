@@ -216,8 +216,9 @@ function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void {
 }
 
 /**
- * HTTP pipeline, caching, rate limiting, retry logic, and lifecycle management.
- * Extended by {@link TestRailClient} which adds all API endpoint methods.
+ * The base class for the HTTP pipeline, caching, rate limiting, retry logic,
+ * and lifecycle management. {@link TestRailClient} extends this class and adds
+ * all API endpoint methods.
  */
 export class TestRailClientCore {
     private readonly baseUrl: string;
@@ -248,10 +249,11 @@ export class TestRailClientCore {
      */
     private readonly bodyTimeoutExplicit: boolean;
     /**
-     * The state-owning client. On a normally constructed client this is `this`;
-     * on a {@link TestRailClient.withTimeout} view it resolves (via the
-     * prototype chain) to the real client so every request runs against the
-     * shared request cache, rate limiter, and credential rather than the view.
+     * The state-owning client. On a normally constructed client, this field is
+     * `this`. On a {@link TestRailClient.withTimeout} view, the field resolves
+     * (through the prototype chain) to the real client. Thus, each request runs
+     * against the shared request cache, rate limiter, and credential, not
+     * against the view.
      */
     protected readonly root: TestRailClientCore;
     private readonly fetchOverride: typeof globalThis.fetch | undefined;
@@ -479,28 +481,30 @@ export class TestRailClientCore {
     }
 
     /**
-     * Builds a lightweight view of this client that applies `ms` as the request
-     * timeout to every call, without constructing a second client. The view is
-     * prototype-linked to the state-owning client (`root`): all reads (request
-     * cache, rate-limiter window, credential) resolve to `root` through
-     * the prototype chain, and the view is deliberately NOT registered in
-     * `activeClients` — it has no independent lifecycle.
+     * Builds a lightweight view of this client. The view applies `ms` as the
+     * request timeout to each call. The function does not construct a second
+     * client. The view is prototype-linked to the state-owning client (`root`).
+     * All reads (request cache, rate-limiter window, credential) resolve to
+     * `root` through the prototype chain. The function intentionally does NOT
+     * register the view in `activeClients`. The view has no independent
+     * lifecycle.
      *
-     * Every public method that *reassigns* primitive instance state must be
-     * delegated to `root`, because a bare `this.field = …` on the view would
-     * create a shadow own-property instead of mutating `root`. Those methods are
-     * `request` (injects the timeout), `clearCache`, and `destroy`; each is
-     * routed to `root` so, e.g., `view.destroy()` zeroes the shared credential
-     * and disables both the view and `root`, while `view.clearCache()`
-     * invalidates the root-owned request cache. Reads need no override.
+     * Each public method that *reassigns* primitive instance state must
+     * delegate to `root`. On the view, a bare `this.field = …` would create a
+     * shadow own-property and would not mutate `root`. Those methods are
+     * `request` (injects the timeout), `clearCache`, and `destroy`. The view
+     * routes each of them to `root`. For example, `view.destroy()` zeroes the
+     * shared credential and disables both the view and `root`.
+     * `view.clearCache()` invalidates the root-owned request cache. Reads need
+     * no override.
      *
-     * The body-read deadline tracks the new timeout when `root.bodyTimeout` was
-     * left implicit (mirrors the constructor's `bodyTimeout ?? timeout`); an
-     * explicitly configured `bodyTimeout` is preserved.
+     * When `root.bodyTimeout` is implicit, the body-read deadline uses the new
+     * timeout. This rule mirrors the constructor's `bodyTimeout ?? timeout`. The
+     * view keeps an explicitly configured `bodyTimeout`.
      *
-     * {@link TestRailClient.withTimeout} calls this and rebinds the domain
-     * modules to the returned view so `view.cases.getCase(id)` routes through
-     * the injected `request()`.
+     * {@link TestRailClient.withTimeout} calls this function. It then rebinds
+     * the domain modules to the returned view, so that `view.cases.getCase(id)`
+     * routes through the injected `request()`.
      *
      * @throws {TestRailValidationError} When `ms` is not a positive number ≤ 5 minutes
      */
@@ -528,19 +532,21 @@ export class TestRailClientCore {
     }
 
     /**
-     * Run a callback with observable driver resource ownership. `result`
-     * retains normal return values, errors, and deadlines. `settled` resolves
+     * Runs a callback with observable driver resource ownership. `result`
+     * keeps normal return values, errors, and deadlines. `settled` resolves
      * only after the callback and all started or joined DNS, fetch, body-read,
      * cancellation, upload-stream, retry, and coalesced work have finished.
-     * A requested abort alone does not settle an operation. Late failures are
-     * observed, and nested operations are included in their parent's lifetime.
-     * This does not cancel requests or change destroy()'s behavior. A transport
-     * or cancellation that never finishes keeps `settled` pending.
+     * A requested abort alone does not settle an operation. A transport or
+     * cancellation that never finishes keeps `settled` pending.
      *
-     * The first call latches settlement tracking on for the process. A request
-     * already in flight at that moment can be joined for its result but not for
-     * its post-result cleanup; every request started afterwards is fully
-     * joinable, tracked or not.
+     * The operation observes late failures. The lifetime of a parent operation
+     * includes its nested operations. The function does not cancel requests or
+     * change the behavior of destroy().
+     *
+     * The first call enables settlement tracking for the life of the process.
+     * For a request that is already in flight at that moment, an operation can
+     * join the result but not the post-result cleanup. Each request that starts
+     * after that moment is fully joinable, tracked or not.
      */
     public trackOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T> {
         // Latches scope creation for the process. Until the first call, requests
@@ -553,12 +559,14 @@ export class TestRailClientCore {
     /**
      * Releases all resources held by this client instance.
      * Stops the cache cleanup timer, clears the cache, and removes this instance
-     * from the active-clients registry. Safe to call multiple times (idempotent).
+     * from the active-clients registry. The method is safe to call multiple
+     * times (idempotent).
      *
-     * When any client in the process is constructed with
-     * `registerProcessHandlers: true` (default `false`), this method is also
-     * invoked automatically on `exit`, `SIGINT`, and `SIGTERM` for every
-     * active client; otherwise the caller is responsible for invoking it.
+     * If any client in the process is constructed with
+     * `registerProcessHandlers: true` (default `false`), that client installs
+     * process handlers. On `exit`, `SIGINT`, and `SIGTERM`, these handlers call
+     * this method automatically for each active client. Otherwise, the caller
+     * is responsible for calling this method.
      */
     public destroy(): void {
         if (this.isDestroyed) {
@@ -578,30 +586,34 @@ export class TestRailClientCore {
     }
 
     /**
-     * Executes a single HTTP request against the TestRail API. The behavior of
-     * each call is driven by the {@link RequestSpec} record (response kind,
-     * body shape, schema, intent). Modules dispatch every API call through
-     * this method.
+     * Sends a single HTTP request to the TestRail API. The {@link RequestSpec}
+     * record (response kind, body shape, schema, intent) controls the behavior
+     * of each call. Modules dispatch all API calls through this method.
      *
-     * Behavioural guarantees (preserved verbatim across the refactor):
+     * Behavioural guarantees (kept verbatim across the refactor):
      *
-     *   - GET responses are cached. Adding `spec.schema` switches the cache to
-     *     the `PARSED:GET:{endpoint}` namespace so a raw response and a
-     *     validated response for the same endpoint never collide.
+     *   - The client caches GET responses. When `spec.schema` is set, the cache
+     *     uses the `PARSED:GET:{endpoint}` namespace. Thus, a raw response and
+     *     a validated response for the same endpoint never collide.
      *   - Writes (non-GET) clear the entire cache before parsing.
-     *   - DNS revalidation runs before every distinct upstream fetch.
-     *   - Identical in-flight GETs are coalesced (SEC #23).
-     *   - Retry contract, derived not declared: a multipart body never retries
-     *     (it outranks every other input); a side-effecting read retries 429
-     *     only; a binary GET retries 5xx/network always; otherwise 429 retries
-     *     for all methods and 5xx + network errors retry only on GET.
-     *   - `Retry-After` is honored on every retryable response, capped at
-     *     {@link MAX_RETRY_DELAY_MS}.
-     *   - 3xx is surfaced as `TestRailApiError`, never followed, never cached.
-     *   - Response-body byte cap + wall-clock deadline apply to every fetch.
+     *   - DNS revalidation runs before each upstream fetch.
+     *   - The client coalesces identical in-flight GETs (SEC #23).
+     *   - Retry contract (derived, not declared):
+     *       - A multipart body never retries. The multipart body outranks all
+     *         other inputs.
+     *       - A side-effecting read retries 429 only.
+     *       - A binary GET always retries 5xx and network errors.
+     *       - Otherwise, 429 retries for all methods, and 5xx and network
+     *         errors retry only on GET.
+     *   - The client uses `Retry-After` on each retryable response, with a cap
+     *     of {@link MAX_RETRY_DELAY_MS}.
+     *   - The client reports 3xx as `TestRailApiError`. It never follows or
+     *     caches a 3xx response.
+     *   - The response-body byte cap and the wall-clock deadline apply to each
+     *     fetch.
      *
-     * A `schema` mismatch does **not** throw — see {@link parse}. The raw body
-     * is returned and {@link TestRailConfig.onSchemaMismatch} is notified.
+     * A `schema` mismatch does **not** throw (see {@link parse}). The client
+     * returns the raw body and calls {@link TestRailConfig.onSchemaMismatch}.
      *
      * @throws {TestRailApiError} On any HTTP error, network error, rate-limit
      *                            hit, timeout, oversized body, or redirect.
@@ -1147,28 +1159,37 @@ export class TestRailClientCore {
     /**
      * Validates `data` against `schema` and returns it typed as `T`.
      *
-     * **Response validation is advisory.** A mismatch does not throw: `data` is
-     * returned unchanged and {@link TestRailConfig.onSchemaMismatch} fires with
-     * the detail. Rationale — TestRail's published API contract disagrees with
-     * its wire behavior on a recurring basis (a comment-only result sends
-     * `status_id: null`; `mfa_required` sends integer `0`; several list
-     * endpoints send a bare array where the docs promise a wrapper). Every
-     * schema correction shipped by this package to date has *widened* a schema
-     * to admit a valid TestRail response, and none has narrowed one to reject an
-     * invalid one. Failing closed therefore only ever converted a working
-     * response into an outage — and because list endpoints validate a whole
-     * page at once, one unmodeled row discarded up to 250 valid ones.
+     * **Response validation is advisory.** A mismatch does not throw. The
+     * function returns `data` unchanged and calls
+     * {@link TestRailConfig.onSchemaMismatch} with the detail.
      *
-     * The hook is deliberately invoked outside the `safeParse` result handling,
-     * so a hook that throws propagates to the caller. That is the supported
-     * fail-closed opt-in (see {@link TestRailConfig.onSchemaMismatch}).
+     * The reason: the published TestRail API contract frequently disagrees with
+     * its wire behavior. For example:
      *
-     * Caller-supplied input is unaffected: client configuration is validated in
-     * the constructor and CLI write payloads in `resolveBody()`, neither of
-     * which routes through this method. Both still fail closed.
+     *   - A comment-only result sends `status_id: null`.
+     *   - `mfa_required` sends integer `0`.
+     *   - Several list endpoints send a bare array where the docs promise a
+     *     wrapper.
+     *
+     * Each schema correction that this package has shipped to date has
+     * *widened* a schema to admit a valid TestRail response. No correction has
+     * narrowed a schema to reject an invalid response. Thus, fail-closed
+     * validation only ever converted a working response into an outage.
+     * Because list endpoints validate a whole page as one unit, one unmodeled
+     * row discarded up to 250 valid rows.
+     *
+     * The function intentionally calls the hook outside the `safeParse` result
+     * handling. Thus, an error that the hook throws propagates to the caller.
+     * This behavior is the supported fail-closed opt-in (see
+     * {@link TestRailConfig.onSchemaMismatch}).
+     *
+     * This advisory behavior does not apply to caller-supplied input. The
+     * constructor validates client configuration, and `resolveBody()` validates
+     * CLI write payloads. Neither path goes through this method. Both still
+     * fail closed.
      *
      * Domain modules pass their response schema to {@link request}, which
-     * supplies the originating method and endpoint. This public helper remains
+     * supplies the originating method and endpoint. This public helper stays
      * available for callers that validate response data separately.
      *
      * @param schema Zod schema describing the expected response shape.

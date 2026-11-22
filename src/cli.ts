@@ -8,21 +8,21 @@ import { readBoundedStdin, readStdinBinary } from './cli/stdin.js';
 
 /**
  * Binary entrypoint (`bin: testrail` → `dist/cli.js`, and the `./cli` subpath
- * export). Everything process-shaped lives here so `runCli` stays a plain
- * function a test can call: argv slicing, the real streams, stdin, the exit
- * code, and the signal handlers.
+ * export). This file contains all process-specific code: argv slicing, the
+ * real streams, stdin, the exit code, and the signal handlers. Thus, `runCli`
+ * stays a plain function that a test can call.
  *
- * This is the only file in `src/` permitted to name `process.stdout` or
- * `process.stderr`; oxlint's `no-restricted-properties` rejects them
- * everywhere else, so every other byte the CLI emits has to travel through
- * these writers.
+ * This file is the only file in `src/` that is permitted to name
+ * `process.stdout` or `process.stderr`. The oxlint rule
+ * `no-restricted-properties` rejects them in all other files. Thus, all other
+ * bytes that the CLI writes must go through these writers.
  *
- * `registerProcessHandlers` is set here rather than inside `runCli` on purpose.
- * It installs `exit`/`SIGINT`/`SIGTERM` listeners that, per ARCHITECTURE.md
- * §2.6, persist for the life of the process with no safe deregistration — so a
- * test calling `runCli` must not trigger it. The CLI is a standalone process
- * and does want it, for `destroy()` on Ctrl-C and the conventional 130/143
- * exit codes.
+ * This file, not `runCli`, intentionally sets `registerProcessHandlers`. The
+ * option installs `exit`/`SIGINT`/`SIGTERM` listeners. Per
+ * ARCHITECTURE.md §2.6, these listeners stay for the life of the process, and
+ * no safe deregistration is possible. Thus, a test that calls `runCli` must not
+ * install them. The CLI is a standalone process and needs these listeners for
+ * `destroy()` on Ctrl-C and for the standard 130/143 exit codes.
  */
 
 // A reader that closes early (`testrail case list --all 2>&1 | head`) reaches

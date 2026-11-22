@@ -24,7 +24,7 @@ These two values replace the older `retry` and `bypassCache` fields.
 
 ## Side-effecting read
 
-A side-effecting read is a GET request that changes server state. The client retries this request only on HTTP `429` responses. The rate limiter rejects `429` requests before execution, so the server does not generate a report or send an email. The client never retries `5xx` or network errors because the server state is unknown. The client never reads this response from the cache because a cached response hides the new report generation.
+A side-effecting read is a GET request that changes server state. The client retries this request only on HTTP `429` responses. A `429` rejection occurs before the server executes the request. Thus, the server does not generate a report or send an email. The client never retries `5xx` or network errors because the server state is unknown. The client never reads this response from the cache because a cached response hides the new report generation.
 
 The `runReport` and `runCrossProjectReport` methods (`src/modules/reports.ts`) use this intent.
 
@@ -38,14 +38,21 @@ Bounded `getAll*()` pagination (`src/pagination.ts`) uses this intent. Caching i
 
 Upload ownership is the SDK's responsibility for a supplied file descriptor from an upload method call through cleanup.
 
-Ownership starts before ID validation and client-state checks. A rejected upload still releases its descriptor. Each upload requires a separately opened descriptor. Callers must not close or reuse a descriptor after passing it to an upload method.
+Ownership starts before ID validation and client-state checks. A rejected upload still releases its descriptor. Each upload requires a separately opened descriptor. Callers must not close or reuse a descriptor after they pass it to an upload method.
 
-The **upload lifetime** covers this ownership, body preparation, transport observation, and cleanup. Nested SDK and request calls share one lifetime. An abort request alone does not prove that transmission stopped. Cleanup uses transport evidence to prevent an incomplete file from appearing complete.
+The **upload lifetime** includes this ownership, body preparation, transport observation, and cleanup. Nested SDK and request calls share one lifetime. An abort request alone does not prove that transmission stopped. Cleanup uses transport evidence so that an incomplete file does not appear complete.
 
-A caller-visible timeout can occur before transport work settles. `trackOperation().settled` remains the way to wait for all associated work.
+A caller-visible timeout can occur before transport work settles. To wait for all associated work, use `trackOperation().settled`.
 
 ## Destructive action
 
-A destructive action is a CLI command that deletes data or closes a run or plan. Real execution requires both `TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes`. The CLI checks the environment gate before authentication. After each handler validates its inputs, the shared destructive execution workflow (`src/cli/destructive.ts`) checks soft-mode support, handles dry-run, requires confirmation, and reports success only after the SDK call succeeds.
+A destructive action is a CLI command that deletes data or closes a run or plan. Real execution requires both `TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes`. The CLI validates the environment gate before authentication. After each handler validates its inputs, the shared destructive execution workflow (`src/cli/destructive.ts`) does these steps in this order:
 
-`--dry-run` produces a local preview without calling the SDK and bypasses both confirmation gates. `--soft` requests a server-side preview on supported commands. It still makes a request and requires both gates. Unsupported `--soft` is ignored during dry-run and rejected during real execution.
+1. It validates soft-mode support.
+2. For a dry run, it writes a local preview and stops.
+3. It requires confirmation (`--yes`).
+4. It calls the SDK and reports success only after the SDK call succeeds.
+
+`--dry-run` gives a local preview and does not call the SDK. It also bypasses both confirmation gates.
+
+`--soft` requests a server-side preview on supported commands. It still sends a request and requires both gates. During a dry run, the CLI ignores an unsupported `--soft`. During real execution, the CLI rejects it.

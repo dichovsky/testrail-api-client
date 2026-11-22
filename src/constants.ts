@@ -15,30 +15,34 @@ export const DEFAULT_MAX_RETRIES = 3;
 export const MAX_RETRIES = 10;
 export const DEFAULT_CACHE_TTL_MS = 300000; // 5 minutes
 export const DEFAULT_CACHE_CLEANUP_INTERVAL_MS = 60000; // 1 minute
-/** Nested `cause` levels kept when a custom `fetch` failure is copied onto a TestRailApiError. */
+/** Number of nested `cause` levels that the client keeps when it copies a custom `fetch` failure onto a TestRailApiError. */
 export const MAX_SANITIZED_CAUSE_DEPTH = 4;
-/** Maximum delay Node.js timers accept without overflowing to a 1 ms delay. */
+/** Maximum delay that Node.js timers accept. A larger delay overflows to a 1 ms delay. */
 export const MAX_NODE_TIMER_DELAY_MS = 2_147_483_647;
 /**
  * Established constructor-compatible email syntax for TestRail credentials.
  *
- * The domain's dot is anchored to the first one after the leading character
- * (`[^\s@.]*` cannot consume a dot) so a non-matching candidate has exactly one
- * split to try. The equivalent `[^\s@]+\.[^\s@]+` accepts the same strings but
- * tries every split, which a long run of dots turns into a quadratic walk — on
- * a value the caller supplies, synchronously, in the constructor.
+ * The pattern anchors the domain dot to the first dot after the leading
+ * character, because `[^\s@.]*` cannot consume a dot. Thus, a non-matching
+ * candidate has exactly one split to try. The equivalent `[^\s@]+\.[^\s@]+`
+ * accepts the same strings but tries each split. For a long run of dots, these
+ * tries become a quadratic walk. The walk runs synchronously in the
+ * constructor, on a value that the caller supplies.
  */
 export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]+$/;
 /**
- * Shape check for a TestRail user's email address, shared by the
- * `get_user_by_email` lookup and the `add_user` / `update_user` payloads:
- * exactly one '@' with non-empty, whitespace-free local and domain parts.
- * Deliberately does NOT require a dotted (FQDN) domain — RFC 5321 permits
- * single-label domains (admin@localhost, user@corp) and domain-literals
- * (user@[192.168.1.1]), which self-hosted / LDAP / AD / SSO instances
- * legitimately store, so they must reach the API rather than being rejected
- * client-side (#236). Authoritative format validation is TestRail's
- * responsibility. The credential email above keeps its own, separate syntax.
+ * Shape check for the email address of a TestRail user. The
+ * `get_user_by_email` lookup and the `add_user` / `update_user` payloads share
+ * this check. The pattern requires exactly one '@' and non-empty local and
+ * domain parts without whitespace.
+ *
+ * The pattern intentionally does NOT require a dotted (FQDN) domain. RFC 5321
+ * permits single-label domains (admin@localhost, user@corp) and
+ * domain-literals (user@[192.168.1.1]). Self-hosted, LDAP, AD, and SSO
+ * instances legitimately store such addresses. Thus, these addresses must
+ * reach the API, and the client must not reject them (#236). Authoritative
+ * format validation is TestRail's responsibility. The credential email above
+ * keeps its own, separate syntax.
  */
 export const TESTRAIL_USER_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 export const DEFAULT_MAX_CACHE_SIZE = 1000;
@@ -50,8 +54,8 @@ export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
  *
  * TestRail caps `limit` at 250 server-side and returns HTTP 400 for `limit` of
  * 0 or > 250 (live-audit findings B.30/B.31). `validatePaginationParams`
- * rejects out-of-range `limit` client-side so callers get a clear
- * `TestRailValidationError` instead of a server round-trip + opaque 400.
+ * rejects an out-of-range `limit` on the client side. Thus, callers get a clear
+ * `TestRailValidationError`, not a server round-trip and an opaque 400.
  */
 export const MAX_PAGINATION_LIMIT = 250;
 
@@ -66,24 +70,26 @@ export const MAX_PAGINATION_BYTES = 1024 * 1024 * 1024;
 /**
  * Per-response byte caps (SEC #12 — unbounded body OOM protection).
  *
- * Every fetch site streams the response body through {@link readBodyWithLimits}
- * which aborts once `maxBytes` is exceeded so a malicious or misconfigured
- * upstream cannot exhaust client heap. JSON/text/multipart-error bodies share
- * the JSON cap; only `requestBinary` (attachment downloads) gets the larger
- * binary cap.
+ * Each fetch site streams the response body through {@link readBodyWithLimits}.
+ * That function aborts when the body exceeds `maxBytes`. Thus, a malicious or
+ * misconfigured upstream cannot exhaust the client heap. JSON, text, and
+ * multipart-error bodies share the JSON cap. Only `requestBinary` (attachment
+ * downloads) gets the larger binary cap.
  *
- * `DEFAULT_MAX_JSON_RESPONSE_BYTES` (10 MiB) covers the largest realistic
- * `get_cases`/`get_results` payloads (TestRail returns ~100 KB per 1k cases).
- * Callers with bulk-export workloads override via `maxJsonResponseBytes`.
+ * `DEFAULT_MAX_JSON_RESPONSE_BYTES` (10 MiB) is sufficient for the largest
+ * realistic `get_cases`/`get_results` response bodies (TestRail returns
+ * ~100 KB per 1k cases). Callers with bulk-export workloads override the
+ * default through `maxJsonResponseBytes`.
  *
- * `DEFAULT_MAX_BINARY_RESPONSE_BYTES` (100 MiB) covers typical attachments
- * (screenshots, video clips). Larger attachments require an explicit
- * `maxBinaryResponseBytes` override and risk OOM on small-memory hosts —
- * stream-to-disk is tracked as a separate item.
+ * `DEFAULT_MAX_BINARY_RESPONSE_BYTES` (100 MiB) is sufficient for typical
+ * attachments (screenshots, video clips). Larger attachments require an
+ * explicit `maxBinaryResponseBytes` override. They can also cause OOM on
+ * small-memory hosts. A separate item tracks stream-to-disk support.
  *
- * `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) is the hard ceiling accepted by the
- * config validator; anything larger is rejected at construction time so a
- * caller cannot disable the guard by passing `Number.MAX_SAFE_INTEGER`.
+ * `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) is the hard ceiling that the
+ * configuration validator accepts. The client rejects any larger value at
+ * construction time. Thus, a caller cannot disable the guard with
+ * `Number.MAX_SAFE_INTEGER`.
  */
 export const DEFAULT_MAX_JSON_RESPONSE_BYTES = 10 * 1024 * 1024;
 export const DEFAULT_MAX_BINARY_RESPONSE_BYTES = 100 * 1024 * 1024;
@@ -93,22 +99,23 @@ export const MAX_RESPONSE_BYTES_LIMIT = 1024 * 1024 * 1024;
  * Maximum size in bytes for a --data-file payload (1 MiB).
  *
  * SEC #17: `readFileSync` with no size cap could exhaust memory on a
- * large file. The cap is sized to cover the largest realistic JSON body
- * (bulk case payloads with thousands of cases) while keeping OOM impossible.
+ * large file. The cap is sufficient for the largest realistic JSON body
+ * (bulk case payloads with thousands of cases). The cap also makes OOM
+ * impossible.
  */
 export const MAX_DATA_FILE_BYTES = 1_048_576;
 
 /**
  * CLI stdin read cap. CTF audit #24: `readFileSync(0, 'utf-8')` reads
- * the entire pipe into memory unbounded. A pipe larger than container
- * memory (typical CI runner: 512 MB–1 GB) OOM-kills the process; on
- * 64-bit hosts V8 throws RangeError at ~1 GB on strings. 1 MiB covers
- * the largest realistic JSON body (bulk case payloads with thousands
- * of cases) while making OOM impossible.
+ * the entire pipe into memory without a limit. A pipe larger than container
+ * memory (typical CI runner: 512 MB–1 GB) OOM-kills the process. On
+ * 64-bit hosts, V8 throws RangeError at ~1 GB on strings. A cap of 1 MiB is
+ * sufficient for the largest realistic JSON body (bulk case payloads with
+ * thousands of cases). The cap also makes OOM impossible.
  *
- * Used by both the body-stdin path (resolveBody) and the --api-key-stdin
- * path (a credential is at most a few hundred bytes; the 1 MiB cap is
- * orders of magnitude beyond any sensible API key).
+ * Both the body-stdin path (resolveBody) and the --api-key-stdin path use
+ * this cap. A credential is at most a few hundred bytes. The 1 MiB cap is
+ * orders of magnitude larger than any sensible API key.
  */
 export const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -126,47 +133,50 @@ export const MAX_CLI_DIAGNOSTIC_DECODE_PASSES = 3;
 export const CLI_DIAGNOSTIC_FILE_MODE = 0o600;
 export const CLI_DIAGNOSTIC_DIRECTORY_MODE = 0o700;
 export const CLI_DIAGNOSTIC_PERMISSION_MASK = 0o777;
-/** Deadline for clearing inherited macOS ACLs on a diagnostic reservation. */
+/** Deadline to clear inherited macOS ACLs on a diagnostic reservation. */
 export const CLI_DIAGNOSTIC_ACL_TIMEOUT_MS = 1000;
 
 /**
  * Multipart form field name TestRail expects for an attachment upload.
  *
- * No longer a cross-module agreement: `src/upload-source.ts` both appends this
- * entry and looks it back up, so the drift it used to guard against — a
- * mismatch leaving `ownUploadStreams` with a no-op cleanup, resolving `settled`
- * while the upload was still streaming — is no longer expressible. It stays
- * exported only so tests can drive `ownUploadStreams` with a hand-built
- * FormData.
+ * This name is no longer a cross-module agreement. `src/upload-source.ts` both
+ * appends this entry and reads it back from the form. Earlier, a mismatch
+ * could leave `ownUploadStreams` with a no-op cleanup. Then `settled` could
+ * resolve while the upload was still streaming. The current code cannot
+ * express that mismatch. The constant stays exported only so that tests can
+ * drive `ownUploadStreams` with a hand-built FormData.
  */
 export const MULTIPART_FIELD_NAME = 'attachment';
 
 /**
  * CLI binary stdin upload cap (PR3a — `--file -` sentinel). The text-body
  * `MAX_STDIN_BYTES` is too small for binary attachment uploads (screenshots,
- * videos, log archives). Sized at 100 MiB to match
- * `DEFAULT_MAX_BINARY_RESPONSE_BYTES`: symmetric upload/download ceilings and
- * an order-of-magnitude headroom below `MAX_RESPONSE_BYTES_LIMIT` (1 GiB).
- * A producer streaming more than this is almost certainly a misconfiguration
- * (wrong pipe, unbounded `tail -f`, or a DoS attempt); fail fast.
+ * videos, log archives). The cap is 100 MiB to match
+ * `DEFAULT_MAX_BINARY_RESPONSE_BYTES`. Thus, the upload and download ceilings
+ * are symmetric, with an order-of-magnitude headroom below
+ * `MAX_RESPONSE_BYTES_LIMIT` (1 GiB). A producer that streams more than this
+ * cap is almost certainly a misconfiguration (wrong pipe, unbounded `tail -f`,
+ * or a DoS attempt). The read fails fast in that case.
  *
- * Hard ceiling — not configurable via TestRailConfig because the cap exists
- * to prevent process OOM at the CLI layer, not to throttle the API. Callers
- * who legitimately need to upload more should split the file or use the
- * upcoming streaming-upload path (BACKLOG: `streaming upload for large files`).
+ * This cap is a hard ceiling. It is not configurable through TestRailConfig,
+ * because the cap prevents process OOM at the CLI layer. The cap is not a
+ * throttle for the API. Callers who legitimately need to upload more should
+ * split the file or use the upcoming streaming-upload path (BACKLOG:
+ * `streaming upload for large files`).
  */
 export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 /**
  * CLI stdin wall-clock deadline for the `--file -` binary upload (PR3a;
  * SEC #24 partial mitigation). The byte cap (`MAX_STDIN_UPLOAD_BYTES`)
- * defends against memory exhaustion, but a producer that holds the pipe
- * open without ever sending more than the cap (a stalled `curl`, `tail -f`,
- * an unclosed FIFO) would leave the CLI blocked on stdin indefinitely.
+ * protects against memory exhaustion. But a producer can hold the pipe open and never
+ * send more than the cap, for example a stalled `curl`, `tail -f`, or an
+ * unclosed FIFO. Without a deadline, such a producer would leave the CLI
+ * blocked on stdin indefinitely.
  *
- * 30 seconds matches `DEFAULT_TIMEOUT_MS` so a stdin-piped upload terminates
- * within the same envelope as a network request. The reader uses
- * `AbortController` rather than a polling loop so the wait is non-blocking
+ * The value of 30 seconds matches `DEFAULT_TIMEOUT_MS`. Thus, a stdin-piped
+ * upload stops within the same time limit as a network request. The reader
+ * uses `AbortController`, not a polling loop. Thus, the wait is non-blocking,
  * and cancellation propagates cleanly through `for await (chunk of stdin)`.
  */
 export const STDIN_READ_TIMEOUT_MS = 30000;
@@ -183,9 +193,9 @@ export const STDIN_RETRY_INTERVAL_MS = 10;
 
 /**
  * Indent width (in spaces) for the CLI YAML renderer. Two-space indent is the
- * de-facto standard across major YAML libraries (PyYAML, js-yaml, ruamel) and
- * matches the project's prettier config for JSON output. Centralized here so
- * the renderer doesn't carry a hardcoded literal.
+ * usual standard in major YAML packages (PyYAML, js-yaml, ruamel). It also
+ * matches the project's prettier configuration for JSON output. The constant
+ * is in this file so that the renderer does not have a hardcoded literal.
  */
 export const YAML_INDENT_SPACES = 2;
 

@@ -8,9 +8,10 @@ import { createPaginatedListExecutor } from './paginated-list.js';
 import { withMultipartUpload } from '../upload-lifetime.js';
 
 /**
- * Optional pagination params. TestRail documents them for case-, run-, and
- * plan-scoped attachment lists. The test-scoped method retains its historical
- * support for these options even though current upstream docs omit them.
+ * Optional pagination parameters. TestRail documents these parameters for
+ * case-, run-, and plan-scoped attachment lists. The test-scoped method keeps
+ * its historical support for these options, even though the current upstream
+ * documentation does not include them.
  */
 export interface GetAttachmentsOptions {
     /** Maximum number of attachments to return (TestRail's server default is 250). */
@@ -74,7 +75,7 @@ export class AttachmentModule {
         return ATTACHMENTS_PAGINATION.page(this.client, { operation: 'get_attachments_for_case', caseId }, options);
     }
 
-    /** Fetch every case-attachment page under explicit aggregate safety bounds. */
+    /** Fetch all case-attachment pages. Explicit aggregate safety limits apply. */
     async getAllAttachmentsForCase(caseId: number, options?: GetAllAttachmentsOptions): Promise<Attachment[]> {
         return ATTACHMENTS_PAGINATION.all(this.client, { operation: 'get_attachments_for_case', caseId }, options);
     }
@@ -89,7 +90,7 @@ export class AttachmentModule {
         return ATTACHMENTS_PAGINATION.page(this.client, { operation: 'get_attachments_for_run', runId }, options);
     }
 
-    /** Fetch every run-attachment page under explicit aggregate safety bounds. */
+    /** Fetch all run-attachment pages. Explicit aggregate safety limits apply. */
     async getAllAttachmentsForRun(runId: number, options?: GetAllAttachmentsOptions): Promise<Attachment[]> {
         return ATTACHMENTS_PAGINATION.all(this.client, { operation: 'get_attachments_for_run', runId }, options);
     }
@@ -109,18 +110,19 @@ export class AttachmentModule {
         return ATTACHMENTS_PAGINATION.page(this.client, { operation: 'get_attachments_for_plan', planId }, options);
     }
 
-    /** Fetch every plan-attachment page under explicit aggregate safety bounds. */
+    /** Fetch all plan-attachment pages. Explicit aggregate safety limits apply. */
     async getAllAttachmentsForPlan(planId: number, options?: GetAllAttachmentsOptions): Promise<Attachment[]> {
         return ATTACHMENTS_PAGINATION.all(this.client, { operation: 'get_attachments_for_plan', planId }, options);
     }
 
     /**
-     * `entryId` is the test plan entry's GUID (e.g. `"3933d74b-…"`), as
-     * returned by `getPlan(...).entries[].id` — NOT a numeric ID. The
-     * `{plan_id}/{entry_id}` path matches the plan-entry endpoints
-     * (`updatePlanEntry`, `deletePlanEntry`); TestRail rejects a numeric
-     * `entry_id` here with HTTP 400 "Field :entry_id is not a valid test
-     * plan entry". (TestRail's Attachments doc mislabels it `integer`.)
+     * `entryId` is the GUID of the test plan entry (for example
+     * `"3933d74b-…"`), as `getPlan(...).entries[].id` returns it. It is NOT a
+     * numeric ID. The `{plan_id}/{entry_id}` path matches the plan-entry
+     * endpoints (`updatePlanEntry`, `deletePlanEntry`). TestRail rejects a
+     * numeric `entry_id` for this endpoint with HTTP 400 "Field :entry_id is
+     * not a valid test plan entry". The TestRail Attachments documentation
+     * incorrectly gives its type as `integer`.
      *
      * @testrail GET get_attachments_for_plan_entry/{plan_id}/{entry_id}
      */
@@ -196,8 +198,8 @@ export class AttachmentModule {
     }
 
     /**
-     * `entryId` is the test plan entry's GUID (see {@link getAttachmentsForPlanEntry}),
-     * not a numeric ID; a numeric value is rejected by TestRail with HTTP 400.
+     * `entryId` is the GUID of the test plan entry (see {@link getAttachmentsForPlanEntry}),
+     * not a numeric ID. TestRail rejects a numeric value with HTTP 400.
      *
      * @testrail POST add_attachment_to_plan_entry/{plan_id}/{entry_id}
      */

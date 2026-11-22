@@ -68,12 +68,12 @@ export class RunModule {
         return RUNS_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    /** Get one response page. When TestRail sends pagination metadata, the method keeps it. */
     async getRunsPage(projectId: number, options?: GetRunsOptions): Promise<Page<Run>> {
         return RUNS_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Get every run under the configured pagination safety bounds. */
+    /** Get all runs. The configured pagination safety limits apply. */
     async getAllRuns(projectId: number, options?: GetAllRunsOptions): Promise<Run[]> {
         return RUNS_PAGINATION.all(this.client, { projectId }, options);
     }
@@ -112,9 +112,10 @@ export class RunModule {
 
     /**
      * Delete a test run and all associated test results. Pass
-     * `{ soft: true }` for TestRail's server-side preview (`soft=1`) —
-     * the API call still happens but nothing is deleted; TestRail returns
-     * counts of affected entities. TestRail 6.5+ for soft-mode.
+     * `{ soft: true }` to request the TestRail server-side preview
+     * (`soft=1`). The client still sends the request, but TestRail deletes no
+     * data. TestRail returns counts of affected entities. Soft mode requires
+     * TestRail 6.5 or later.
      *
      * @testrail POST delete_run/{run_id}
      */
