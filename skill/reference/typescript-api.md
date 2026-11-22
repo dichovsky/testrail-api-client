@@ -48,10 +48,10 @@ try {
 ```
 
 Use the snippets below inside the `try` block above. Move any extra imports to the top of your file.
-Choose the calls you need; these snippets are not one script to run in order.
-Some snippets use a `suite`, `section`, or `run` created in another example. Create those entities in the same `try` block.
+Choose the calls that you need. These snippets are not one script to run in order.
+Some snippets use a `suite`, `section`, or `run` that another example creates. Create those entities in the same `try` block.
 Replace example IDs with valid IDs from your TestRail instance.
-Call `destroy()` after the final request, or from your application's shutdown hook. A destroyed client cannot make further requests.
+Call `destroy()` after the last request, or from your application's shutdown hook. A destroyed client cannot send more requests.
 The CLI manages this lifecycle automatically.
 
 All endpoint methods return `Promise<T>`, and all error classes extend `Error`:
@@ -62,9 +62,9 @@ All endpoint methods return `Promise<T>`, and all error classes extend `Error`:
 
 ### Validate dynamic write input
 
-SDK payload types check input only at compile time.
+SDK payload types validate input only at compile time.
 SDK methods do not parse payloads at runtime. CLI write commands validate payloads automatically.
-Call `.parse()` on the Zod schema to validate untrusted or dynamic input before calling the SDK:
+Call `.parse()` on the Zod schema to validate untrusted or dynamic input before you call the SDK:
 
 ```typescript
 import { AddResultPayloadSchema } from '@dichovsky/testrail-api-client';
@@ -153,7 +153,7 @@ const runs = await client.runs.getAllRuns(1, { pageSize: 100 });
 await client.runs.updateRun(run.id, { milestone_id: 7 });
 ```
 
-Keep the run open while writing results. The next example closes it after the final write.
+Keep the run open while you write results. The next example closes it after the last write.
 
 ### Results
 
@@ -348,8 +348,8 @@ See the [networking guide](https://github.com/dichovsky/testrail-api-client/blob
 
 ### Error narrowing pattern
 
-A write can reach TestRail before an error occurs. Check server state before repeating a failed write.
-The SDK does not apply the CLI's destructive-action gates; your application must provide its own confirmation.
+A write can reach TestRail before an error occurs. Check the server state before you repeat a failed write.
+The SDK does not apply the CLI's destructive-action gates. Your application must supply its own confirmation.
 
 ```typescript
 async function safelyDeleteCase(id: number) {
@@ -373,4 +373,4 @@ async function safelyDeleteCase(id: number) {
 
 See the [source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) for all public methods.
 See the [API coverage matrix](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) for endpoint, SDK, and CLI mappings.
-The [SDK guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md) covers caching, pagination, response validation, and custom fields.
+The [SDK guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md) includes caching, pagination, response validation, and custom fields.

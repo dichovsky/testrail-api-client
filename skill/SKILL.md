@@ -11,10 +11,10 @@ metadata:
 # `testrail` CLI
 
 `testrail` is a Node.js CLI for the TestRail REST API. It has one runtime dependency: Zod.
-Use this CLI to query (`get`, `list`) and write (`add`, `update`, `add-bulk`, `add-entry`, `close`) TestRail entities.
+Use this CLI to read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `add-entry`, `close`) TestRail entities.
 Supported entities include projects, suites, cases, runs, plans, results, milestones, and users.
 
-This skill gives coding agents the rules for running shell commands.
+This skill gives coding agents the rules to run shell commands.
 Use the official TestRail documentation for browser UI workflows.
 
 ## When to use this skill
@@ -24,11 +24,11 @@ Use the official TestRail documentation for browser UI workflows.
 
 ## Install and verify
 
-The npm package `@dichovsky/testrail-api-client` provides the `testrail` binary.
+The npm package `@dichovsky/testrail-api-client` supplies the `testrail` binary.
 It requires Node.js 26 or newer (`engines.node: ">=26"`). Version `9.0.0` supports Node.js 24.
 Version `7.2.0` supports Node.js 20 and 22.
 1. Install the package locally.
-2. Verify the binary:
+2. Make sure that the binary runs:
 
 ```bash
 npm install @dichovsky/testrail-api-client
@@ -67,12 +67,12 @@ Read the reference files only when your task requires detailed lookup data:
 | File | Read it when |
 | --- | --- |
 | `./reference/commands.md` | You need the full command surface or the complete CLI option list. |
-| `./reference/recipes.md` | You need a worked example for a specific task. Numbered recipes cover every command. |
+| `./reference/recipes.md` | You need a worked example for a specific task. Each command has a numbered recipe. |
 | `./reference/payload-schemas.yaml` | You need field-level details for a write payload. |
 | `./reference/typescript-api.md` | You write TypeScript or JavaScript, or you need client configuration and lifecycle control. |
 
 Run `testrail <resource> --help` (for example, `testrail case --help`) to list actions for one resource.
-Run `testrail --help` to list every command.
+Run `testrail --help` to list all commands.
 
 ## Body input for write actions
 
@@ -89,13 +89,13 @@ testrail case add 5 --data-file payload.json
 echo '{"title":"New case"}' | testrail case add 5
 ```
 
-If you provide zero or multiple body sources, the CLI exits with code 1.
+If you supply zero or multiple body sources, the CLI exits with code 1.
 JSON input from stdin and `--data-file` has a 1 MiB limit. Split larger payloads into smaller requests.
 Do not use stdin for the JSON body when you pass `--api-key-stdin`. Only one input source can read file descriptor 0.
 
 ### `--dry-run`
 
-Pass `--dry-run` to validate the payload and print a local preview. It makes no API call and uses no TestRail quota.
+Pass `--dry-run` to validate the payload and print a local preview. The dry run sends no API request and uses no TestRail quota.
 
 ```bash
 testrail case add 5 --data '{"title":"x"}' --dry-run
@@ -103,11 +103,11 @@ testrail case add 5 --data '{"title":"x"}' --dry-run
 
 ## Destructive operations
 
-Every destructive CLI action requires both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`.
-This includes all `delete` commands, `run close`, and `plan close`.
+Each destructive CLI action requires both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`.
+Destructive CLI actions include all `delete` commands, `run close`, and `plan close`.
 
-1. **`--yes` flag**: Confirms the command for one invocation. Pass `--yes` on every destructive command. Without `--yes`, the CLI exits with code `1` and prints `Destructive action; pass --yes to confirm.`
-2. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env var**: Unlocks destructive actions for the process. Set this variable to the exact string `'1'`. The CLI rejects `'true'`, `'yes'`, `'on'`, and `'1 '`. If this variable is missing or invalid, the CLI exits with code `2`.
+1. **`--yes` flag**: The flag confirms one command. Pass `--yes` on each destructive command. Without `--yes`, the CLI exits with code `1` and prints `Destructive action; pass --yes to confirm.`
+2. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env var**: The variable unlocks destructive actions for the process. Set this variable to the exact string `'1'`. The CLI rejects `'true'`, `'yes'`, `'on'`, and `'1 '`. If this variable is missing or invalid, the CLI exits with code `2`.
 
 TestRail cannot reopen a closed run or plan.
 
@@ -131,7 +131,7 @@ testrail run delete 5 --dry-run
 
 **`--soft` (server-side preview)** applies to `case delete`, `case delete-bulk`, `run delete`, `section delete`, and `suite delete`.
 `--soft` sends an API request and requires both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`.
-Use `--dry-run` if you want a local preview with no API call.
+Use `--dry-run` if you want a local preview with no API request.
 
 ## Payload schemas
 
@@ -201,14 +201,14 @@ schemas:
 ```
 <!-- /GENERATED:payload-schemas -->
 
-To validate dynamic SDK input at runtime, import the payload schema and call `.parse(input)` before calling the method.
+To validate dynamic SDK input at runtime, import the payload schema. Then call `.parse(input)` before you call the method.
 
 ## Output
 
 By default, `testrail` writes formatted JSON to stdout.
 Pass `--format table` for human-readable table output.
 Pass `--quiet` to suppress standard output, error messages, and advisory warnings. Check the exit code for the result.
-When you pass `--out -`, the CLI still writes the downloaded payload bytes to stdout and suppresses only the JSON acknowledgment.
+When you pass `--out -`, the CLI still writes the downloaded bytes to stdout and suppresses only the JSON acknowledgment.
 
 ```bash
 testrail project get 1                  # JSON (default)
@@ -218,9 +218,9 @@ testrail run get 5 --quiet              # Exit code 0/1 only
 
 ### Filter output
 
-The CLI outputs complete entities. Filter large responses in the shell to keep only the fields needed for the task.
+The CLI outputs complete entities. Filter large responses in the shell to keep only the fields that the task needs.
 
-Use `jq` when available:
+Use `jq` if it is available:
 
 ```bash
 testrail run get 5 | jq '.passed_count'
@@ -250,9 +250,10 @@ testrail project list --all --page-size 100 --max-items 10000
 
 Do not combine `--page` and `--all`.
 Do not combine `--all` with `--limit` or `--offset`. Use `--page-size` and `--start-offset` with `--all`.
-Aggregate safety flags are `--max-pages`, `--max-items`, `--max-duration-ms`, and `--max-bytes`.
-Default limits are 250 items per page, offset 0, 100 pages, 25,000 items, 5 minutes, and 100 MiB.
-Hard maximums are 250 items per page, 5 minutes, and 1 GiB.
+
+The aggregate safety flags are `--max-pages`, `--max-items`, `--max-duration-ms`, and `--max-bytes`.
+The default limits are 250 items per page, offset 0, 100 pages, 25,000 items, 5 minutes, and 100 MiB.
+The hard maximums are 250 items per page, 5 minutes, and 1 GiB.
 The CLI prints no partial array if a limit, continuation, request, or page check fails.
 In the SDK, pagination failures throw `TestRailPaginationError` with reason `max_pages`, `max_items`, `max_duration`, `max_bytes`, `invalid_page`, `invalid_continuation`, or `non_progress`.
 
@@ -264,6 +265,7 @@ For these endpoints, `--all` accepts safety limits but rejects `--page-size` and
 Test attachments, plan-entry attachments, users, and standard metadata, configuration, and report lists do not support `--page` or `--all`.
 
 In the SDK, `get*()` returns one response array. `get*Page()` returns `Page<T>`. `getAll*()` returns the complete array within safety limits.
+
 `_links.next` controls continuation. The client extracts only validated query parameters and rebuilds the known endpoint path.
 It never follows the host or path from `_links.next`.
 Legacy bare arrays stop pagination. `getAll*()` bypasses the GET cache so it does not mix pages from different times.
@@ -278,14 +280,16 @@ Warnings never include the endpoint URL, field names, issue messages, or raw res
 
 Pass `--strict-responses` or set `TESTRAIL_STRICT_RESPONSES=1` in CI to exit with code 1 on the first mismatch.
 Read mismatches throw `TestRailValidationError`.
-Write-response mismatches throw a redacted `TestRailApiError` that states the write outcome is unknown. Do not retry that write automatically.
+Write-response mismatches throw a redacted `TestRailApiError` that states that the result of the write is unknown. Do not retry that write automatically.
+
 Single-request commands emit no mismatched output, and `--all` commands emit no partial array.
 A streaming `run watch` command keeps events that completed in earlier polls.
-`TESTRAIL_STRICT_RESPONSES` accepts `1`, `0`, an empty string, or unset. The CLI rejects other values before authentication or network calls.
+
+`TESTRAIL_STRICT_RESPONSES` accepts `1`, `0`, an empty string, or unset. The CLI rejects other values before authentication or network requests.
 Do not pass a value to `--strict-responses` (such as `--strict-responses=true`). Pass `--quiet` to suppress advisory warnings.
 
 Response types match the declared schema keys.
-Only `Case`, `Test`, and `Result` provide flat `custom_*` index access, which returns `unknown`. Narrow the value before use.
+Only `Case`, `Test`, and `Result` have flat `custom_*` index access, which returns `unknown`. Narrow the value before you use it.
 The nested `custom_fields` property is deprecated.
 Stable fields include `Test.refs_data`, `Test.case_title`, `Result.case_title`, `Result.case_refs`, case/result field system flags, and recursive milestone children.
 
@@ -313,8 +317,8 @@ Common error messages:
 - `<resource> <action> requires --out <path|->.`: Pass `--out` for `attachment get` or `bdd get`.
 - `Refusing to overwrite '<path>'; pass --force to overwrite.`: The `--out` file already exists. Pass `--force` to overwrite it.
 - `Destructive action; pass --yes to confirm.`: Pass `--yes` for destructive actions such as `attachment delete`, `case delete-bulk`, or `run close`.
-- `unknown flag '--<name>'. Run --help for the full list.`: Fix the misspelled flag (such as `--dryrun` instead of `--dry-run`).
-- `--filename requires a value, but the next argument was the flag --dry-run.`: Provide a filename value. Use `--filename=--dry-run` only for a literal filename.
+- `unknown flag '--<name>'. Run --help for the full list.`: Fix the misspelled flag (for example, change `--dryrun` to `--dry-run`).
+- `--filename requires a value, but the next argument was the flag --dry-run.`: Supply a filename value. Use `--filename=--dry-run` only for a literal filename.
 - `--api-key-stdin requires the API key to be piped on stdin (…).`: Pipe the API key to stdin when you pass `--api-key-stdin`.
 - `Input exceeds maximum 1048576 bytes. …`: Keep the stdin body or `--api-key-stdin` input under 1 MiB.
 
@@ -329,20 +333,22 @@ testrail case-field list --diagnostic-file ./testrail-error.json
 The CLI creates a private file before the command runs and rejects existing file paths.
 On failure, the file records the HTTP status, whether handler execution started, and allowlisted messages from JSON error responses.
 It excludes raw request and response bodies, headers, stack traces, and credentials.
-On success, the CLI deletes the reserved file.
-`--quiet` still writes the diagnostic file when requested. `--dry-run` skips diagnostic file creation.
-The CLI rejects `--diagnostic-file` on Windows because this implementation cannot enforce private file permissions there.
+On success, the CLI removes the reserved file.
+
+With `--quiet`, the CLI still writes a requested diagnostic file. `--dry-run` skips diagnostic file creation.
+The CLI rejects `--diagnostic-file` on Windows because this implementation cannot apply private file permissions there.
+
 Do not repeat a failed write command only to capture a diagnostic file.
 
 ## Limits
 
-- **Rate limit:** The default limit is 100 requests per 60 seconds. The CLI throws an error immediately when the limit is exceeded.
-- **GET cache:** The client caches eligible GET responses in memory for 5 minutes. Every write sent to TestRail clears the entire cache, whatever its outcome. `run watch` disables the cache so every poll queries TestRail. `getAll*()` bypasses the cache and request coalescing. `get*Page()` uses a separate strict-schema cache namespace.
-- **Retry:** Ordinary GET requests retry on 5xx responses, 429 responses, and network errors. Report execution GETs (`report run` and `report run-cross-project`) retry only on 429. JSON write requests retry only on 429 to prevent duplicate writes. Multipart uploads never retry. The client retries up to 3 times with exponential backoff and honors `Retry-After`. It does not retry other 4xx errors, timeouts, redirects, or body-limit errors.
-- **No coercion on write payloads:** The CLI does not convert `"5"` to `5`. This rule catches type errors before sending an API request.
-- **`custom_*` fields:** Zod `.passthrough()` schemas preserve custom fields. Only `Case`, `Test`, and `Result` expose flat `custom_*` bracket access as `unknown`. Narrow these values before use.
-- **Terminal output sanitization (v3.0):** The CLI strips C0, C1, and DEL control bytes from stderr messages and `--format table` cells. This prevents terminal escape-sequence injection. As a result, `--format table` removes literal `\n` and `\t` characters from cell values. Use `--format json` to keep them: JSON output writes each C0, C1, and DEL control character as an escape such as `\n`, `\t`, or `\u009b`, so the parsed value is unchanged and no control byte reaches the terminal.
-- **Input bounds:** JSON stdin, API-key stdin, and `--data-file` have a 1 MiB limit. Binary `--file -` uploads have a 100 MiB limit and a 30-second timeout. Stdin reads wait for the pipe to close (on Linux and macOS, for at most 30 seconds). If stdin might stay open, use `--data` or `--data-file`, or redirect `</dev/null`.
+- **Rate limit:** The default limit is 100 requests per 60 seconds. The CLI throws an error immediately when a request exceeds the limit.
+- **GET cache:** The client caches eligible GET responses in memory for 5 minutes. Each write that the client sends to TestRail clears the entire cache, even when the write fails. `run watch` disables the cache so that each poll sends a request to TestRail. `getAll*()` bypasses the cache and request coalescing. `get*Page()` uses a separate strict-schema cache namespace.
+- **Retry:** Ordinary GET requests retry on 5xx responses, 429 responses, and network errors. Report execution GETs (`report run` and `report run-cross-project`) retry only on 429. JSON write requests retry only on 429 to prevent duplicate writes. Multipart uploads never retry. The client retries up to 3 times with exponential backoff and uses `Retry-After`. It does not retry other 4xx errors, timeouts, redirects, or body-limit errors.
+- **No coercion on write payloads:** The CLI does not convert `"5"` to `5`. This rule catches type errors before the CLI sends an API request.
+- **`custom_*` fields:** Zod `.passthrough()` schemas keep custom fields. Only `Case`, `Test`, and `Result` expose flat `custom_*` bracket access as `unknown`. Narrow these values before you use them.
+- **Terminal output sanitization (v3.0):** The CLI strips C0, C1, and DEL control bytes from stderr messages and `--format table` cells. This sanitization prevents terminal escape-sequence injection. As a result, `--format table` removes literal `\n` and `\t` characters from cell values. Use `--format json` to keep them. JSON output writes each C0, C1, and DEL control character as an escape, such as `\n`, `\t`, or `\u009b`. Thus, the parsed value is unchanged, and no control byte reaches the terminal.
+- **Input bounds:** JSON stdin, API-key stdin, and `--data-file` have a 1 MiB limit. Binary `--file -` uploads have a 100 MiB limit and a 30-second timeout. Stdin reads wait for the pipe to close (on Linux and macOS, for at most 30 seconds). If stdin can stay open, use `--data` or `--data-file`, or redirect `</dev/null`.
 - **Strict flag parsing (v3.0):** Unknown or misspelled flags (such as `--dryrun`) cause the CLI to exit with code 1.
 
 ## Falling back to the programmatic SDK
@@ -350,11 +356,13 @@ Do not repeat a failed write command only to capture a diagnostic file.
 Fix CLI syntax or payload validation errors before you switch to the SDK.
 The SDK uses the same payload types at compile time, but it does not validate payloads at runtime.
 Neither interface converts `"5"` to `5`.
-Only the CLI enforces cross-field rules at runtime, such as requiring `status_id`, `comment`, or `assignedto_id` on new results.
-If the CLI rejects a payload, fix the payload instead of sending it through the SDK.
+
+Only the CLI applies cross-field rules at runtime. For example, a new result requires `status_id`, `comment`, or `assignedto_id`.
+If the CLI rejects a payload, fix the payload. Do not send it through the SDK.
+
 Use the exported Zod schemas to parse dynamic input in SDK code.
-Every documented SDK endpoint has a matching CLI action in `./reference/commands.md`.
-Read `./reference/typescript-api.md` when you write TypeScript or JavaScript or need client lifecycle control.
+Each documented SDK endpoint has a matching CLI action in `./reference/commands.md`.
+Read `./reference/typescript-api.md` when you write TypeScript or JavaScript, or when you need client lifecycle control.
 
 Do not switch to the SDK when TestRail returns an HTTP 4xx/5xx error, authentication failure, or rate-limit error.
 The SDK calls the same TestRail endpoints and returns the same error.
@@ -371,7 +379,7 @@ testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "prior
 
 ## When to use another interface
 
-- **Unsupported CRUD operations:** `./reference/commands.md` lists every supported endpoint. Operations missing from that table are also absent from the SDK. Use the TestRail web UI for unsupported operations. For example, case statuses are read-only in both the CLI and SDK.
+- **Unsupported CRUD operations:** `./reference/commands.md` lists all supported endpoints. Operations missing from that table are also absent from the SDK. Use the TestRail web UI for unsupported operations. For example, case statuses are read-only in both the CLI and SDK.
 - **Browser UI workflows:** This CLI is non-interactive.
 
 The CLI supports attachment upload, download, and deletion, plus BDD (`.feature`) upload and download.
