@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "10.0.0"
   },
-  "sourceHash": "9706c5c7a2a5dcbd37b373877b2a19c6ffc108d199d9aef30caf5859d2af1136",
+  "sourceHash": "9a83c9a1636d13ff594e1aa5b2f65afedf88586ab88002ad3097c3dbb36821f0",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1121,9 +1121,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 198,
+      "line": 210,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
-      "jsdoc": "Utility to convert ZodError into TestRailValidationError."
+      "jsdoc": "Converts a `ZodError` into a `TestRailValidationError`."
     },
     {
       "name": "HistoryChange",
@@ -1788,9 +1788,9 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailApiError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 12,
+      "line": 13,
       "signature": "export class TestRailApiError extends Error",
-      "jsdoc": "Thrown when communication with TestRail fails or a successful response cannot be used safely. This includes non-2xx responses, network/body-processing failures, and unrecognized outer response structures. The optional `response` retains the raw server value for programmatic inspection; callers should not expose it in logs because it can contain instance data."
+      "jsdoc": "Thrown when communication with TestRail fails, or when the client cannot use a successful response safely. Causes include non-2xx responses, network and body-processing failures, and unrecognized outer response structures. The optional `response` keeps the raw server value for programmatic inspection. Callers should not put `response` in logs, because it can contain instance data."
     },
     {
       "name": "TestRailClient",
@@ -1820,23 +1820,23 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "TestRailLicenseError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 107,
+      "line": 115,
       "signature": "export class TestRailLicenseError extends TestRailApiError",
-      "jsdoc": "Thrown when TestRail rejects a request because the instance lacks the required Enterprise license/subscription (HTTP 403 with a \"Not an Enterprise license/subscription.\" body — live-audit findings B.22/B.33). A subclass of , so existing `catch (TestRailApiError)` handlers still catch it; callers that want to branch on license gating specifically can use `instanceof TestRailLicenseError`."
+      "jsdoc": "Thrown when TestRail rejects a request because the instance does not have the required Enterprise license or subscription. TestRail returns HTTP 403 with a body such as \"Not an Enterprise license/subscription.\" (live-audit findings B.22/B.33). This class is a subclass of , so existing `catch (TestRailApiError)` handlers still catch it. Callers that want to branch on the license restriction specifically can use `instanceof TestRailLicenseError`."
     },
     {
       "name": "TestRailPaginationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 182,
+      "line": 194,
       "signature": "export class TestRailPaginationError extends TestRailValidationError",
-      "jsdoc": "Thrown when a bounded multi-page read cannot complete safely. HTTP and network failures remain ; this subtype represents client-side page structure, continuation, and aggregation-policy failures."
+      "jsdoc": "Thrown when a bounded multi-page read cannot complete safely. HTTP and network failures stay errors. This subtype is for client-side failures of page structure, continuation, and aggregation policy."
     },
     {
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 167,
+      "line": 179,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -7972,119 +7972,119 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "TestRailApiError",
           "kind": "class",
-          "line": 12,
+          "line": 13,
           "exported": true,
           "signature": "export class TestRailApiError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 13
+              "line": 14
             }
           ]
         },
         {
           "name": "networkError",
           "kind": "function",
-          "line": 33,
+          "line": 35,
           "exported": true,
           "signature": "export function networkError(reason: unknown, context = '', options?: { readonly cause: unknown }): TestRailApiError"
         },
         {
           "name": "dnsLookupFailures",
           "kind": "const",
-          "line": 39,
+          "line": 41,
           "exported": false,
           "signature": "const dnsLookupFailures = new WeakSet<object>()"
         },
         {
           "name": "dnsLookupError",
           "kind": "function",
-          "line": 46,
+          "line": 48,
           "exported": true,
           "signature": "export function dnsLookupError(reason: unknown, hostname: string): TestRailApiError"
         },
         {
           "name": "isDnsLookupFailure",
           "kind": "function",
-          "line": 53,
+          "line": 58,
           "exported": true,
           "signature": "export function isDnsLookupFailure(error: unknown): boolean"
         },
         {
           "name": "SAFE_CAUSE_FIELDS",
           "kind": "const",
-          "line": 57,
+          "line": 62,
           "exported": false,
           "signature": "const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const"
         },
         {
           "name": "sanitizedCause",
           "kind": "function",
-          "line": 68,
+          "line": 75,
           "exported": true,
           "signature": "export function sanitizedCause(reason: unknown, depth = 0): unknown"
         },
         {
           "name": "TestRailLicenseError",
           "kind": "class",
-          "line": 107,
+          "line": 115,
           "exported": true,
           "signature": "export class TestRailLicenseError extends TestRailApiError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 108
+              "line": 116
             }
           ]
         },
         {
           "name": "LICENSE_RESTRICTION_RE",
           "kind": "const",
-          "line": 135,
+          "line": 146,
           "exported": false,
           "signature": "const LICENSE_RESTRICTION_RE = /(?:not an|requires)\\s+enterprise (?:licen|subscription)/i"
         },
         {
           "name": "isLicenseRestriction",
           "kind": "function",
-          "line": 146,
+          "line": 158,
           "exported": true,
           "signature": "export function isLicenseRestriction(status: number, body: unknown): boolean"
         },
         {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 167,
+          "line": 179,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 168
+              "line": 180
             }
           ]
         },
         {
           "name": "TestRailPaginationError",
           "kind": "class",
-          "line": 182,
+          "line": 194,
           "exported": true,
           "signature": "export class TestRailPaginationError extends TestRailValidationError",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 183
+              "line": 195
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 198,
+          "line": 210,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }
