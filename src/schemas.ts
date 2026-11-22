@@ -1,12 +1,17 @@
 /**
- * Barrel re-export of every TestRail API Zod schema and inferred payload type.
+ * Re-exports all TestRail API Zod schemas and inferred payload types (barrel
+ * file).
  *
- * The implementation lives in per-domain modules under `src/schemas/`. This
- * file exists so internal consumers can continue to import from
- * `'../schemas.js'` unchanged after the PR-B split. Dependency order matters:
- * `common.ts` defines the shared `zObject` helper, `metadata.ts` defines
- * `LabelEmbeddedSchema` (consumed by `cases.ts`), and `runs.ts` defines
- * `RunSchema` (consumed by `plans.ts`). Re-exports below follow that order.
+ * The implementation is in per-domain modules under `src/schemas/`. This
+ * file lets internal consumers continue to import from `'../schemas.js'`
+ * without change after the PR-B split. The re-export order is important,
+ * because of these dependencies:
+ *
+ * - `common.ts` defines the shared `zObject` helper.
+ * - `metadata.ts` defines `LabelEmbeddedSchema`, which `cases.ts` uses.
+ * - `runs.ts` defines `RunSchema`, which `plans.ts` uses.
+ *
+ * The re-exports below follow that order.
  */
 export * from './schemas/common.js';
 export * from './schemas/users.js';

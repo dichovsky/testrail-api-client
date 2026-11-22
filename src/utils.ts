@@ -2,15 +2,16 @@ import { TestRailValidationError } from './errors.js';
 import { validateId } from './validation.js';
 
 /**
- * Base64-encodes a string, UTF-8-safe. `Buffer` needs no guard: the package
- * requires Node >= 26 and statically imports `node:` builtins, so it cannot
- * load in a runtime without it.
+ * Base64-encodes a string. The encoding is safe for UTF-8 text. The function
+ * does not need a guard for `Buffer`, because the package requires Node >= 26
+ * and statically imports `node:` builtins. Thus, the package cannot load in a
+ * runtime that does not have `Buffer`.
  */
 export function base64Encode(str: string): string {
     return Buffer.from(str).toString('base64');
 }
 
-/** Resolves after `ms` milliseconds, or rejects promptly when aborted. */
+/** Resolves after `ms` milliseconds, or rejects immediately when `signal` is aborted. */
 export function sleep(ms: number, signal?: globalThis.AbortSignal): Promise<void> {
     return new Promise((resolve, reject) => {
         const abortError = (): Error => {
@@ -39,10 +40,11 @@ export function sleep(ms: number, signal?: globalThis.AbortSignal): Promise<void
 }
 
 /**
- * Validate and serialize a scalar-or-list numeric filter accepted by TestRail.
- * Scalars stay numeric, lists use the API's comma-separated representation,
- * and an empty list omits the query parameter. `null` from an untyped caller
- * means "not supplied", as it does for timestamp filters.
+ * Validates and serializes a numeric filter that TestRail accepts as a scalar
+ * or a list. A scalar stays a number. A list becomes the comma-separated text
+ * that the API uses. For an empty list, the function returns `undefined`, so
+ * the request does not include the query parameter. `null` from an untyped
+ * caller means "not supplied", as it does for timestamp filters.
  */
 export function serializeIdFilter(
     value: number | readonly number[] | null | undefined,

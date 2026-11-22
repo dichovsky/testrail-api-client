@@ -54,11 +54,11 @@ export interface PaginationRequest {
     readonly offset: number | undefined;
     readonly limit: number | undefined;
     /**
-     * Always `'fresh-read'`: an aggregate must execute every page rather than
-     * combine differently aged cached snapshots, or evict unrelated entries.
+     * Always `'fresh-read'`. An aggregate must fetch each page. It must not
+     * combine cached snapshots of different ages, or evict unrelated entries.
      */
     readonly intent: 'fresh-read';
-    /** Absolute wall-clock deadline shared by every request in one aggregate. */
+    /** Absolute wall-clock deadline shared by all requests in one aggregate. */
     readonly deadlineAt: number;
 }
 
@@ -174,9 +174,10 @@ function decodeEnvelope<T>(key: string, raw: Record<string, unknown>, stats?: Co
 }
 
 /**
- * Structurally decodes a list response after advisory Zod validation. Entity
- * rows are deliberately not inspected here, so a drifted row remains usable;
- * pagination metadata and the outer collection fail closed.
+ * Structurally decodes a list response after advisory Zod validation. The
+ * function intentionally does not inspect entity rows. Thus, a row with a
+ * schema mismatch stays usable. Pagination metadata and the outer collection
+ * fail closed.
  */
 export function decodePage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T> {
     if (key.length === 0) {
@@ -192,8 +193,9 @@ export function decodePage<T>(key: string, raw: unknown, stats?: CollectionStats
 }
 
 /**
- * Decodes the case-history variant, which may wrap exactly one envelope in an
- * outer array. Multiple or mixed envelopes are ambiguous and rejected.
+ * Decodes the case-history variant, which can wrap exactly one envelope in an
+ * outer array. The function rejects multiple or mixed envelopes, because they
+ * are ambiguous.
  */
 export function decodeNestedPage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T> {
     if (!Array.isArray(raw)) {
@@ -254,8 +256,9 @@ function parseCanonicalInteger(values: string[], name: string, allowZero: boolea
 }
 
 /**
- * Extracts only validated continuation controls. The returned host and path
- * are intentionally discarded; domain adapters rebuild their known endpoint.
+ * Extracts only validated continuation controls. The function intentionally
+ * discards the host and path that the server returns. Domain adapters rebuild
+ * their known endpoint.
  */
 export function parsePaginationContinuation(
     next: string,
@@ -360,9 +363,10 @@ function policyError(
 }
 
 /**
- * Sequentially collects a complete list under explicit page, item, duration,
- * and UTF-8 serialized-byte bounds. No partial entities are returned or placed
- * on errors. A legacy bare array is necessarily treated as one terminal page.
+ * Sequentially collects a complete list within explicit limits on pages,
+ * items, duration, and UTF-8 serialized bytes. The function does not return
+ * partial entities and does not put them on errors. The function necessarily
+ * treats a legacy bare array as one terminal page.
  */
 export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Promise<T[]> {
     const resolved = resolveCollectionOptions(options);
