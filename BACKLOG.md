@@ -1,8 +1,8 @@
 # BACKLOG
 
-> **Agent Rules:** Write short descriptions. When you complete a task, remove it from this file and append it to `docs/archive/BACKLOG-ARCHIVE.md`.
+> **Agent Rules:** Write short descriptions. When you complete a task, remove it from this file. Then append it to `docs/archive/BACKLOG-ARCHIVE.md`.
 
-Archive file: [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.md). This file stores detailed notes and completed items.
+Archive file: [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.md). The archive file stores detailed notes and completed items.
 
 ## 🔒 Security
 
@@ -14,10 +14,10 @@ Archive file: [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.m
 
 ## 🤖 Skill
 
-- [ ] **Localization (non-English)** — Translate the skill file. **Effort:** L (translation and per-language generator). **Trigger:** documented non-English user base.
+- [ ] **Localization (non-English)** — Translate the skill file. **Effort:** L (translation and per-language generator). **Trigger:** documented non-English users.
 - [ ] **Multi-version skill management** — Support side-by-side skill installations for multiple package versions. **Effort:** M. **Trigger:** monorepos that pin multiple versions.
-- [ ] **Claude Code plugin marketplace publish** — Publish to a separate distribution channel. **Effort:** M (process and metadata). **Trigger:** launch of an official Claude Code marketplace.
+- [ ] **Claude Code plugin marketplace publish** — Publish to a separate distribution channel. **Effort:** M (process and metadata). **Trigger:** an official Claude Code marketplace is available.
 
 ## 🧪 QA
 
-- [ ] **Run each recipe command through the CLI** — Extract the `testrail` commands from `skill/reference/recipes.md`. Run each command with `--dry-run` or a mocked `fetch`, and check the exit code. **Effort:** M. **Trigger:** a recipe command that the CLI rejects.
+- [ ] **Run each recipe command through the CLI** — Extract the `testrail` commands from `skill/reference/recipes.md`. Run each command with `--dry-run` or a mocked `fetch`. Check the exit code. **Effort:** M. **Trigger:** a recipe command that the CLI rejects.
