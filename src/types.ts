@@ -44,7 +44,7 @@ type ResponseWithCustomFields<
     ? Omit<TKnown, 'custom_fields'> & {
           /**
            * @deprecated TestRail emits response custom fields as flat
-           * `custom_*` properties. This container remains for compatibility
+           * `custom_*` properties. This container stays for compatibility
            * with older servers and proxies.
            */
           custom_fields?: TCustomFields;
@@ -53,14 +53,15 @@ type ResponseWithCustomFields<
 
 /**
  * Detail passed to {@link TestRailConfig.onSchemaMismatch} when a response
- * does not conform to its Zod schema.
+ * does not match its Zod schema.
  *
- * Nothing here is disclosed that the caller does not already receive — but a
- * hook usually *logs*, which moves the data somewhere the API response never
- * went. `endpoint`, `error`, and `data` can all carry personal or project data;
- * see the per-field notes below. In particular, Zod paths can contain
- * response-controlled record/catchall keys, so select only issue codes and
- * replace every path segment before sending them to telemetry.
+ * This detail contains no data that the caller does not already receive. But
+ * a hook usually *logs* the detail, and thus moves the data to a location where
+ * the API response never went. `endpoint`, `error`, and `data` can all carry
+ * personal or project data. See the per-field notes below. In particular, Zod
+ * paths can contain response-controlled record/catchall keys. Before you send
+ * issue data to telemetry, select only the issue codes. Also replace each path
+ * segment.
  */
 export interface SchemaMismatch {
     /** HTTP method of the originating request (e.g. `'GET'`). */
@@ -68,16 +69,16 @@ export interface SchemaMismatch {
     /**
      * API endpoint of the originating request (e.g. `'get_results_for_run/{run_id}'`).
      *
-     * **May contain personal data.** Path parameters can identify entities, and
-     * query parameters can contain email addresses or other user-provided
+     * **Can contain personal data.** Path parameters can identify entities, and
+     * query parameters can contain email addresses or other user-supplied
      * values. For telemetry, keep only the operation token before the first
-     * `/` or `&` rather than logging this value directly.
+     * `/` or `&`. Do not log this value directly.
      */
     endpoint: string;
     /**
-     * The Zod failure, listing every offending path.
+     * The Zod failure, with a list of all offending paths.
      *
-     * **May contain instance data.** Record/catchall keys can appear as path
+     * **Can contain instance data.** Record/catchall keys can appear as path
      * segments, and issue messages/inputs are not a privacy boundary. Do not log
      * the error or raw issues wholesale.
      */
@@ -85,13 +86,14 @@ export interface SchemaMismatch {
     /**
      * The raw response body, returned to the caller unchanged.
      *
-     * **May contain personal data** — user names and email addresses, result
-     * comments, and custom fields all arrive here without redaction. Logging it
-     * wholesale copies that into your log sink; select the fields you need.
+     * **Can contain personal data.** User names and email addresses, result
+     * comments, and custom fields all arrive here without redaction. If you log
+     * this value wholesale, you copy that data into your log sink. Select the
+     * fields that you need.
      *
-     * Treat as read-only: this is the same object reference the caller receives,
-     * so mutating it in the hook changes what the caller sees. A mismatched GET
-     * response is never written to the cache.
+     * Treat this value as read-only. It is the same object reference that the
+     * caller receives. Thus, if the hook mutates it, the caller sees the change.
+     * The client never writes a mismatched GET response to the cache.
      */
     data: unknown;
 }
@@ -110,17 +112,18 @@ export interface TestRailConfig {
      * Per-attempt timeout in milliseconds (default: 30000ms, maximum 5
      * minutes).
      *
-     * Covers DNS resolution as well as connect/send/response-headers, because
-     * `dns.lookup` carries no deadline of its own and would otherwise leave
-     * the call unbounded. A short timeout combined with a slow resolver can
-     * therefore fail before any request is sent. The response body is bounded
-     * separately by {@link TestRailConfig.bodyTimeout}.
+     * The timeout includes DNS resolution and the connect/send/response-headers
+     * phase, because `dns.lookup` has no deadline of its own. If the timeout
+     * did not include DNS resolution, the call would have no time limit. Thus,
+     * with a short timeout and a slow resolver, the call can fail before the
+     * client sends any request. A separate option,
+     * {@link TestRailConfig.bodyTimeout}, limits the response body.
      */
     timeout?: number;
     /**
-     * Maximum number of retry attempts for failed requests. Must be a whole
-     * number (integer) in the range 0–10; fractional or non-finite values are
-     * rejected at construction (default: 3).
+     * Maximum number of retry attempts for failed requests (default: 3). The
+     * value must be a whole number (integer) in the range 0–10. The constructor
+     * rejects fractional or non-finite values.
      */
     maxRetries?: number;
     /** Enable caching for static resources (default: true) */
@@ -128,104 +131,112 @@ export interface TestRailConfig {
     /** Cache TTL in milliseconds (default: 300000ms = 5 minutes) */
     cacheTtl?: number;
     /**
-     * Cache cleanup interval in milliseconds. Must be an integer from 0
-     * through 2,147,483,647; 0 disables periodic cleanup. Default: 60,000.
+     * Cache cleanup interval in milliseconds. The value must be an integer from
+     * 0 through 2,147,483,647. A value of 0 disables periodic cleanup. Default:
+     * 60,000.
      */
     cacheCleanupInterval?: number;
     /**
      * Maximum number of entries in the cache (default: 1000).
-     * Set to 0 for unlimited (not recommended).
+     * Set the value to 0 for an unlimited cache (not recommended).
      */
     maxCacheSize?: number;
     /** Rate limiting configuration (default: 100 requests per minute) */
     rateLimiter?: RateLimiterConfig;
     /**
-     * Allow HTTP (non-TLS) connections. Credentials are sent in cleartext over HTTP.
-     * Only enable in isolated development environments. Default: false.
+     * Allow HTTP (non-TLS) connections. Enable this option only in isolated
+     * development environments. HTTP sends credentials in cleartext. Default:
+     * false.
      */
     allowInsecure?: boolean;
     /**
      * Allow requests to private/loopback/link-local hosts (e.g. localhost, 192.168.x.x).
-     * Only enable when TestRail is hosted on a private network. Default: false.
+     * Enable this option only when the TestRail server is on a private network.
+     * Default: false.
      */
     allowPrivateHosts?: boolean;
     /**
-     * Maximum bytes accepted from a JSON, text, or multipart-error response
-     * body before the read is aborted with a `TestRailApiError` (SEC #12).
-     * Default: 10 MiB. Hard ceiling: 1 GiB.
+     * Maximum number of bytes that the client accepts from a JSON, text, or
+     * multipart-error response body (SEC #12). Above this limit, the client
+     * aborts the read with a `TestRailApiError`. Default: 10 MiB. Hard ceiling:
+     * 1 GiB.
      *
      * Override only when bulk-export endpoints (large `get_cases`,
      * `get_results`) legitimately exceed the default. Lower values are also
-     * permitted — useful in memory-constrained containers.
+     * permitted. They are useful in memory-constrained containers.
      */
     maxJsonResponseBytes?: number;
     /**
-     * Maximum bytes accepted from a binary response body
-     * (`request({ responseKind: 'binary' })`, used for attachment downloads).
-     * Default: 100 MiB. Hard ceiling: 1 GiB.
+     * Maximum number of bytes that the client accepts from a binary response
+     * body (`request({ responseKind: 'binary' })`, used for attachment
+     * downloads). Default: 100 MiB. Hard ceiling: 1 GiB.
      *
-     * Larger attachments need an explicit override and still risk OOM since
-     * the whole buffer is materialised in memory.
+     * Larger attachments need an explicit override. They can still cause OOM,
+     * because the client keeps the whole buffer in memory.
      */
     maxBinaryResponseBytes?: number;
     /**
      * Wall-clock deadline applied to the response-body read, in milliseconds
-     * (SEC #21). When `undefined` (default), the request `timeout` is reused.
-     * Set to `0` to disable the deadline (only the byte cap protects, not
-     * recommended).
+     * (SEC #21). When the value is `undefined` (default), the client uses the
+     * request `timeout`. Set the value to `0` to disable the deadline (not
+     * recommended). Then only the byte cap protects the read.
      *
-     * Independent of `timeout`, which applies to DNS resolution plus the
-     * connect/send/response-headers phase.
+     * This deadline is independent of `timeout`. `timeout` applies to DNS
+     * resolution and the connect/send/response-headers phase.
      */
     bodyTimeout?: number;
     /**
-     * Register Node.js process listeners (`exit`, `SIGINT`, `SIGTERM`) that
-     * call {@link TestRailClient.destroy} on every active client and, for
-     * SIGINT/SIGTERM, terminate the process with the conventional 130/143
-     * exit codes. Default: **false**.
+     * Register Node.js process listeners for `exit`, `SIGINT`, and `SIGTERM`.
+     * The listeners call {@link TestRailClient.destroy} on each active client.
+     * For SIGINT/SIGTERM, the listeners also terminate the process with the
+     * standard 130/143 exit codes. Default: **false**.
      *
-     * Set this to `true` only in entry-point processes (CLIs, standalone
-     * scripts) that own the process lifecycle. Library consumers — Express
-     * servers, daemons, hosts that already manage shutdown — should leave it
-     * `false` (the default) so the client does not hijack their own signal
-     * handling and does not call `process.exit()` on their behalf. Explicit
+     * Set this option to `true` only in entry-point processes (CLIs, standalone
+     * scripts) that own the process lifecycle. SDK consumers, for example
+     * Express servers, daemons, and hosts that already manage shutdown, should
+     * keep it `false` (the default). Then the client does not hijack their own
+     * signal handling, and does not call `process.exit()` for them. Explicit
      * `destroy()` from the caller is always sufficient for cleanup.
      */
     registerProcessHandlers?: boolean;
     /**
-     * Custom `fetch` implementation injected into every HTTP call made by this
-     * client. Must have the same signature as `globalThis.fetch`. Defaults to
-     * `globalThis.fetch`. Useful for testing or trusted custom transports.
+     * Custom `fetch` implementation that this client uses for all its HTTP
+     * requests. The function must have the same signature as
+     * `globalThis.fetch`. The default is `globalThis.fetch`. This option is
+     * useful for testing or for trusted custom transports.
      *
      * With private-host protection enabled, requests include Node fetch's
      * `dispatcher` extension to bind connections to validated DNS addresses.
-     * A custom transport must honor that dispatcher or enforce equivalent
-     * destination checks itself, in addition to `signal` and manual redirects.
-     * Transports that ignore the extension (including some fetch polyfills or
-     * proxy wrappers) do not inherit connection pinning from this client.
+     * A custom transport must use that dispatcher or apply equivalent
+     * destination checks itself. The transport must also use `signal` and
+     * manual redirects. Transports that ignore the extension (including some
+     * fetch polyfills or proxy wrappers) do not get DNS pinning from this
+     * client.
      */
     fetch?: typeof globalThis.fetch;
     /**
-     * Custom DNS lookup function used for SSRF host validation and connection
-     * pinning (SEC #31). Ignored when `allowPrivateHosts` is enabled.
-     * Receives the bare hostname (no brackets for IPv6 literals) and must
-     * return the resolved addresses in the same shape as
+     * Custom DNS lookup function for SSRF host validation and DNS pinning
+     * (SEC #31). The client ignores this function when `allowPrivateHosts` is
+     * enabled. The function receives the bare hostname (no brackets for IPv6
+     * literals). It must return the resolved addresses in the same shape as
      * `node:dns/promises lookup(hostname, { all: true })`.
-     * Every result must contain a valid IP literal and its matching numeric
-     * family (`4` or `6`); omitted, zero, and mismatched families are rejected
-     * before dispatch, even if other records in the answer are valid.
+     * Each result must contain a valid IP literal and its matching numeric
+     * family (`4` or `6`). The client rejects omitted, zero, and mismatched
+     * families before dispatch, even if other records in the answer are valid.
      *
-     * Use this to supply static host-to-IP mappings or a custom resolver in
-     * environments where the system DNS cannot reach the TestRail hostname
-     * (e.g. CI networks with split-horizon DNS). The SSRF private-IP check
-     * still runs against the returned addresses — this option does **not**
-     * bypass the security validation, only replaces the resolution mechanism.
-     * Native fetch connects using the validated answer snapshot, retaining the
-     * configured hostname for the Host header and TLS certificate verification.
+     * Use this option when the system DNS cannot reach the TestRail hostname
+     * (e.g. CI networks with split-horizon DNS). The option can supply static
+     * host-to-IP mappings or a custom resolver. The SSRF private-IP check
+     * still runs on the returned addresses. This option does **not** bypass
+     * the security validation. It only replaces the resolution mechanism.
+     * Native fetch connects to the addresses in the validated answer snapshot.
+     * It keeps the configured hostname for the Host header and TLS certificate
+     * verification.
      *
-     * When omitted (default), Node's system resolver is used. Resolution runs
-     * before each distinct upstream fetch attempt, including retries; cache
-     * hits and callers joining an in-flight request do not invoke it again.
+     * When you omit this option (default), the client uses the Node system
+     * resolver. Resolution runs before each upstream fetch attempt, including
+     * retries. Cache hits and callers that join an in-flight request do not
+     * call the function again.
      *
      * @example
      * // Map a corporate hostname to an approved public address
@@ -236,17 +247,20 @@ export interface TestRailConfig {
      * Called when a TestRail **response** fails its Zod schema.
      *
      * Response validation is advisory: a mismatch normally does not throw on
-     * its own. The raw body is returned to the caller unchanged and this hook
-     * fires with the offending detail. Unset by default, in which case a
-     * mismatch is silent. The non-idempotent `addCases` and `updateCases`
-     * methods are the exception: after notifying this hook, an unrecognized
-     * successful response throws an indeterminate-outcome error rather than
-     * returning an empty list that could invite a duplicate retry.
+     * its own. The client returns the raw body to the caller unchanged, and
+     * calls this hook with the offending detail. The hook is unset by default.
+     * Without a hook, a mismatch is silent.
      *
-     * The hook is invoked outside any `try`, so **throwing from it propagates to
-     * the caller**. That is the supported way to restore the pre-6.0.0
-     * fail-closed behavior — useful in CI, where schema drift should break the
-     * build, while production stays available:
+     * The non-idempotent `addCases` and `updateCases` methods do not follow
+     * this rule. After these methods call this hook, an unrecognized successful
+     * response causes an indeterminate-outcome error. The methods do not return
+     * an empty list, because an empty list can cause a duplicate retry.
+     *
+     * The client calls the hook outside any `try`. Thus, **an error that the
+     * hook throws propagates to the caller**. Such a throw is the supported way
+     * to restore the pre-6.0.0 fail-closed behavior. This behavior is useful in
+     * CI, where a schema mismatch should break the build, while production
+     * stays available:
      *
      * @example
      * // Observe drift without logging path IDs, query values, or response keys
@@ -271,29 +285,32 @@ export interface TestRailConfig {
      * onSchemaMismatch: ({ error }) => { throw error; }
      *
      * A response hook runs after TestRail has answered. For a mutating request,
-     * its throw is not evidence that the server-side write failed and can
-     * preempt a domain method's downstream response-shape guard. Never retry a
-     * write blindly based only on an error thrown by this hook.
+     * a throw from the hook is not evidence that the server-side write failed.
+     * The throw can also preempt the downstream response-shape guard of a
+     * domain method. Never retry a write blindly only because of an error that
+     * this hook throws.
      *
      * **The hook must be synchronous.** An `async` function satisfies the `void`
-     * return type but cannot restore fail-closed behavior — its throw becomes a
-     * rejected promise nobody awaits, so validation silently fails open and the
-     * rejection surfaces as an unhandled rejection (fatal on Node >= 15). A hook
-     * that returns a thenable is rejected with `TestRailValidationError`. Do
-     * async work in a fire-and-forget call inside a synchronous hook.
-     * (`typescript-eslint`'s and oxlint's `no-misused-promises` catch this at lint
-     * time if you have type-aware linting enabled; `tsc` alone does not.)
+     * return type but cannot restore fail-closed behavior. Its throw becomes a
+     * rejected promise that no code awaits. Thus, validation silently fails
+     * open, and the rejection becomes an unhandled rejection (fatal on
+     * Node >= 15). If a hook returns a thenable, the client throws
+     * `TestRailValidationError`. Do async work in a fire-and-forget call inside
+     * a synchronous hook. (If type-aware linting is enabled, the
+     * `no-misused-promises` rule of `typescript-eslint` and of oxlint finds an
+     * `async` hook at lint time. `tsc` alone does not.)
      *
-     * **Do not mutate `mismatch.data`.** It is the same object reference the
-     * caller receives, so an in-place edit (a redact-before-log pass, say)
-     * would alter the returned value. A mismatched GET is never cached.
+     * **Do not mutate `mismatch.data`.** It is the same object reference that
+     * the caller receives. Thus, an in-place edit (for example, a
+     * redact-before-log pass) would change the returned value. The client
+     * never caches a mismatched GET response.
      *
-     * **`endpoint` and `data` can carry personal data**; see
-     * {@link SchemaMismatch} before logging either.
+     * **`endpoint` and `data` can carry personal data.** Read
+     * {@link SchemaMismatch} before you log either value.
      *
-     * Applies to responses only. Caller-supplied input — client configuration
-     * and CLI write payloads — is validated on a separate path and still fails
-     * closed.
+     * This hook applies to responses only. Caller-supplied input (client
+     * configuration and CLI write payloads) has a separate validation path,
+     * which still fails closed.
      */
     onSchemaMismatch?: (mismatch: SchemaMismatch) => void;
 }
@@ -304,22 +321,25 @@ export interface UploadFilePathInput {
     /**
      * Optional open file descriptor to read the upload content from.
      *
-     * On POSIX (macOS, Linux) the upload streams through `/dev/fd/<N>` or
-     * `/proc/self/fd/<N>` rather than re-opening `path`, so a symlink swap
-     * between your open and our read cannot redirect it. Elsewhere there is no
-     * such mapping and `path` is used directly.
+     * On POSIX (macOS, Linux), the upload streams through `/dev/fd/<N>` or
+     * `/proc/self/fd/<N>` and does not open `path` again. Thus, a symlink swap
+     * between your open and our read cannot redirect the upload. Other
+     * platforms have no such mapping, and the client uses `path` directly.
      *
-     * **The upload takes ownership when its SDK method is called.** This
-     * includes failures from invalid IDs, invalid request options, or a
-     * destroyed client. The client releases the descriptor on these failures.
-     * On POSIX it stays open while the upload needs it. Other platforms close
-     * it when preparing the upload, because they use the path directly.
-     * Do not close or reuse it yourself. Open a separate descriptor for each upload.
+     * **The upload takes ownership of the descriptor when you call its SDK
+     * method.** Ownership also applies when the call fails because of invalid
+     * IDs, invalid request options, or a destroyed client. The client releases
+     * the descriptor on these failures. On POSIX, the descriptor stays open
+     * while the upload needs it. Other platforms close the descriptor when they
+     * prepare the upload, because they use the path directly.
+     * Do not close or reuse the descriptor yourself. Open a separate descriptor
+     * for each upload.
      *
      * A timeout can arrive before transport work settles. Use
      * `trackOperation().settled` when you must wait for all associated cleanup.
      *
-     * Union contains `| undefined` to remain compatible with TS exactOptionalPropertyTypes.
+     * The union contains `| undefined` to stay compatible with TS
+     * exactOptionalPropertyTypes.
      */
     fd?: number | undefined;
 }
@@ -368,16 +388,17 @@ export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>;
  * Options for delete endpoints that support TestRail's `soft=1` server-side
  * preview (`delete_case`, `delete_cases`, `delete_run`, `delete_section`,
  * `delete_suite`). `delete_milestone` and `delete_project` do not accept
- * `soft`; passing this option to those endpoints would be a no-op
- * server-side, so the CLI rejects it instead to keep destructive intent
+ * `soft`. On those endpoints, this option would be a no-op on the server.
+ * Thus, the CLI rejects the option, so that the destructive intent stays
  * unambiguous.
  *
- * Distinct from a client-side `--dry-run` which short-circuits before any
- * API call; `soft=1` *does* hit the API and TestRail returns counts of
- * affected entities (see {@link SoftDeletePreview} in `./schemas.ts`).
+ * Soft mode is different from a client-side `--dry-run`, which stops before
+ * any API call. `soft=1` *does* send a request to the API, and TestRail
+ * returns counts of affected entities (see {@link SoftDeletePreview} in
+ * `./schemas.ts`).
  */
 export interface SoftDeleteOptions {
-    /** When true, request a server-side preview instead of a hard delete. */
+    /** When true, request a server-side preview, not a hard delete. */
     soft?: boolean;
 }
 
@@ -416,8 +437,9 @@ export interface GetCasesOptions {
     labelId?: number | readonly number[];
     /**
      * Return only cases linked to external references. A string uses the
-     * existing single-value `refs` parameter; an array uses TestRail 10.7+'s
-     * repeated `refs[]` parameter. An empty array omits the filter.
+     * existing single-value `refs` parameter. An array uses the repeated
+     * `refs[]` parameter of TestRail 10.7+. For an empty array, the request
+     * does not include the filter.
      */
     refs?: string | readonly string[];
     /** Maximum number of cases to return */
@@ -452,8 +474,9 @@ export interface GetRunsOptions {
     /** Return only runs matching this reference ID */
     refs?: string;
     /**
-     * Legacy reference filter. Sends both `refs` and `refs_filter` so callers
-     * remain compatible with current and pre-10.4 TestRail servers.
+     * Legacy reference filter. The client sends both `refs` and `refs_filter`,
+     * so that callers stay compatible with current and pre-10.4 TestRail
+     * servers.
      * @deprecated use `refs` when TestRail 10.4+ is guaranteed
      */
     refsFilter?: string;
@@ -631,20 +654,20 @@ export type Role = KnownResponse<typeof RoleSchema>;
 /**
  * An attachment metadata record returned by attachment list and upload endpoints.
  *
- * SPEC #2.1.14 — mirror of `AttachmentSchema` (see `src/schemas.ts` for the
- * full rationale). TestRail emits three+ response shapes through the same
+ * SPEC #2.1.14: this type mirrors `AttachmentSchema` (see `src/schemas.ts` for
+ * the full rationale). TestRail emits three+ response shapes through the same
  * `Attachment` type:
  *  - upload-POST: only `attachment_id`.
  *  - legacy list (`get_attachments_for_case` / `_test`): `id`, `name`,
  *    `size`, `created_on`, `project_id`, `case_id`, `user_id`, `result_id`.
- *  - plan/run list: adds `entity_attachments_id`, `icon_name`; `case_id`
- *    may be `null`.
+ *  - plan/run list: adds `entity_attachments_id`, `icon_name`. `case_id`
+ *    can be `null`.
  *  - cloud TestRail 7.1+: `id` becomes a UUID string and `entity_id` becomes
- *    a string; the response gains `client_id`, `entity_type`, `data_id`,
- *    `filetype`, `legacy_id`, `is_image`, `icon`.
+ *    a string. The response also contains `client_id`, `entity_type`,
+ *    `data_id`, `filetype`, `legacy_id`, `is_image`, `icon`.
  *
- * Every field is optional/nullable so a single type covers the union; consume
- * the field appropriate for the endpoint you called.
+ * Each field is optional/nullable, so that a single type can describe the full
+ * union. Use the field that is applicable to the endpoint that you called.
  */
 export type Attachment = KnownResponse<typeof AttachmentSchema>;
 
@@ -675,13 +698,14 @@ export type TestWithData = Test & {
 /**
  * A report template returned by GET /get_reports/{project_id}.
  *
- * SPEC #2.1.16 — fields kept in lockstep with `ReportSchema`
- * (`src/schemas.ts`). The six `notify_*` system fields are documented
- * as always-included in the response but modelled as optional+nullable
- * here for defensive back-compat with older TestRail versions and to
- * match `notify_link_recipients`, which the doc example shows as
- * `null`. `is_shared` is not in the current doc field table; it
- * remains as a forward-compat placeholder.
+ * SPEC #2.1.16: the fields of this type must stay the same as `ReportSchema`
+ * (`src/schemas.ts`). The TestRail documentation shows the six `notify_*`
+ * system fields as always included in the response. This type models them
+ * as optional and nullable, for defensive back-compat with older TestRail
+ * versions. The optional and nullable model also matches
+ * `notify_link_recipients`, which the doc example shows as `null`.
+ * `is_shared` is not in the current doc field table. It stays as a
+ * forward-compat placeholder.
  */
 export type Report = KnownResponse<typeof ReportSchema>;
 
@@ -691,9 +715,10 @@ export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>;
 /**
  * Result returned by GET /run_report/{report_template_id}.
  *
- * SPEC #2.1.16 — fields kept in lockstep with `ReportResultSchema`
+ * SPEC #2.1.16: the fields of this type must stay the same as `ReportResultSchema`
  * (`src/schemas.ts`). `report_html` and `report_pdf` are documented
- * response fields per the current doc example; `user_report_url` is
- * not in the current doc but retained as a legacy-compat placeholder.
+ * response fields, as the current doc example shows. `user_report_url` is
+ * not in the current doc, but this type keeps it as a legacy-compat
+ * placeholder.
  */
 export type ReportResult = KnownResponse<typeof ReportResultSchema>;

@@ -123,12 +123,12 @@ export class UsersModule {
         return GROUPS_PAGINATION.items(this.client, undefined);
     }
 
-    /** Get one response page without sending undocumented request controls. */
+    /** Get one response page. The method does not send undocumented request controls. */
     async getGroupsPage(): Promise<Page<Group>> {
         return GROUPS_PAGINATION.page(this.client, undefined);
     }
 
-    /** Get every group under the configured pagination safety bounds. */
+    /** Get all groups. The configured pagination safety limits apply. */
     async getAllGroups(options?: GetAllGroupsOptions): Promise<Group[]> {
         return GROUPS_PAGINATION.all(this.client, undefined, options);
     }

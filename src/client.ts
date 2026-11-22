@@ -76,15 +76,15 @@ function rebindModules(target: Mutable<TestRailClient>, client: TestRailClientCo
 /**
  * TestRail API Client
  *
- * Type-safe client for the TestRail API. Each domain is reached through its
- * `public readonly` module field: `projects`, `suites`, `sections`, `cases`,
- * `plans`, `runs`, `tests`, `results`, `milestones`, `users`, `metadata`,
- * `configurations`, `attachments`, `bdd`, `sharedSteps`, `variables`,
- * `datasets`, `reports`, and `labels` — e.g. `client.projects.getProject(1)`,
- * `client.runs.addRun(2, payload)`. The modules are the single access path;
- * there is no flat facade.
+ * A type-safe client for the TestRail API. Use the `public readonly` module
+ * field of a domain to call its methods. The module fields are `projects`,
+ * `suites`, `sections`, `cases`, `plans`, `runs`, `tests`, `results`,
+ * `milestones`, `users`, `metadata`, `configurations`, `attachments`, `bdd`,
+ * `sharedSteps`, `variables`, `datasets`, `reports`, and `labels`. For example,
+ * call `client.projects.getProject(1)` or `client.runs.addRun(2, payload)`.
+ * The modules are the only access path. The client has no flat facade.
  *
- * Extends {@link TestRailClientCore} for HTTP pipeline, caching, rate limiting, and retry.
+ * The class extends {@link TestRailClientCore} for the HTTP pipeline, caching, rate limiting, and retries.
  */
 export class TestRailClient extends TestRailClientCore {
     // ── Domain modules ────────────────────────────────────────────────────────
@@ -133,21 +133,21 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Returns a view of this client that applies `timeoutMs` (milliseconds) as
-     * the request timeout for every call made through it — e.g.
-     * `client.withTimeout(120_000).cases.getCases(1)` gives that one bulk export
-     * two minutes instead of the client-wide default, without building a second
-     * client. The view **shares** the underlying cache, rate-limit budget,
-     * credential, and cleanup timer with this client (it is not a second
-     * client), and does not register its own process lifecycle.
+     * Returns a view of this client. The view applies `timeoutMs` (milliseconds)
+     * as the request timeout for each call that goes through the view. For
+     * example, `client.withTimeout(120_000).cases.getCases(1)` gives that one
+     * bulk export two minutes, not the client-wide default. The view is not a
+     * second client. It **shares** the underlying cache, rate-limit budget,
+     * credential, and cleanup timer with this client, and it does not register
+     * its own process lifecycle.
      *
-     * The body-read deadline (SEC #21) tracks the new timeout when `bodyTimeout`
-     * was left at its default; an explicitly configured `bodyTimeout` is kept.
-     * Views chain — the outermost `withTimeout` wins. Because a view shares the
-     * root's state, {@link TestRailClient.destroy} and
-     * {@link TestRailClient.clearCache} called on a view act on the shared
-     * client: `destroy()` on any handle zeroes the one credential and disables
-     * the root and all its views.
+     * When `bodyTimeout` has its default value, the body-read deadline (SEC #21)
+     * uses the new timeout. The view keeps an explicitly configured
+     * `bodyTimeout`. You can chain views. The outermost `withTimeout` call sets
+     * the timeout. A view shares the state of the root client. Thus,
+     * {@link TestRailClient.destroy} and {@link TestRailClient.clearCache} on a
+     * view act on the shared client. `destroy()` on any handle zeroes the one
+     * credential and disables the root and all its views.
      *
      * @param timeoutMs Request timeout in milliseconds; a positive number ≤ 5 minutes.
      * @throws {TestRailValidationError} When `timeoutMs` is out of range.

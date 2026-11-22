@@ -40,12 +40,12 @@ export class VariableModule {
         return VARIABLES_PAGINATION.items(this.client, { projectId });
     }
 
-    /** Get one response page without sending undocumented request controls. */
+    /** Get one response page. The method does not send undocumented request controls. */
     async getVariablesPage(projectId: number): Promise<Page<Variable>> {
         return VARIABLES_PAGINATION.page(this.client, { projectId });
     }
 
-    /** Get every variable under the configured pagination safety bounds. */
+    /** Get all variables. The configured pagination safety limits apply. */
     async getAllVariables(projectId: number, options?: GetAllVariablesOptions): Promise<Variable[]> {
         return VARIABLES_PAGINATION.all(this.client, { projectId }, options);
     }

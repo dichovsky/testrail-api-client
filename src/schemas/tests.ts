@@ -21,9 +21,9 @@ export const TestSchema = zObject({
     refs: z.string().nullish(),
     milestone_id: z.number().nullish(),
     /**
-     * @deprecated TestRail response custom fields are emitted as flat
-     * `custom_*` properties. Retained for compatibility with older servers
-     * and proxies that still return a nested container.
+     * @deprecated TestRail returns response custom fields as flat
+     * `custom_*` properties. The schema keeps this field for compatibility
+     * with older servers and proxies that still return a nested container.
      */
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
     // SPEC #2.1.7 — `labels` array uses the shared `LabelEmbeddedSchema` so the
@@ -44,7 +44,7 @@ export const TestSchema = zObject({
     case_title: z.string().nullish(),
 });
 
-/** Wire wrapper returned by `get_test/{test_id}&with_data=1`. */
+/** The wire wrapper that `get_test/{test_id}&with_data=1` returns. */
 export const TestWithDataResponseSchema = zObject({
     test: TestSchema,
     results: z
@@ -86,16 +86,17 @@ export const UpdateTestsLabelsPayloadSchema = zObject({
 export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>;
 
 /**
- * `update_tests` acknowledges the bulk label assignment; it does **not** return
- * the updated tests. TestRail's documented example is
- * `{ "test_ids": [1, 2, 3], "labels": [{ "id": 1, "title": "label1" }] }` — the
- * page's boilerplate status line ("the tests are returned as part of the
- * response") is copy-pasted across every endpoint and contradicts the example
- * beneath it.
+ * `update_tests` acknowledges the bulk label assignment. It does **not**
+ * return the updated tests. The documented TestRail example is
+ * `{ "test_ids": [1, 2, 3], "labels": [{ "id": 1, "title": "label1" }] }`.
+ * TestRail copied the boilerplate status line of the page ("the tests are
+ * returned as part of the response") to all endpoint pages. This line
+ * contradicts the example below it.
  *
- * Modelling this as a test list was a guess made while the docs were
- * unreachable, and it failed in the worst direction: the acknowledgement has no
- * `tests` key, so every successful call resolved `[]`.
+ * An earlier schema modelled this response as a test list. That model was a
+ * guess, made when the docs were unreachable, and it failed in the worst
+ * direction. The acknowledgement has no `tests` key, so each successful call
+ * resolved `[]`.
  */
 export const UpdateTestsResponseSchema = zObject({
     test_ids: z.array(z.number()),

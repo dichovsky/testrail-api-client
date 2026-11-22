@@ -27,7 +27,7 @@ type KnownRecord<TOutput, TValue extends z.core.SomeType> = {
     [TKey in keyof TOutput]: KnownResponseValue<TValue>;
 };
 
-/** Recursively projects declared schema structure while leaving records open. */
+/** Recursively projects the declared schema structure, and leaves records open. */
 type KnownResponseValue<TSchema extends z.core.SomeType> =
     TSchema extends z.ZodOptional<infer TInner>
         ? KnownResponseValue<TInner> | undefined
@@ -44,17 +44,18 @@ type KnownResponseValue<TSchema extends z.core.SomeType> =
                   : z.output<TSchema>;
 
 /**
- * Infer only the keys declared throughout a response schema. Runtime response
- * objects remain passthrough at every level, but public types do not advertise
- * unrestricted string indexes unless a field deliberately uses `z.record()`.
- * Optional object keys, arrays, unions, and nullability retain their schema
- * output semantics.
+ * Infer only the keys that a response schema declares, at all levels. Runtime
+ * response objects stay passthrough at all levels, but public types do not
+ * advertise unrestricted string indexes unless a field deliberately uses
+ * `z.record()`. Optional object keys, arrays, unions, and nullability keep
+ * their schema output semantics.
  */
 export type KnownResponse<TSchema extends z.ZodObject> = KnownObject<TSchema['shape']>;
 
 /**
  * Core schemas for common TestRail API structures.
- * These are used to validate API responses and provide static type inference via `z.infer`.
+ * The client uses these schemas to validate API responses. The schemas also
+ * give static type inference through `z.infer`.
  */
 
 // ── Common & Foundational Schemas ─────────────────────────────────────────────
@@ -62,9 +63,9 @@ export type KnownResponse<TSchema extends z.ZodObject> = KnownObject<TSchema['sh
 /**
  * Caller-supplied controls for one TestRail list request.
  *
- * This is an input schema, not a response-envelope schema. It mirrors
- * `validatePaginationParams`: TestRail accepts a page size in `[1, 250]` and
- * a non-negative starting offset.
+ * This schema is an input schema, not a response-envelope schema. It applies
+ * the same rules as `validatePaginationParams`: TestRail accepts a page size in
+ * `[1, 250]` and a non-negative starting offset.
  */
 export const PaginationRequestSchema = zObject({
     limit: z.number().int().positive().max(MAX_PAGINATION_LIMIT).optional(),
@@ -72,9 +73,10 @@ export const PaginationRequestSchema = zObject({
 });
 
 /**
- * Legacy permissive pagination schema retained for runtime compatibility.
- * New request-boundary code should use {@link PaginationRequestSchema}, which
- * enforces the same integer/range contract as the client methods.
+ * A legacy permissive pagination schema. The package keeps this schema for
+ * runtime compatibility. New request-boundary code should use
+ * {@link PaginationRequestSchema}, which applies the same integer/range
+ * contract as the client methods.
  * @deprecated Use {@link PaginationRequestSchema} for request validation.
  */
 export const PaginationSchema = zObject({
@@ -85,10 +87,10 @@ export const PaginationSchema = zObject({
 /**
  * Runtime structural and numeric contract for {@link TestRailConfig}.
  *
- * URL security semantics (HTTPS opt-out, embedded credentials, and private
- * hosts) are deliberately handled by `validateTestRailConfig`, where they can
- * retain the client's stable `TestRailValidationError` messages. Unknown keys
- * remain passthrough for forward compatibility, matching the other public
+ * `validateTestRailConfig` deliberately handles the URL security semantics
+ * (HTTPS opt-out, embedded credentials, and private hosts). Thus, these checks
+ * keep the stable `TestRailValidationError` messages of the client. Unknown
+ * keys stay passthrough for forward compatibility, as in the other public
  * input schemas.
  */
 type TestRailConfigSchemaShape = {

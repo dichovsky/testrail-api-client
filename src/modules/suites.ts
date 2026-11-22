@@ -59,12 +59,12 @@ export class SuiteModule {
         return SUITES_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    /** Get one response page. When TestRail sends pagination metadata, the method keeps it. */
     async getSuitesPage(projectId: number, options?: GetSuitesOptions): Promise<Page<Suite>> {
         return SUITES_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Get every suite under the configured pagination safety bounds. */
+    /** Get all suites. The configured pagination safety limits apply. */
     async getAllSuites(projectId: number, options?: GetAllSuitesOptions): Promise<Suite[]> {
         return SUITES_PAGINATION.all(this.client, { projectId }, options);
     }
@@ -102,10 +102,11 @@ export class SuiteModule {
     }
 
     /**
-     * Delete a suite and everything inside it (sections, cases, runs, plans).
-     * Pass `{ soft: true }` for TestRail's server-side preview (`soft=1`) —
-     * the API call still happens but nothing is deleted; TestRail returns
-     * counts of affected entities. TestRail 6.5+ for soft-mode.
+     * Delete a suite and all of its contents (sections, cases, runs, plans).
+     * Pass `{ soft: true }` to request the TestRail server-side preview
+     * (`soft=1`). The client still sends the request, but TestRail deletes no
+     * data. TestRail returns counts of affected entities. Soft mode requires
+     * TestRail 6.5 or later.
      *
      * @throws {TestRailValidationError} When suiteId is invalid
      * @throws {TestRailApiError} When the API request fails

@@ -66,36 +66,47 @@ const envelopeOf = <T extends z.ZodTypeAny>(key: string, item: T) => {
 };
 
 /**
- * TestRail's bulk GET endpoints are bimodal. Since 6.7 they return a paginated
- * envelope (`{ offset, limit, size, _links, <key>: [...] }`); older servers
- * return a bare top-level array, and the documentation is not a reliable guide
- * to which — `get_shared_step_history` has returned a bare array despite its
- * documented envelope, `get_suites` has changed shape between versions, and
- * `get_users` documents a bare array while its siblings document the envelope.
+ * The TestRail bulk GET endpoints have two response shapes. Since TestRail 6.7,
+ * they return a paginated envelope (`{ offset, limit, size, _links, <key>: [...] }`).
+ * Older servers return a bare top-level array. The documentation does not
+ * reliably tell which shape an endpoint returns. For example:
+ *
+ * - `get_shared_step_history` has returned a bare array, although its
+ *   documented shape is the envelope.
+ * - `get_suites` has changed shape between versions.
+ * - `get_users` documents a bare array, but its sibling endpoints document the
+ *   envelope.
+ *
  * This package declares no minimum server version.
  *
- * Accepting both costs nothing: the method contract stays `Entity[]` either way.
- * Committing to one is not merely a lost opportunity — under advisory response
- * validation (6.0.0) an envelope-only schema meeting a bare array parses to the
- * raw array, whose `.<key>` is `undefined`, so the `?? []` unwrap turns the
- * mismatch into a **successful call reporting zero rows**. Silent emptiness on
- * a list read is worse than the throw it replaced, so every list read pairs
+ * Acceptance of both shapes has no disadvantage, because the method contract
+ * stays `Entity[]` for both. A schema that accepts only one shape causes a real
+ * problem. Under advisory response validation (6.0.0), an envelope-only schema
+ * that gets a bare array parses to the raw array, whose `.<key>` is
+ * `undefined`. Thus, the `?? []` unwrap changes the mismatch into a
+ * **successful call that reports zero rows**. On a list read, a silent empty
+ * result is worse than the throw that it replaced. Thus, each list read pairs
  * {@link listOf} with {@link unwrapList}.
  *
- * Note for `onSchemaMismatch` consumers: because this is a union, a mismatch
- * surfaces as a single top-level `invalid_union` issue whose `message` is the
- * unhelpful `"Invalid input"`. The per-branch detail — including the real
- * offending path, e.g. `['results', 0, 'status_id']` — lives one level down in
- * `issues[0].errors[<branch>]`. Log the whole `issues` tree, not just
- * `issues[0].message`.
+ * Note for `onSchemaMismatch` consumers: this schema is a union. Thus, a
+ * mismatch shows as a single top-level `invalid_union` issue, and its `message`
+ * is the unhelpful `"Invalid input"`. The per-branch detail is one level lower,
+ * in `issues[0].errors[<branch>]`. This detail includes the real offending
+ * path, for example `['results', 0, 'status_id']`. Log the whole `issues` tree,
+ * not only `issues[0].message`.
  *
- * The envelope key is `.nullable()`, not `.nullish()`: the key must be present,
- * though an explicit `null` still means an empty list (PR #130). With
- * `.nullish()` the branch accepts **any** object — `{ error: … }`, a single
- * entity, a drifted key, or a `key` typo against the paired {@link unwrapList} —
- * all parsing *successfully* to `{}` and unwrapping to `[]` without reaching the
- * hook. That is the silent zero-rows failure above, so requiring the key is the
- * safety margin, not a detail.
+ * The envelope key is `.nullable()`, not `.nullish()`. The key must be present,
+ * but an explicit `null` still means an empty list (PR #130). With
+ * `.nullish()`, the branch accepts **any** object, for example:
+ *
+ * - `{ error: … }`
+ * - a single entity
+ * - a renamed key
+ * - a `key` typo against the paired {@link unwrapList}
+ *
+ * All of these objects parse *successfully* to `{}` and unwrap to `[]`, and the
+ * client never calls the hook. That result is the silent zero-rows failure
+ * above. Thus, the required key is the safety margin, not a detail.
  *
  * @param key  envelope property holding the array (e.g. `'results'`)
  * @param item schema for a single entity
@@ -103,23 +114,25 @@ const envelopeOf = <T extends z.ZodTypeAny>(key: string, item: T) => {
 export const listOf = <T extends z.ZodTypeAny>(key: string, item: T) => z.union([z.array(item), envelopeOf(key, item)]);
 
 /**
- * Strict metadata-preserving schema used by explicit page methods. A bare
- * legacy array is a valid terminal page, but a collection-only wrapper is not:
- * it looks like a modern envelope while omitting the metadata the Page
- * contract promises. Keeping this separate from {@link listOf} also lets the
- * HTTP pipeline use an independent validated cache namespace for Page reads.
+ * Returns a strict schema that keeps the pagination metadata. Explicit page
+ * methods use this schema. A bare legacy array is a valid terminal page, but a
+ * collection-only wrapper is not. A collection-only wrapper looks like a modern
+ * envelope, but it does not have the metadata that the Page contract requires.
+ * Because this schema is separate from {@link listOf}, the HTTP pipeline can
+ * also use an independent validated cache namespace for Page reads.
  */
 export const pageOf = <T extends z.ZodTypeAny>(key: string, item: T) =>
     z.union([z.array(item), paginatedEnvelopeOf(key, item)]);
 
 /**
- * Normalizes either shape accepted by {@link listOf} to a plain array. A `null`
- * envelope key means an empty list (observed behavior, PR #130).
+ * Normalizes either shape that {@link listOf} accepts to a plain array. A
+ * `null` envelope key means an empty list (observed behavior, PR #130).
  *
- * Every branch is defensive: under advisory validation `raw` is whatever the
- * server sent when neither {@link listOf} branch matched. A malformed outer
- * shape throws rather than returning a scalar typed as `T[]` or fabricating an
- * empty list; row-level schema drift inside a real array remains advisory.
+ * Each branch is defensive. Under advisory validation, `raw` is the value that
+ * the server sent when neither {@link listOf} branch matched. A malformed outer
+ * shape throws. The function does not return a scalar typed as `T[]`, and it
+ * does not return an empty list that the server did not send. A row-level
+ * schema mismatch inside a real array stays advisory.
  */
 export const unwrapList = <T>(key: string, raw: unknown): T[] => {
     if (Array.isArray(raw)) return raw as T[];
@@ -133,27 +146,31 @@ export const unwrapList = <T>(key: string, raw: unknown): T[] => {
 };
 
 /**
- * {@link listOf} plus a third shape: an outer array wrapping exactly one
- * pagination envelope, `[{ offset, limit, size, _links, <key>: [...] }]`.
+ * Returns the {@link listOf} schema with a third shape: an outer array that
+ * contains exactly one pagination envelope,
+ * `[{ offset, limit, size, _links, <key>: [...] }]`.
  *
- * Only `get_history_for_case` documents its response that way, and it stays a
- * separate helper rather than widening {@link listOf}: the extra branch is
- * unambiguous only when the item schema has required keys the envelope lacks.
- * `HistoryEntrySchema` requires `id`/`user_id`/`type_id`, so it is sound here —
- * recheck before reusing this on an all-optional item schema.
+ * Only `get_history_for_case` documents its response in this shape. This
+ * helper stays separate, and {@link listOf} does not get the extra branch. The
+ * extra branch is unambiguous only when the item schema has required keys that
+ * the envelope does not have. `HistoryEntrySchema` requires
+ * `id`/`user_id`/`type_id`, so the extra branch is safe here. Before you use
+ * this helper with an all-optional item schema, make sure that the extra branch
+ * is still unambiguous.
  */
 export const listOfNested = <T extends z.ZodTypeAny>(key: string, item: T) =>
     z.union([z.array(item), envelopeOf(key, item), z.tuple([envelopeOf(key, item)])]);
 
-/** Strict nested counterpart to {@link pageOf}. */
+/** Returns the strict nested counterpart of {@link pageOf}. */
 export const pageOfNested = <T extends z.ZodTypeAny>(key: string, item: T) => {
     const envelope = paginatedEnvelopeOf(key, item);
     return z.union([z.array(item), envelope, z.tuple([envelope])]);
 };
 
 /**
- * {@link unwrapList} for {@link listOfNested}. Checks the outer-array-of-envelope
- * shape before treating a top-level array as already normalized. Mixed or
+ * Normalizes the shapes that {@link listOfNested} accepts, as {@link unwrapList}
+ * does for {@link listOf}. Before the function treats a top-level array as
+ * already normalized, it validates the outer-array-of-envelope shape. Mixed or
  * multiple wrappers are ambiguous and fail closed.
  */
 export const unwrapNestedList = <T>(key: string, raw: unknown): T[] => {

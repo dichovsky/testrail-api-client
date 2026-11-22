@@ -7,8 +7,8 @@ import { zObject } from './common.js';
  * SPEC #A.1 — canonical exemplar for **response** schemas.
  *
  * See `CLAUDE.md (Schema authoring conventions)` (§1 naming, §2 nullability). All optional
- * fields use `.nullish()` because TestRail may return `null` or omit the key,
- * and a response `.optional()` would fail to parse `{ field: null }`.
+ * fields use `.nullish()`, because TestRail can return `null` or omit the key.
+ * A response `.optional()` would fail to parse `{ field: null }`.
  */
 export const ResultSchema = zObject({
     id: z.number(),
@@ -32,9 +32,9 @@ export const ResultSchema = zObject({
     created_by: z.number().nullish(),
     created_on: z.number().nullish(),
     /**
-     * @deprecated TestRail response custom fields are emitted as flat
-     * `custom_*` properties. Retained for compatibility with older servers
-     * and proxies that still return a nested container.
+     * @deprecated TestRail returns response custom fields as flat
+     * `custom_*` properties. The schema keeps this field for compatibility
+     * with older servers and proxies that still return a nested container.
      */
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
     // Observed response fields on `get_results_for_run` elements that were
@@ -80,16 +80,16 @@ function hasResultContent(result: {
  * SPEC #A.1 — canonical exemplar for **request** payload schemas.
  *
  * See `CLAUDE.md (Schema authoring conventions)` (§1 naming, §2 nullability). Caller-omitted
- * fields use `.optional()` (= `T | undefined`), NOT `.nullish()`: a request
- * `.nullish()` would widen the input type with `null` for no reason — callers
- * omit the key instead of sending `null`. Mirror of the response-side
- * `ResultSchema` with optionality flipped accordingly on `status_id`,
- * `comment`, `defects`, and `assignedto_id`.
+ * fields use `.optional()` (= `T | undefined`), NOT `.nullish()`. A request
+ * `.nullish()` would widen the input type with `null` for no reason. Callers
+ * omit the key, and do not send `null`. This schema is the request mirror of
+ * the response-side `ResultSchema`. The optionality of `status_id`,
+ * `comment`, `defects`, and `assignedto_id` changes accordingly.
  *
- * The at-least-one rule is a `.refine()`: in Zod 4 that leaves a `ZodObject`
- * (`.shape` readable, nests in `z.array()`) and a plain inferred type with
- * every field optional, so the rule is checked at parse time (CLI `--data`)
- * rather than encoded in the type.
+ * The at-least-one rule is a `.refine()`. In Zod 4, a `.refine()` keeps a
+ * `ZodObject` (`.shape` readable, nests in `z.array()`) and a plain inferred
+ * type with all fields optional. Thus, the schema validates the rule at parse
+ * time (CLI `--data`). The type does not encode the rule.
  */
 export const AddResultPayloadSchema = zObject({
     status_id: z.number().optional(),
@@ -104,11 +104,11 @@ export const AddResultPayloadSchema = zObject({
 export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>;
 
 /**
- * Partial payload accepted by `edit_result/{result_id}` (TestRail 10.4+).
- * Every standard result field is optional because the endpoint changes only
- * the fields supplied by the caller. Flat `custom_*` fields pass through via
- * `zObject`; the built-in separated-step field is declared explicitly so its
- * replacement-array contract is visible to TypeScript consumers.
+ * The partial payload that `edit_result/{result_id}` accepts (TestRail 10.4+).
+ * Each standard result field is optional, because the endpoint changes only
+ * the fields that the caller supplies. Flat `custom_*` fields pass through
+ * `zObject`. The schema declares the built-in separated-step field explicitly,
+ * so that its replacement-array contract is visible to TypeScript consumers.
  */
 export const EditResultPayloadSchema = zObject({
     status_id: z.number().optional(),

@@ -68,12 +68,12 @@ export class PlanModule {
         return PLANS_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    /** Get one response page. When TestRail sends pagination metadata, the method keeps it. */
     async getPlansPage(projectId: number, options?: GetPlansOptions): Promise<Page<Plan>> {
         return PLANS_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Get every plan under the configured pagination safety bounds. */
+    /** Get all plans. The configured pagination safety limits apply. */
     async getAllPlans(projectId: number, options?: GetAllPlansOptions): Promise<Plan[]> {
         return PLANS_PAGINATION.all(this.client, { projectId }, options);
     }

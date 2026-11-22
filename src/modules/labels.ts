@@ -32,9 +32,10 @@ export const LABELS_PAGINATION = createPaginatedListExecutor<
 });
 
 /**
- * Entity drift remains advisory: a mismatch returns the raw body, so the
- * `{ label }` transform of `LabelWriteResponseSchema` never runs. Normalize the
- * structural wrapper here as well. A flat label carries `id` and is unchanged.
+ * Entity schema mismatches stay advisory. On a mismatch, the client returns
+ * the raw body, so the `{ label }` transform of `LabelWriteResponseSchema`
+ * never runs. Thus, this function also normalizes the structural wrapper. A
+ * flat label contains `id`, and the function returns it with no change.
  */
 function unwrapLabelWrite(raw: unknown): Label {
     if (typeof raw === 'object' && raw !== null && !Array.isArray(raw) && !('id' in raw)) {
@@ -45,9 +46,9 @@ function unwrapLabelWrite(raw: unknown): Label {
 }
 
 /**
- * Stand-alone TestRail Labels API (TestRail 10.5+). Label *reads* embedded in
- * case/test responses are handled by `LabelEmbeddedSchema`; this module manages
- * the label definitions themselves.
+ * The stand-alone TestRail Labels API (TestRail 10.5+). `LabelEmbeddedSchema`
+ * handles label *reads* that are embedded in case and test responses. This
+ * module manages the label definitions themselves.
  */
 export class LabelModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -67,12 +68,12 @@ export class LabelModule {
         return LABELS_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    /** Get one response page. When TestRail sends pagination metadata, the method keeps it. */
     async getLabelsPage(projectId: number, options?: GetLabelsOptions): Promise<Page<Label>> {
         return LABELS_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Get every label under the configured pagination safety bounds. */
+    /** Get all labels. The configured pagination safety limits apply. */
     async getAllLabels(projectId: number, options?: GetAllLabelsOptions): Promise<Label[]> {
         return LABELS_PAGINATION.all(this.client, { projectId }, options);
     }

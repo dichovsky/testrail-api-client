@@ -74,12 +74,12 @@ export class ProjectModule {
         return PROJECTS_PAGINATION.items(this.client, {}, options);
     }
 
-    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    /** Get one response page. When TestRail sends pagination metadata, the method keeps it. */
     async getProjectsPage(options?: GetProjectsOptions): Promise<Page<Project>> {
         return PROJECTS_PAGINATION.page(this.client, {}, options);
     }
 
-    /** Get every project under the configured pagination safety bounds. */
+    /** Get all projects. The configured pagination safety limits apply. */
     async getAllProjects(options?: GetAllProjectsOptions): Promise<Project[]> {
         return PROJECTS_PAGINATION.all(this.client, {}, options);
     }

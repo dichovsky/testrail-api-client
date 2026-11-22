@@ -3,11 +3,12 @@ import type { PaginationErrorReason } from './pagination.js';
 import { MAX_SANITIZED_CAUSE_DEPTH } from './constants.js';
 
 /**
- * Thrown when communication with TestRail fails or a successful response cannot
- * be used safely. This includes non-2xx responses, network/body-processing
- * failures, and unrecognized outer response structures. The optional `response`
- * retains the raw server value for programmatic inspection; callers should not
- * expose it in logs because it can contain instance data.
+ * Thrown when communication with TestRail fails, or when the client cannot use
+ * a successful response safely. Causes include non-2xx responses, network and
+ * body-processing failures, and unrecognized outer response structures. The
+ * optional `response` keeps the raw server value for programmatic inspection.
+ * Callers should not put `response` in logs, because it can contain instance
+ * data.
  */
 export class TestRailApiError extends Error {
     constructor(
@@ -22,13 +23,14 @@ export class TestRailApiError extends Error {
 }
 
 /**
- * Builds the status-0 {@link TestRailApiError} for a failure below HTTP: a
- * refused or reset connection, a TLS or DNS failure, a body that stops
- * mid-stream. `reason` is kept as `cause` because Node reports most of these as
- * a bare "fetch failed" and puts the actionable detail on the original error.
+ * Builds the status-0 {@link TestRailApiError} for a failure below HTTP. For
+ * example: a refused or reset connection, a TLS or DNS failure, or a body that
+ * stops mid-stream. The function keeps `reason` as `cause`, because Node
+ * reports most of these failures only as "fetch failed". Node puts the
+ * actionable detail on the original error.
  * Pass `options.cause` when `reason` came from caller code (see
- * {@link sanitizedCause}); an `undefined` cause there means "attach none",
- * never "fall back to `reason`".
+ * {@link sanitizedCause}). In `options`, an `undefined` cause means "attach
+ * none". It never means "fall back to `reason`".
  */
 export function networkError(reason: unknown, context = '', options?: { readonly cause: unknown }): TestRailApiError {
     const message = `${context}${reason instanceof Error ? reason.message : String(reason)}`;
@@ -40,8 +42,8 @@ const dnsLookupFailures = new WeakSet<object>();
 
 /**
  * Builds the network error for a DNS lookup that failed or returned no
- * addresses, and marks it so a caller can tell it from other network failures
- * (see {@link isDnsLookupFailure}).
+ * addresses. The function marks the error, so that {@link isDnsLookupFailure}
+ * can identify it among other network failures.
  */
 export function dnsLookupError(reason: unknown, hostname: string): TestRailApiError {
     const error = networkError(reason, `DNS lookup failed for "${hostname}": `);
@@ -49,7 +51,10 @@ export function dnsLookupError(reason: unknown, hostname: string): TestRailApiEr
     return error;
 }
 
-/** Whether `error` is the client reporting a failed DNS lookup. Identity, not message text. */
+/**
+ * Returns true when `error` is the client error for a failed DNS lookup. The
+ * function compares object identity, not message text.
+ */
 export function isDnsLookupFailure(error: unknown): boolean {
     return typeof error === 'object' && error !== null && dnsLookupFailures.has(error);
 }
@@ -57,13 +62,15 @@ export function isDnsLookupFailure(error: unknown): boolean {
 const SAFE_CAUSE_FIELDS = ['code', 'errno', 'syscall'] as const;
 
 /**
- * A plain copy of a failure raised by caller-supplied code (a custom `fetch`):
- * its string name, message, and primitive `code`, `errno`, and `syscall`, recursing
- * into `cause`. HTTP adapters often embed the request they were given in their
- * errors, and the client passes the Authorization header to `fetch` in
- * `init.headers`. Attaching the raw object would expose that credential to any
- * logger that walks the cause chain. Non-Error objects and functions are dropped;
- * primitives are kept.
+ * Returns a plain copy of a failure that caller-supplied code raised, for
+ * example a custom `fetch`. The copy contains the string name, the message, and
+ * the primitive `code`, `errno`, and `syscall` values. The function copies
+ * `cause` in the same way, recursively.
+ * HTTP adapters often put the request that they received into their errors, and
+ * the client passes the Authorization header to `fetch` in `init.headers`.
+ * If the client attached the raw object, that credential would be visible to
+ * any logger that walks the cause chain. The function drops non-Error objects
+ * and functions. It keeps primitives.
  */
 export function sanitizedCause(reason: unknown, depth = 0): unknown {
     if (!(reason instanceof Error)) {
@@ -97,11 +104,12 @@ export function sanitizedCause(reason: unknown, depth = 0): unknown {
 }
 
 /**
- * Thrown when TestRail rejects a request because the instance lacks the required
- * Enterprise license/subscription (HTTP 403 with a "Not an Enterprise
- * license/subscription." body — live-audit findings B.22/B.33). A subclass of
- * {@link TestRailApiError}, so existing `catch (TestRailApiError)` handlers still
- * catch it; callers that want to branch on license gating specifically can use
+ * Thrown when TestRail rejects a request because the instance does not have the
+ * required Enterprise license or subscription. TestRail returns HTTP 403 with a
+ * body such as "Not an Enterprise license/subscription." (live-audit findings
+ * B.22/B.33). This class is a subclass of {@link TestRailApiError}, so existing
+ * `catch (TestRailApiError)` handlers still catch it. Callers that want to branch
+ * on the license restriction specifically can use
  * `instanceof TestRailLicenseError`.
  */
 export class TestRailLicenseError extends TestRailApiError {
@@ -112,36 +120,40 @@ export class TestRailLicenseError extends TestRailApiError {
 }
 
 /**
- * Matches TestRail's Enterprise-license/subscription 403 bodies. TestRail
- * phrases the same condition two ways depending on the endpoint:
+ * Matches the TestRail 403 bodies for an Enterprise license or subscription.
+ * TestRail uses two phrasings for the same condition. The phrasing changes with
+ * the endpoint:
  *
  *   get_variables / get_datasets → `"Not an Enterprise license/subscription."`
  *   get_case_statuses            → `"You do not have permission to access this
  *                                    endpoint (Requires Enterprise license…"`
  *
- * Anchoring on `not an enterprise …` matched only the first, so
- * `getCaseStatuses()` surfaced a plain `TestRailApiError` on a non-Enterprise
- * instance and callers branching on `instanceof TestRailLicenseError` to degrade
- * gracefully missed it. Both lead-ins are accepted instead.
+ * An earlier pattern anchored on `not an enterprise …` and matched only the
+ * first phrasing. Thus `getCaseStatuses()` threw a plain `TestRailApiError` on a
+ * non-Enterprise instance. Callers that branch on `instanceof TestRailLicenseError`
+ * to degrade gracefully did not catch that error. The pattern now accepts both
+ * lead-ins.
  *
- * Deliberately not loosened all the way to the bare `enterprise licen…` stem:
- * the body may be an arbitrary document (a corporate proxy's HTML 403 page) or
- * echo an entity name (a project called "Enterprise Licensing"), and either
- * would then classify as a license restriction — leaving a caller that branches
- * on `instanceof TestRailLicenseError` with a feature permanently disabled over
- * a transient ACL problem. The asymmetry favors strictness: a missed phrasing
- * degrades to a plain {@link TestRailApiError}, which is what 5.x did anyway.
+ * The pattern intentionally does not match the bare `enterprise licen…` stem.
+ * The body can be an arbitrary document (a corporate proxy's HTML 403 page) or
+ * can echo an entity name (a project called "Enterprise Licensing"). Either body
+ * would then classify as a license restriction. A caller that branches on
+ * `instanceof TestRailLicenseError` would then disable a feature permanently
+ * because of a transient ACL problem. Thus the pattern prefers strictness: a
+ * missed phrasing degrades to a plain {@link TestRailApiError}, which is the 5.x
+ * behavior.
  */
 const LICENSE_RESTRICTION_RE = /(?:not an|requires)\s+enterprise (?:licen|subscription)/i;
 
 /**
- * Returns true when an HTTP error denotes a TestRail Enterprise-license/
- * subscription restriction: status 403 whose body names an Enterprise licence or
- * subscription. `body` is the raw response text; it is parsed leniently and falls
- * back to a substring match so a non-JSON body or a future wrapper shape still
- * classifies correctly. The match stays narrow enough that ordinary 403s
- * (permission denials that do not mention Enterprise licensing) remain plain
- * {@link TestRailApiError}.
+ * Returns true when an HTTP error is a TestRail Enterprise license or
+ * subscription restriction. Such an error has status 403 and a body that names
+ * an Enterprise license or subscription. `body` is the raw response text. The
+ * function parses `body` leniently. If `body` is not JSON or has no string
+ * `error` field, the function matches the raw text. Thus a non-JSON body or a future wrapper shape
+ * still classifies correctly. The match stays narrow, so ordinary 403 responses
+ * (permission denials that do not mention Enterprise licensing) stay plain
+ * {@link TestRailApiError} errors.
  */
 export function isLicenseRestriction(status: number, body: unknown): boolean {
     if (status !== 403 || typeof body !== 'string') {
@@ -176,8 +188,8 @@ export class TestRailValidationError extends Error {
 
 /**
  * Thrown when a bounded multi-page read cannot complete safely. HTTP and
- * network failures remain {@link TestRailApiError}; this subtype represents
- * client-side page structure, continuation, and aggregation-policy failures.
+ * network failures stay {@link TestRailApiError} errors. This subtype is for
+ * client-side failures of page structure, continuation, and aggregation policy.
  */
 export class TestRailPaginationError extends TestRailValidationError {
     constructor(
@@ -193,7 +205,7 @@ export class TestRailPaginationError extends TestRailValidationError {
 }
 
 /**
- * Utility to convert ZodError into TestRailValidationError.
+ * Converts a `ZodError` into a `TestRailValidationError`.
  */
 export function handleZodError(error: ZodError): TestRailValidationError {
     return new TestRailValidationError('Schema validation failed', error.format());

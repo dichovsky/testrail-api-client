@@ -56,17 +56,21 @@ export const GroupSchema = zObject({
 export type Group = KnownResponse<typeof GroupSchema>;
 
 /**
- * Group write-payload schemas (TestRail 7.5+). Mirror the
- * variable/shared-step/milestone payload-migration precedent: each schema is
- * declared once here as the source of truth for both the runtime validator
- * (CLI `--data` resolver) and the inferred TypeScript types consumed by the
- * programmatic client. `.passthrough()` (via `zObject`) preserves any future
- * `custom_*`-style fields TestRail may add to either endpoint.
+ * Group write-payload schemas (TestRail 7.5+). These schemas follow the
+ * variable/shared-step/milestone payload-migration precedent. This file
+ * declares each schema one time, as the source of truth for both of these
+ * items:
  *
- * `UpdateGroupPayloadSchema` allows an empty body — mirrors
- * `UpdateVariablePayloadSchema` / `UpdateSectionPayloadSchema`. TestRail
- * itself accepts `{}` on update and returns the unchanged group; we do NOT
- * enforce "at least one field set" client-side.
+ * - the runtime validator (CLI `--data` resolver)
+ * - the inferred TypeScript types that the programmatic client uses
+ *
+ * `.passthrough()` (through `zObject`) keeps any future `custom_*`-style
+ * fields that TestRail can add to either endpoint.
+ *
+ * `UpdateGroupPayloadSchema` allows an empty body, as
+ * `UpdateVariablePayloadSchema` / `UpdateSectionPayloadSchema` do. TestRail
+ * itself accepts `{}` on update and returns the group with no change. The
+ * client does NOT apply an "at least one field set" rule.
  */
 export const AddGroupPayloadSchema = zObject({
     name: z.string(),
@@ -87,23 +91,28 @@ export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>;
 const userEmailField = z.string().regex(TESTRAIL_USER_EMAIL_PATTERN, { message: 'Invalid email format' });
 
 /**
- * User write-payload schemas (TestRail 7.3+). Mirror the group/milestone
- * payload pattern: declared once here as the source of truth for both the
- * runtime validator (CLI `--data` resolver) and the inferred TypeScript types
- * consumed by the programmatic client. `.passthrough()` (via `zObject`)
- * preserves any future fields TestRail may add to either endpoint.
+ * User write-payload schemas (TestRail 7.3+). These schemas follow the
+ * group/milestone payload pattern. This file declares each schema one time, as
+ * the source of truth for both of these items:
  *
- * `UserAddPayloadSchema` enforces only `name` and `email` as required, matching
- * the documented minimal request.
- * `UserUpdatePayloadSchema` allows partial update (all fields optional) —
- * PATCH semantics; an empty `{}` body is accepted by TestRail and returns
- * the unchanged user.
+ * - the runtime validator (CLI `--data` resolver)
+ * - the inferred TypeScript types that the programmatic client uses
  *
- * Both check `email` with the same permissive shape rule as the
- * `get_user_by_email` lookup (`TESTRAIL_USER_EMAIL_PATTERN`), not
- * `z.string().email()`: an address the client can look up must also be one it
- * can create or set, including the single-label (`ada@corp`) and
- * domain-literal (`user@[192.168.1.1]`) forms self-hosted instances store.
+ * `.passthrough()` (through `zObject`) keeps any future fields that TestRail
+ * can add to either endpoint.
+ *
+ * `UserAddPayloadSchema` requires only `name` and `email`, as in the
+ * documented minimal request.
+ * `UserUpdatePayloadSchema` allows a partial update (all fields optional),
+ * with PATCH semantics. TestRail accepts an empty `{}` body and returns the
+ * user with no change.
+ *
+ * Both schemas validate `email` with the same permissive shape rule as the
+ * `get_user_by_email` lookup (`TESTRAIL_USER_EMAIL_PATTERN`), not with
+ * `z.string().email()`. If the client can look up an address, the client must
+ * also be able to create or set that address. This rule includes the
+ * single-label (`ada@corp`) and domain-literal (`user@[192.168.1.1]`) forms
+ * that self-hosted instances store.
  */
 export const UserAddPayloadSchema = zObject({
     name: z.string().min(1),
