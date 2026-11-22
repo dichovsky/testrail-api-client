@@ -5,13 +5,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-7_tested-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@dichovsky/testrail-api-client` provides a TypeScript SDK and the `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference).
+`@dichovsky/testrail-api-client` supplies a TypeScript SDK and the `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference).
 Use the CLI for shell scripts and CI. Use the SDK for typed application code, shared caching, and request controls.
 The package uses ESM and has one runtime dependency: Zod.
 
 ## Install
 
-Requires **Node.js 26 or newer**. CI tests Node 26 on Linux, macOS, and Windows.
+The package requires **Node.js 26 or newer**. CI tests Node 26 on Linux, macOS, and Windows.
 
 ```bash
 npm install @dichovsky/testrail-api-client
@@ -25,29 +25,32 @@ export TESTRAIL_EMAIL="you@example.com"
 export TESTRAIL_API_KEY="…"
 ```
 
-Keep the API key out of command arguments and logs. The CLI also accepts it through [standard input](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CLI.md#authentication).
+Do not put the API key in command arguments or logs. The CLI also accepts the API key through [standard input](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CLI.md#authentication).
 
 ## Upgrading to 10.0.0
 
 - Upgrade application, CLI, and CI runtimes to Node.js 26 or newer.
-- Remove caller cleanup for file descriptors passed to SDK upload methods, including calls that fail before sending a request.
-  The SDK now owns those descriptors from the call onward. See [upload ownership](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#upload-files).
-- Replace `parse()` overrides used for endpoint responses with `onSchemaMismatch` for reporting or strict validation.
-  Apply response transformations after awaiting the endpoint method. See [response validation](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#response-validation) for affected behavior and examples.
-- Catch `TestRailApiError` with `status === 0` for DNS resolver failures. They no longer throw `TestRailValidationError`.
+- Remove caller cleanup for file descriptors that you pass to SDK upload methods. Remove this cleanup also for calls that fail before the client sends a request.
+  The SDK now owns those descriptors from the start of the call. See [upload ownership](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#upload-files).
+- Replace `parse()` overrides for endpoint responses with `onSchemaMismatch` for mismatch reports or strict validation.
+  Apply response transformations after you await the endpoint method. See [response validation](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#response-validation) for affected behavior and examples.
+- Catch `TestRailApiError` with `status === 0` for DNS resolver failures. The client does not throw `TestRailValidationError` for these failures now.
 - Pass a `baseUrl` without a query string or fragment.
-- Remove `timeout`, `bodyTimeout`, `deadlineAt`, and `cacheVariant` from objects passed to `client.request()`. They are no longer declared. Use `client.withTimeout(ms)` for a per-request timeout.
-- Check `typeof result.quality_rating === 'number'` before numeric use. The field can now be an object of scores.
-- Expect `TestRailValidationError` before any request for an empty or invalid `case_ids` or `test_ids` list in bulk writes, and for an empty `addCases()` array.
-- Correct CLI scripts that pass a malformed `--limit` or `--offset`, an empty `--timeout`, or a positional argument to `install-skill` or `uninstall-skill`. These commands now exit 1.
+- Remove `timeout`, `bodyTimeout`, `deadlineAt`, and `cacheVariant` from objects that you pass to `client.request()`. The argument type of `client.request()` does not declare these fields now. Use `client.withTimeout(ms)` for a per-request timeout.
+- Make sure that `typeof result.quality_rating === 'number'` is true before you use the field as a number. The field can now be an object of scores.
+- Expect `TestRailValidationError` before any request for an empty or invalid `case_ids` or `test_ids` list in bulk writes. Expect the same error for an empty `addCases()` array.
+- Correct CLI scripts that pass one of these arguments, because the command now exits 1:
+    - A malformed `--limit` or `--offset`.
+    - An empty `--timeout`.
+    - A positional argument to `install-skill` or `uninstall-skill`.
 
-Published declaration files are tested with TypeScript 7. Other compiler versions are not tested.
+The project tests the published declaration files with TypeScript 7. The project does not test other compiler versions.
 TypeScript is not a runtime or peer dependency of the package.
 See the [changelog](https://github.com/dichovsky/testrail-api-client/blob/main/CHANGELOG.md) for the full release scope and affected methods.
 
 ## Quick start (SDK)
 
-Read a project, then release the client's timers and cache:
+The example reads a project and then releases the timers and cache of the client:
 
 ```typescript
 import { TestRailClient } from '@dichovsky/testrail-api-client';
@@ -68,14 +71,14 @@ try {
 
 <a name="write-example"></a>
 
-The SDK types write payloads at compile time. For dynamic input, call the exported payload schema's `.parse(input)` before writing.
+The SDK supplies compile-time types for write payloads. For dynamic input, call the exported payload schema's `.parse(input)` before the write.
 See the [SDK guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md) for writes, configuration, pagination, and error handling.
 
 <a name="cli-quick-tour"></a>
 
 ## Quick start (CLI)
 
-With the package installed locally, run commands through `npx testrail`:
+If the package is installed locally, run commands through `npx testrail`:
 
 ```bash
 npx testrail project list
@@ -95,15 +98,15 @@ See the [CLI guide](https://github.com/dichovsky/testrail-api-client/blob/main/d
 
 ## Behavior to know
 
-| Topic       | Default behavior                                                                                                                       |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Lists       | Return one response. Use `getAll*()` or CLI `--all` for bounded pagination.                                                            |
-| Responses   | Entity-field mismatches are advisory. CLI `--strict-responses` makes them errors; paginated lists still enforce their outer structure. |
-| Caching     | Cache eligible GET responses for five minutes. Dispatched writes clear the cache, whatever their outcome; aggregate reads bypass it.   |
-| Retries     | Ordinary GETs retry transient failures. JSON writes and report execution retry only on `429`; uploads never retry.                     |
-| Connections | Block private hosts and redirects. See the networking guide for trusted private servers, proxies, and custom certificates.             |
+| Topic       | Default behavior                                                                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lists       | A list method returns the items from one response. Use `getAll*()` or CLI `--all` for bounded pagination.                                                 |
+| Responses   | Entity-field mismatches are advisory. CLI `--strict-responses` makes them errors. Paginated lists still validate their outer structure.                   |
+| Caching     | The client caches eligible GET responses for five minutes. Dispatched writes clear the cache, with or without an error. Aggregate reads bypass the cache. |
+| Retries     | Ordinary GET requests retry transient failures. JSON writes and report execution retry only on `429`. Uploads never retry.                                |
+| Connections | The client blocks private hosts and redirects. See the networking guide for trusted private servers, proxies, and custom certificates.                    |
 
-A response-validation error can occur after a write executes. Check the server state before retrying an uncertain write.
+Examine the server state before you retry an uncertain write. A response-validation error can occur after the write executes.
 The guides below explain limits, exceptions, and configuration.
 
 ## Documentation

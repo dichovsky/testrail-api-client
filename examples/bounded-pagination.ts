@@ -1,20 +1,20 @@
-// Repository example. When copying into an application, import the SDK from
-// '@dichovsky/testrail-api-client' instead of '../src/index.js'.
+// This file is a repository example. If you copy it into an application, import
+// the SDK from '@dichovsky/testrail-api-client', not from '../src/index.js'.
 //
-// The pagination trio is the part of this client most often used wrongly. The
-// three shapes are not interchangeable:
+// Callers use the three pagination methods incorrectly more often than other
+// parts of this client. The three shapes are not interchangeable:
 //
-//   getCases()      one response, the historical shape — silently partial on a
-//                   project larger than one page
-//   getCasesPage()  one response plus its envelope, so you can follow it
-//                   yourself and decide when to stop
-//   getAllCases()   every page, bounded, all-or-nothing
+//   getCases()      one response, the historical shape. The result is partial,
+//                   with no error, on a project larger than one page.
+//   getCasesPage()  one response plus its envelope. You can follow the
+//                   envelope yourself and decide when to stop.
+//   getAllCases()   all pages, bounded, all-or-nothing.
 //
-// `getAll*()` returns no partial result. If a safety bound trips it throws
-// `TestRailPaginationError` rather than handing back a short array that reads
-// like a complete one — which is the failure the bounds exist to prevent.
+// `getAll*()` returns no partial result. If the read gets to a safety limit,
+// `getAll*()` throws `TestRailPaginationError`. It does not return a short
+// array that looks complete. The bounds exist to prevent that failure.
 //
-// Run with:
+// Run the example with this command:
 //   TESTRAIL_BASE_URL=... TESTRAIL_EMAIL=... TESTRAIL_API_KEY=... \
 //   TESTRAIL_PROJECT_ID=... npx tsx examples/bounded-pagination.ts
 import { TestRailClient, TestRailPaginationError } from '../src/index.js';
@@ -38,16 +38,16 @@ async function main(): Promise<void> {
     const projectId = Number(requireEnv('TESTRAIL_PROJECT_ID'));
 
     try {
-        // 1. One page, with the envelope. Use this when you want control over
-        //    when to stop — a UI showing the first screen, or a job that only
-        //    needs the newest N.
+        // 1. One page, with the envelope. Use this method when you want to
+        //    control when to stop. For example, a UI that shows the first
+        //    screen, or a job that needs only the newest N.
         const page = await client.cases.getCasesPage(projectId, { limit: 50 });
         process.stdout.write(`page: ${page.items.length} items, size ${String(page.size)}\n`);
 
-        // 2. Every page, bounded. The defaults (100 pages / 25,000 items /
-        //    5 min / 100 MiB) are deliberately reachable: a project that
-        //    exceeds them is telling you to narrow the query, not to raise
-        //    the ceiling.
+        // 2. All pages, bounded. The defaults (100 pages / 25,000 items /
+        //    5 min / 100 MiB) are intentionally reachable. A project that
+        //    exceeds them is a sign to narrow the query, not to raise the
+        //    maximum.
         const all = await client.cases.getAllCases(projectId, {
             pageSize: 250,
             maxPages: 20,
@@ -57,10 +57,10 @@ async function main(): Promise<void> {
         process.stdout.write(`aggregate: ${all.length} cases\n`);
     } catch (error) {
         if (error instanceof TestRailPaginationError) {
-            // `reason` says which bound tripped, and the progress counters say
-            // how far it got — enough to decide between narrowing the filter
-            // and raising that one bound. Note there is no partial array to
-            // fall back on, by design.
+            // `reason` shows which bound stopped the read. The progress
+            // counters show how many pages and items the read got. Use this
+            // data to decide if you narrow the filter or raise that one bound.
+            // By design, no partial array is available.
             process.stderr.write(`Aggregate stopped: ${error.reason}\n`);
             process.stderr.write(
                 error.reason === 'max_items' || error.reason === 'max_pages'

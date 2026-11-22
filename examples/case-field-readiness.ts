@@ -1,5 +1,6 @@
-// Repository example. When copying into an application, import the SDK from
-// '@dichovsky/testrail-api-client' and use the application's timer limit.
+// This file is a repository example. If you copy it into an application, import
+// the SDK from '@dichovsky/testrail-api-client'. Also use the timer limit of the
+// application.
 import { TestRailClient, TestRailValidationError, CaseFieldSchema } from '../src/index.js';
 import type { AddCaseFieldResponse, CaseField, TestRailConfig } from '../src/index.js';
 import { MAX_NODE_TIMER_DELAY_MS } from '../src/constants.js';
@@ -26,12 +27,12 @@ export interface ReadinessOptions {
     readonly maxDelayMs: number;
     readonly maxAttempts: number;
     readonly signal?: AbortSignal;
-    /** Check the intended type, project/template scope, and options. */
+    /** Validate the intended type, project/template scope, and options. */
     readonly verify: (field: CaseField) => boolean;
 }
 
 export type ReadinessResult = {
-    /** Always retain the successful POST result, including on cancellation. */
+    /** Always keep the successful POST result, including on cancellation. */
     readonly created: AddCaseFieldResponse;
     readonly attempts: number;
 } & (
@@ -52,9 +53,10 @@ export type ReadinessResult = {
 );
 
 /**
- * GET-only readiness example, called AFTER a successful addCaseField().
- * It never creates a field or writes dependent cases. A pending result says
- * nothing about whether creation succeeded: `created` remains authoritative.
+ * Returns the readiness state of a new case field. The function sends only GET
+ * requests. Call it AFTER a successful addCaseField(). The function never
+ * creates a field or writes dependent cases. A pending result does not show
+ * whether the creation succeeded. `created` stays authoritative.
  */
 export async function waitForCaseField(
     config: TestRailConfig,
@@ -101,8 +103,9 @@ export async function waitForCaseField(
     let reader: TestRailClient | undefined;
     let onAbort: (() => void) | undefined;
     try {
-        // A dedicated reader avoids cached omissions and never clears another
-        // client's cache. No automatic retries: maxAttempts counts actual GETs.
+        // A dedicated reader prevents cached omissions and never clears the cache
+        // of another client. The reader has no automatic retries. Thus,
+        // maxAttempts counts actual GET requests.
         reader = new TestRailClient({
             ...config,
             enableCache: false,
@@ -163,12 +166,14 @@ export async function waitForCaseField(
             }
             return pending(signal.aborted || expired() ? stopReason() : 'attempt_limit');
         };
-        // Also bound a slow custom DNS/fetch implementation that ignores abort.
-        // Once it settles, poll sees the signal and performs no further work.
+        // Also limit a slow custom DNS/fetch implementation that ignores abort.
+        // When the implementation settles, poll sees the signal and does no
+        // more work.
         return await Promise.race([poll(), stopped]);
     } catch (error) {
-        // Configuration rejection happens before any GET. Preserve creation,
-        // but tell the caller to fix the reader configuration before retrying.
+        // A configuration rejection occurs before any GET. Keep the creation
+        // result, but tell the caller to fix the reader configuration before a
+        // retry.
         if (reader === undefined && error instanceof TestRailValidationError) return pending('invalid_config');
         return pending('read_failed');
     } finally {
