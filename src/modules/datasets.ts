@@ -50,12 +50,12 @@ export class DatasetModule {
         return DATASETS_PAGINATION.items(this.client, { projectId });
     }
 
-    /** Get one response page without sending undocumented request controls. */
+    /** Get one response page. The method does not send undocumented request controls. */
     async getDatasetsPage(projectId: number): Promise<Page<Dataset>> {
         return DATASETS_PAGINATION.page(this.client, { projectId });
     }
 
-    /** Get every dataset under the configured pagination safety bounds. */
+    /** Get all datasets. The configured pagination safety limits apply. */
     async getAllDatasets(projectId: number, options?: GetAllDatasetsOptions): Promise<Dataset[]> {
         return DATASETS_PAGINATION.all(this.client, { projectId }, options);
     }

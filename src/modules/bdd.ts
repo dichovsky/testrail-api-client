@@ -8,18 +8,18 @@ import { serializeIdFilter } from '../utils.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
 import { withMultipartUpload } from '../upload-lifetime.js';
 
-/** Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`. */
+/** Filters and pagination controls that the TestRail 10.5+ `get_bdds` endpoint accepts. */
 export interface GetBddsOptions {
-    /** Return only BDD cases belonging to this suite. */
+    /** Return only BDD cases in this suite. */
     suiteId?: number;
-    /** Return only BDD cases belonging to this section. */
+    /** Return only BDD cases in this section. */
     sectionId?: number;
-    /** Return only BDD cases carrying one of these label IDs. */
+    /** Return only BDD cases that have one of these label IDs. */
     labelId?: number | readonly number[];
     /**
-     * Filter by an external reference. TestRail 10.7+ accepts an array and
-     * serializes it as repeated `refs[]` parameters; a string keeps the
-     * backwards-compatible single `refs` parameter.
+     * Filter by an external reference. TestRail 10.7+ accepts an array. The
+     * client serializes an array as repeated `refs[]` parameters. A string
+     * keeps the backwards-compatible single `refs` parameter.
      */
     refs?: string | readonly string[];
     /** Maximum number of BDD entries to return. */
@@ -61,15 +61,16 @@ export const BDDS_PAGINATION = createPaginatedListExecutor<
 });
 
 /**
- * BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints.
+ * The BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints.
  *
- * Unlike every other endpoint in this client, `getBdd` returns raw Gherkin
- * text (`text/plain`), not JSON. It dispatches through `request()` with
- * `responseKind: 'text'`, which mirrors the JSON path's retry / rate-limit /
- * timeout pipeline but swaps the JSON parse step for `response.text()`.
+ * Unlike all other endpoints in this client, `getBdd` returns raw Gherkin
+ * text (`text/plain`), not JSON. The method dispatches through `request()`
+ * with `responseKind: 'text'`. This request uses the same retry, rate-limit,
+ * and timeout pipeline as the JSON path, but replaces the JSON parse step with
+ * `response.text()`.
  *
  * `addBdd` and `updateBdd` are thin wrappers over the same multipart pipeline
- * used by `AttachmentModule.addAttachment*`. TestRail returns a `Case` on
+ * that `AttachmentModule.addAttachment*` uses. TestRail returns a `Case` on
  * success. The plural `getBdds` endpoint (TestRail 10.5+) returns JSON and is
  * paginated, unlike the raw-text singular endpoint.
  */
@@ -78,7 +79,7 @@ export class BddModule {
 
     /**
      * Fetch a case's BDD content as raw Gherkin text.
-     * @returns The `.feature` file body (Gherkin syntax). Empty string if unset.
+     * @returns The `.feature` file body (Gherkin syntax), or an empty string if the case has no BDD content.
      * @testrail GET get_bdd/{case_id}
      */
     async getBdd(caseId: number): Promise<string> {
@@ -91,25 +92,25 @@ export class BddModule {
     }
 
     /**
-     * Fetch BDD feature content in bulk. TestRail 10.5+.
+     * Fetch BDD feature content in bulk. Requires TestRail 10.5 or later.
      * @testrail GET get_bdds/{project_id}
      */
     async getBdds(projectId: number, options?: GetBddsOptions): Promise<Bdd[]> {
         return BDDS_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Fetch one normalized bulk-BDD page while preserving pagination metadata. */
+    /** Fetch one normalized bulk-BDD page and keep its pagination metadata. */
     async getBddsPage(projectId: number, options?: GetBddsOptions): Promise<Page<Bdd>> {
         return BDDS_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Fetch every bulk-BDD page under explicit aggregate safety bounds. */
+    /** Fetch all bulk-BDD pages. Explicit aggregate safety limits apply. */
     async getAllBdds(projectId: number, options?: GetAllBddsOptions): Promise<Bdd[]> {
         return BDDS_PAGINATION.all(this.client, { projectId }, options);
     }
 
     /**
-     * Upload a `.feature` file to a section, creating a BDD test case.
+     * Upload a `.feature` file to a section. The upload creates a BDD test case.
      * @testrail POST add_bdd/{section_id}
      */
     async addBdd(sectionId: number, file: UploadFileInput, filename: string): Promise<Case> {

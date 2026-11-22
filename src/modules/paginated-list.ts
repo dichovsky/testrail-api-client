@@ -15,7 +15,7 @@ import { snapshotPaginatedRequestOptions, snapshotPaginationSafetyOptions } from
 
 type QueryPrimitive = string | number;
 
-/** Values accepted by TestRail's query-string builder after domain validation. */
+/** Values that the TestRail query-string builder accepts after domain validation. */
 export type PaginatedQueryValue = QueryPrimitive | readonly QueryPrimitive[] | undefined;
 
 interface DirectPaginationOptions {
@@ -34,15 +34,15 @@ export type PaginatedOperationDeclaration =
     | string
     | {
           readonly operation: string;
-          /** Keep legacy list reads on the executor without claiming a documented pagination registration. */
+          /** Keep legacy list reads on the executor, but do not claim a documented pagination registration. */
           readonly registered: false;
       };
 
 /**
- * An endpoint request after domain IDs, aliases, and filters have been
- * validated and normalized. The executor constructs the path from the
- * declared operation and validated numeric parameters, so registration and
- * transport cannot silently name different operations.
+ * An endpoint request after the domain adapter has validated and normalized
+ * the IDs, aliases, and filters. The executor constructs the path from the
+ * declared operation and the validated numeric parameters. Thus, registration
+ * and transport cannot silently name different operations.
  */
 export interface PreparedPaginatedRequest {
     readonly operation: string;
@@ -50,7 +50,7 @@ export interface PreparedPaginatedRequest {
     readonly query?: Readonly<Record<string, PaginatedQueryValue>>;
 }
 
-/** A prepared request after the executor copied and froze it: every field is present. */
+/** A prepared request after the executor copied and froze it. All fields are present. */
 type PreparedRequestSnapshot = Required<PreparedPaginatedRequest>;
 
 export interface PaginationRegistration {
@@ -67,9 +67,9 @@ interface PaginatedListDescriptor<Args, ReadOptions extends DirectPaginationOpti
     readonly response: 'envelope' | 'nested-envelope';
     readonly requestControls: boolean;
     /**
-     * Domain adapter: synchronously snapshots endpoint filters, validates IDs,
-     * and selects one declared operation. Pagination controls are absent from
-     * the type and remain exclusively owned by the executor.
+     * The domain adapter synchronously snapshots endpoint filters, validates
+     * IDs, and selects one declared operation. The type does not include
+     * pagination controls. Only the executor owns the pagination controls.
      */
     readonly prepare: (args: Args, options: EndpointOptions<ReadOptions> | undefined) => PreparedPaginatedRequest;
 }
@@ -136,9 +136,9 @@ function buildOperationPath(request: PreparedRequestSnapshot): string {
 }
 
 /**
- * Builds one deep pagination executor. Domain modules retain endpoint-specific
- * validation and query normalization in `prepare`; this module owns every
- * list/page/all transport invariant shared by the adapters.
+ * Builds one deep pagination executor. Domain modules keep endpoint-specific
+ * validation and query normalization in `prepare`. This module owns all
+ * list/page/all transport invariants that the adapters share.
  */
 export function createPaginatedListExecutor<
     Args,

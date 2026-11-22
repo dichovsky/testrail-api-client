@@ -28,8 +28,8 @@ export class ReportModule {
     }
 
     /**
-     * Return every API-enabled Enterprise cross-project report template the
-     * authenticated user can access.
+     * Return all API-enabled Enterprise cross-project report templates that
+     * the authenticated user can access.
      * @testrail GET get_cross_project_reports
      */
     async getCrossProjectReports(): Promise<CrossProjectReport[]> {
@@ -41,7 +41,7 @@ export class ReportModule {
     }
 
     /**
-     * Execute an Enterprise cross-project report template.
+     * Run an Enterprise cross-project report template.
      * @testrail GET run_cross_project_report/{report_template_id}
      */
     async runCrossProjectReport(reportTemplateId: number): Promise<ReportResult> {

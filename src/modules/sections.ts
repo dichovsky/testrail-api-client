@@ -56,12 +56,12 @@ export class SectionModule {
         return SECTIONS_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    /** Get one response page. When TestRail sends pagination metadata, the method keeps it. */
     async getSectionsPage(projectId: number, options?: GetSectionsOptions): Promise<Page<Section>> {
         return SECTIONS_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Get every section under the configured pagination safety bounds. */
+    /** Get all sections. The configured pagination safety limits apply. */
     async getAllSections(projectId: number, options?: GetAllSectionsOptions): Promise<Section[]> {
         return SECTIONS_PAGINATION.all(this.client, { projectId }, options);
     }
@@ -89,10 +89,11 @@ export class SectionModule {
     }
 
     /**
-     * Delete a section (recursively removes all subsections and cases). Pass
-     * `{ soft: true }` for TestRail's server-side preview (`soft=1`) — the
-     * API call still happens but nothing is deleted; TestRail returns counts
-     * of affected sections, cases, and tests. TestRail 6.5+ for soft-mode.
+     * Delete a section. TestRail also deletes all subsections and cases in the
+     * section, recursively. Pass `{ soft: true }` to request the TestRail
+     * server-side preview (`soft=1`). The client still sends the request, but
+     * TestRail deletes no data. TestRail returns counts of affected sections,
+     * cases, and tests. Soft mode requires TestRail 6.5 or later.
      *
      * @testrail POST delete_section/{section_id}
      */
@@ -115,16 +116,17 @@ export class SectionModule {
     }
 
     /**
-     * Move a section to a new parent and/or position (TestRail 6.5.2+).
+     * Move a section to a new parent, a new position, or both (TestRail 6.5.2+).
      *
      * Both payload fields are independently optional AND nullable:
-     *   - `parent_id: null` moves the section to root (top-level under suite)
+     *   - `parent_id: null` moves the section to root (the top level of the suite)
      *   - `after_id: null` moves the section to the top of its container
-     *   - omitting a field leaves that axis unchanged
+     *   - if a field is not in the payload, that axis does not change
      *
      * The endpoint returns no body in older TestRail versions and the updated
-     * section in newer ones; we default to `void` and recommend a follow-up
-     * `getSection(sectionId)` when callers need the post-move state.
+     * section in newer versions. This method returns `void` for all versions.
+     * Callers that need the state after the move should call
+     * `getSection(sectionId)` after this method.
      *
      * @testrail POST move_section/{section_id}
      */

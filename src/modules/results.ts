@@ -96,7 +96,7 @@ export class ResultModule {
         return RESULTS_PAGINATION.page(this.client, { operation: 'get_results', testId }, options);
     }
 
-    /** Fetch every results-for-test page under explicit aggregate safety bounds. */
+    /** Fetch all results-for-test pages. Explicit aggregate safety limits apply. */
     async getAllResults(testId: number, options?: GetAllResultsOptions): Promise<Result[]> {
         return RESULTS_PAGINATION.all(this.client, { operation: 'get_results', testId }, options);
     }
@@ -111,7 +111,7 @@ export class ResultModule {
         return RESULTS_PAGINATION.page(this.client, { operation: 'get_results_for_case', runId, caseId }, options);
     }
 
-    /** Fetch every results-for-case page under explicit aggregate safety bounds. */
+    /** Fetch all results-for-case pages. Explicit aggregate safety limits apply. */
     async getAllResultsForCase(runId: number, caseId: number, options?: GetAllResultsOptions): Promise<Result[]> {
         return RESULTS_PAGINATION.all(this.client, { operation: 'get_results_for_case', runId, caseId }, options);
     }
@@ -126,7 +126,7 @@ export class ResultModule {
         return RESULTS_PAGINATION.page(this.client, { operation: 'get_results_for_run', runId }, options);
     }
 
-    /** Fetch every results-for-run page under explicit aggregate safety bounds. */
+    /** Fetch all results-for-run pages. Explicit aggregate safety limits apply. */
     async getAllResultsForRun(runId: number, options?: GetAllResultsForRunOptions): Promise<Result[]> {
         return RESULTS_PAGINATION.all(this.client, { operation: 'get_results_for_run', runId }, options);
     }

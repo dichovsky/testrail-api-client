@@ -54,12 +54,12 @@ export class MilestoneModule {
         return MILESTONES_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    /** Get one response page. When TestRail sends pagination metadata, the method keeps it. */
     async getMilestonesPage(projectId: number, options?: GetMilestonesOptions): Promise<Page<Milestone>> {
         return MILESTONES_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Get every milestone under the configured pagination safety bounds. */
+    /** Get all milestones. The configured pagination safety limits apply. */
     async getAllMilestones(projectId: number, options?: GetAllMilestonesOptions): Promise<Milestone[]> {
         return MILESTONES_PAGINATION.all(this.client, { projectId }, options);
     }

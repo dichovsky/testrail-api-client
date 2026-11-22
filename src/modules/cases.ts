@@ -142,12 +142,12 @@ export class CaseModule {
         return CASES_PAGINATION.items(this.client, { projectId }, options);
     }
 
-    /** Fetch one normalized cases page while preserving TestRail pagination metadata. */
+    /** Fetch one normalized cases page and keep the TestRail pagination metadata. */
     async getCasesPage(projectId: number, options?: GetCasesOptions): Promise<Page<Case>> {
         return CASES_PAGINATION.page(this.client, { projectId }, options);
     }
 
-    /** Fetch every cases page under explicit aggregate safety bounds. */
+    /** Fetch all cases pages. Explicit aggregate safety limits apply. */
     async getAllCases(projectId: number, options?: GetAllCasesOptions): Promise<Case[]> {
         return CASES_PAGINATION.all(this.client, { projectId }, options);
     }
@@ -164,12 +164,13 @@ export class CaseModule {
     }
 
     /**
-     * Bulk-create cases under a section in one API call. The payload is an
+     * Bulk-create cases in a section with one request. The payload is an
      * array of `AddCasePayload` objects (one per case). Returns the array of
      * newly created cases.
      *
      * @throws {TestRailApiError} When a successful response has an unrecognized
-     * shape; the write outcome is indeterminate and must not be retried blindly.
+     * shape. The write outcome is indeterminate, and callers must not retry the
+     * write blindly.
      *
      * @testrail POST add_cases/{section_id}
      */
@@ -218,11 +219,11 @@ export class CaseModule {
     }
 
     /**
-     * Delete a single case. Pass `{ soft: true }` to invoke TestRail's
-     * server-side preview (`soft=1`) — the API call still happens but
-     * nothing is deleted and TestRail returns counts of affected entities.
-     * Distinct from a client-side `--dry-run` which short-circuits before
-     * any request. TestRail 6.5+ for soft-mode.
+     * Delete a single case. Pass `{ soft: true }` to request the TestRail
+     * server-side preview (`soft=1`). The client still sends the request, but
+     * TestRail deletes no data and returns counts of affected entities. Soft
+     * mode is different from a client-side `--dry-run`, which stops before any
+     * request. Soft mode requires TestRail 6.5 or later.
      *
      * @testrail POST delete_case/{case_id}
      */
@@ -249,18 +250,19 @@ export class CaseModule {
     }
 
     /**
-     * Bulk-update many cases with the same field values in one API call.
-     * `payload.case_ids` identifies the targets; all other fields are applied
-     * uniformly to every listed case. TestRail returns the array of updated
-     * cases.
+     * Bulk-update many cases with the same field values in one request.
+     * `payload.case_ids` identifies the target cases. TestRail applies all
+     * other fields equally to each listed case. TestRail returns the array of
+     * updated cases.
      *
-     * Note: TestRail's online docs claim `suite_id` is single-suite-mode
-     * optional. In practice it is required even in single-suite mode (the
-     * Python reference client documents this caveat) — pass the only suite
-     * you have.
+     * Note: The TestRail online documentation shows `suite_id` as optional in
+     * single-suite mode. In practice, `suite_id` is required even in
+     * single-suite mode. The Python reference client documents this
+     * difference. In single-suite mode, pass the only suite that you have.
      *
      * @throws {TestRailApiError} When a successful response has an unrecognized
-     * shape; the write outcome is indeterminate and must not be retried blindly.
+     * shape. The write outcome is indeterminate, and callers must not retry the
+     * write blindly.
      *
      * @testrail POST update_cases/{suite_id}
      */
@@ -291,10 +293,11 @@ export class CaseModule {
     }
 
     /**
-     * Bulk-delete cases. TestRail's URL takes `suite_id` in the path and
+     * Bulk-delete cases. The TestRail URL takes `suite_id` in the path and
      * `project_id` (required) as a query parameter. `options.soft=true`
-     * adds `soft=1` — a server-side preview that returns affected-test
-     * counts without deleting. The body carries the case IDs.
+     * adds `soft=1`. This parameter requests a server-side preview that
+     * returns affected-test counts and deletes no data. The request body
+     * contains the case IDs.
      *
      * @testrail POST delete_cases/{suite_id}
      */
@@ -341,10 +344,11 @@ export class CaseModule {
     }
 
     /**
-     * Copy cases into a target section (creates new case copies). TestRail
-     * returns HTTP 200 with an **empty body** on success (confirmed by live
-     * probe 2026-06-21), so this resolves to `void` — it does NOT return the
-     * created copies, despite older docs/JSDoc claiming otherwise.
+     * Copy cases into a target section. TestRail creates new copies of the
+     * cases. On success, TestRail returns HTTP 200 with an **empty body**
+     * (confirmed by live probe 2026-06-21). Thus, the method resolves to
+     * `void`. The method does NOT return the created copies. Older docs and
+     * JSDoc incorrectly say that it does.
      * @testrail POST copy_cases_to_section/{section_id}
      */
     async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<void> {
@@ -359,9 +363,9 @@ export class CaseModule {
 
     /**
      * Move cases into a target section. `payload.suite_id` is required even
-     * for same-suite moves (TestRail uses it to resolve the destination
-     * section across suites). Path-only `section_id` — NOT in the body.
-     * Returns no body.
+     * for same-suite moves. TestRail uses `suite_id` to resolve the
+     * destination section across suites. `section_id` is only a path
+     * parameter. It is NOT in the body. Returns no body.
      * @testrail POST move_cases_to_section/{section_id}
      */
     async moveCasesToSection(sectionId: number, payload: MoveCasesToSectionPayload): Promise<void> {
@@ -384,7 +388,7 @@ export class CaseModule {
         return CASE_HISTORY_PAGINATION.page(this.client, { caseId }, options);
     }
 
-    /** Fetch all case-history pages under explicit aggregate safety bounds. */
+    /** Fetch all case-history pages. Explicit aggregate safety limits apply. */
     async getAllHistoryForCase(caseId: number, options?: GetAllHistoryForCaseOptions): Promise<HistoryEntry[]> {
         return CASE_HISTORY_PAGINATION.all(this.client, { caseId }, options);
     }

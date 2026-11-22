@@ -81,12 +81,12 @@ export class MetadataModule {
         return CASE_STATUSES_PAGINATION.items(this.client, undefined);
     }
 
-    /** Get one response page without sending undocumented request controls. */
+    /** Get one response page. The method does not send undocumented request controls. */
     async getCaseStatusesPage(): Promise<Page<CaseStatus>> {
         return CASE_STATUSES_PAGINATION.page(this.client, undefined);
     }
 
-    /** Get every case status under the configured pagination safety bounds. */
+    /** Get all case statuses. The configured pagination safety limits apply. */
     async getAllCaseStatuses(options?: GetAllCaseStatusesOptions): Promise<CaseStatus[]> {
         return CASE_STATUSES_PAGINATION.all(this.client, undefined, options);
     }
@@ -130,24 +130,29 @@ export class MetadataModule {
 
     /**
      * Create a new custom case field (admin-only). The endpoint is
-     * `POST add_case_field` with no path or query params. Returns an
-     * `AddCaseFieldResponse` (NOT `CaseField`) — see SPEC #2.1.12 in
-     * `src/schemas.ts`: the POST response shape diverges from
-     * `get_case_fields` GET in two ways:
+     * `POST add_case_field`, with no path or query parameters. Returns an
+     * `AddCaseFieldResponse` (NOT `CaseField`). See SPEC #2.1.12 in
+     * `src/schemas.ts`. The POST response shape is different from the
+     * `get_case_fields` GET response in two ways:
      *
      *   - `configs` is a JSON-encoded string (not a parsed array). Callers
      *     that need the structured form must `JSON.parse(response.configs)`.
      *   - Boolean-style fields (`is_active`, `include_all`, `is_multi`,
-     *     `is_system`) surface as `0`/`1` integers, and several
-     *     admin-internal fields (`entity_id`, `location_id`, `status_id`)
-     *     appear here but not on GET.
+     *     `is_system`) are `0`/`1` integers. Also, several admin-internal
+     *     fields (`entity_id`, `location_id`, `status_id`) are in this
+     *     response but not in the GET response.
      *
-     * Server validates: `name` must be a valid system slug (lowercase,
-     * alphanumeric + underscore); field-type-specific rules (e.g. `Steps`
-     * fields reject `options.items`). We do NOT enforce these client-side —
-     * `AddCaseFieldPayloadSchema.passthrough()` lets TestRail be the source
-     * of truth on quirks, and a 400 from the server surfaces with the
-     * upstream message.
+     * The server validates these rules:
+     *
+     *   - `name` must be a valid system slug (lowercase, alphanumeric +
+     *     underscore).
+     *   - Field-type-specific rules apply (for example, `Steps` fields reject
+     *     `options.items`).
+     *
+     * The client does NOT apply these rules. With
+     * `AddCaseFieldPayloadSchema.passthrough()`, TestRail is the source of
+     * truth for special cases. The client reports a 400 response from the
+     * server with the upstream message.
      *
      * @testrail POST add_case_field
      */
@@ -184,12 +189,12 @@ export class MetadataModule {
         return ROLES_PAGINATION.items(this.client, undefined);
     }
 
-    /** Get one response page without sending undocumented request controls. */
+    /** Get one response page. The method does not send undocumented request controls. */
     async getRolesPage(): Promise<Page<Role>> {
         return ROLES_PAGINATION.page(this.client, undefined);
     }
 
-    /** Get every role under the configured pagination safety bounds. */
+    /** Get all roles. The configured pagination safety limits apply. */
     async getAllRoles(options?: GetAllRolesOptions): Promise<Role[]> {
         return ROLES_PAGINATION.all(this.client, undefined, options);
     }

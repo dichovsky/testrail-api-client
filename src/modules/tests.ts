@@ -100,12 +100,12 @@ export class TestModule {
         return TESTS_PAGINATION.items(this.client, { runId }, options);
     }
 
-    /** Fetch one normalized tests page while preserving TestRail pagination metadata. */
+    /** Fetch one normalized tests page and keep the TestRail pagination metadata. */
     async getTestsPage(runId: number, options?: GetTestsOptions): Promise<Page<Test>> {
         return TESTS_PAGINATION.page(this.client, { runId }, options);
     }
 
-    /** Fetch every tests page under explicit aggregate safety bounds. */
+    /** Fetch all tests pages. Explicit aggregate safety limits apply. */
     async getAllTests(runId: number, options?: GetAllTestsOptions): Promise<Test[]> {
         return TESTS_PAGINATION.all(this.client, { runId }, options);
     }

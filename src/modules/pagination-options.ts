@@ -9,8 +9,9 @@ function snapshotValue(value: unknown): unknown {
 }
 
 /**
- * Copy a public option subset once before an aggregate starts. Array-valued
- * filters are cloned so caller mutation cannot change later page requests.
+ * Copy a public option subset one time, before an aggregate starts. The
+ * function clones array-valued filters, so that a caller mutation cannot change
+ * later page requests.
  */
 export function snapshotOptionFields<T extends object, K extends Extract<keyof T, string>>(
     options: T | undefined,
@@ -26,12 +27,12 @@ export function snapshotOptionFields<T extends object, K extends Extract<keyof T
     ) as Partial<Pick<T, K>>;
 }
 
-/** Whitelist the public bounds accepted by response-driven collectors. */
+/** Whitelist the public safety limits that response-driven collectors accept. */
 export function snapshotPaginationSafetyOptions(options: PaginationSafetyOptions | undefined): PaginationSafetyOptions {
     return snapshotOptionFields(options, ['maxPages', 'maxItems', 'maxDurationMs', 'maxBytes']);
 }
 
-/** Whitelist the public controls and bounds accepted by controlled collectors. */
+/** Whitelist the public controls and safety limits that controlled collectors accept. */
 export function snapshotPaginatedRequestOptions(options: PaginatedRequestOptions | undefined): PaginatedRequestOptions {
     return snapshotOptionFields(options, [
         'pageSize',
