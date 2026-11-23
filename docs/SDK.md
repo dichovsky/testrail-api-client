@@ -281,8 +281,15 @@ const projectUsers = await client.users.getUsers(5);
 ```
 
 `getUsersPage()` and `getAllUsers()` read global users. They do not accept a project ID.
-`getUsers(projectId)` keeps its existing single-response behavior and rejects an options object as the second argument.
-It accepts bare arrays and user wrappers, including project responses whose item count exceeds the reported limit.
+These methods keep strict pagination validation.
+
+`getUsers(projectId)` keeps its existing single-response behavior. Its TypeScript overload accepts only the project ID.
+At runtime, the method ignores all extra arguments, including objects and arrays, as version `10.0.0` did.
+This keeps bound project readers compatible with `Promise.then()`, which supplies the previous result as an extra argument.
+These extra arguments do not enable project pagination.
+The method accepts bare arrays and user wrappers, including project responses whose item count exceeds the reported limit.
+
+The CLI rejects all pagination flags with `user list --project-id` before authentication.
 The checked project endpoint ignored requested limits and offsets. See the [live-check results](TESTRAIL-10.7.0-COMPATIBILITY.md#user-list-pagination-live-check-2026-11-23).
 The client still limits requested pages to 250 items and does not support cursor pagination.
 

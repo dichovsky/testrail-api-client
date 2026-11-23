@@ -14,7 +14,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Global user pagination.** The SDK adds `users.getUsersPage()` and `users.getAllUsers()`. Pass `undefined` and `{ limit, offset }` to `users.getUsers()` for a selected global response. The CLI adds `user list --page` and `user list --all` with the existing pagination controls and safety limits. Project reads keep their single-response behavior. Project IDs cannot be combined with pagination options in the SDK or CLI.
+- **Global user pagination.** The SDK adds `users.getUsersPage()` and `users.getAllUsers()`. Pass `undefined` and `{ limit, offset }` to `users.getUsers()` for a selected global response. The CLI adds `user list --page` and `user list --all` with the existing pagination controls and safety limits. Project reads keep their single-response behavior. The CLI rejects all pagination flags with `--project-id` before authentication.
+- **Project reader compatibility.** SDK `users.getUsers(projectId)` ignores all extra runtime arguments, including objects and arrays, as version `10.0.0` did. This keeps bound readers compatible with `Promise.then()` callbacks. The TypeScript project overload accepts only the project ID; project pagination stays unsupported.
 
 ## [10.0.0] — 2026-11-22 — Node 26, upload ownership, and response validation
 

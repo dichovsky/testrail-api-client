@@ -161,11 +161,11 @@ This coverage table maps every TestRail API endpoint to its client method, CLI a
 
 | Endpoint | Client method | CLI action(s) | Skill recipe(s) |
 | --- | --- | --- | --- |
-| [`GET get_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroup`](../src/modules/users.ts#L156) | `group get` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
-| [`GET get_groups`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroups`](../src/modules/users.ts#L166) | `group list` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
-| [`POST add_group`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addGroup`](../src/modules/users.ts#L181) | `group add` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
-| [`POST delete_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteGroup`](../src/modules/users.ts#L205) | `group delete` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
-| [`POST update_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateGroup`](../src/modules/users.ts#L191) | `group update` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
+| [`GET get_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroup`](../src/modules/users.ts#L154) | `group get` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
+| [`GET get_groups`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroups`](../src/modules/users.ts#L164) | `group list` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
+| [`POST add_group`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addGroup`](../src/modules/users.ts#L179) | `group add` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
+| [`POST delete_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteGroup`](../src/modules/users.ts#L203) | `group delete` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
+| [`POST update_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateGroup`](../src/modules/users.ts#L189) | `group update` | [recipe #42](../skill/reference/recipes.md#42-group-crud-lifecycle-testrail-75) |
 
 ## Labels
 
@@ -358,12 +358,12 @@ This coverage table maps every TestRail API endpoint to its client method, CLI a
 
 | Endpoint | Client method | CLI action(s) | Skill recipe(s) |
 | --- | --- | --- | --- |
-| [`GET get_current_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCurrentUser`](../src/modules/users.ts#L126) | `user get-current` | [recipe #41](../skill/reference/recipes.md#41-user-lookups-current-session-by-id-by-email) |
+| [`GET get_current_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCurrentUser`](../src/modules/users.ts#L124) | `user get-current` | [recipe #41](../skill/reference/recipes.md#41-user-lookups-current-session-by-id-by-email) |
 | [`GET get_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUser`](../src/modules/users.ts#L60) | `user get` | [recipe #41](../skill/reference/recipes.md#41-user-lookups-current-session-by-id-by-email) |
 | [`GET get_user_by_email`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUserByEmail`](../src/modules/users.ts#L70) | `user get-by-email` | [recipe #41](../skill/reference/recipes.md#41-user-lookups-current-session-by-id-by-email) |
 | [`GET get_users`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUsers`](../src/modules/users.ts#L85) | `user list` | [recipe #1](../skill/reference/recipes.md#1-test-authentication-and-connectivity) |
-| [`POST add_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addUser`](../src/modules/users.ts#L135) | `user add` | [recipe #32](../skill/reference/recipes.md#32-create-a-user-testrail-73) |
-| [`POST update_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateUser`](../src/modules/users.ts#L145) | `user update` | [recipe #33](../skill/reference/recipes.md#33-update-a-user-testrail-73) |
+| [`POST add_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addUser`](../src/modules/users.ts#L133) | `user add` | [recipe #32](../skill/reference/recipes.md#32-create-a-user-testrail-73) |
+| [`POST update_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateUser`](../src/modules/users.ts#L143) | `user update` | [recipe #33](../skill/reference/recipes.md#33-update-a-user-testrail-73) |
 
 ## Variables
 

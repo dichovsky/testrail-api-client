@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "10.0.0"
   },
-  "sourceHash": "3a3a73f1777656a3601ab12eb2b337536ce36835afebb05039ca8f634a9fe0b0",
+  "sourceHash": "2c0bde3d4e0ca3134797716605d04b017571c8c203f47e2069c821226c361ed0",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -10398,62 +10398,62 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
             {
               "name": "getUsersPage",
               "kind": "method",
-              "line": 114
+              "line": 112
             },
             {
               "name": "getAllUsers",
               "kind": "method",
-              "line": 120
+              "line": 118
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 126
+              "line": 124
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 135
+              "line": 133
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 145
+              "line": 143
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 156
+              "line": 154
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 166
+              "line": 164
             },
             {
               "name": "getGroupsPage",
               "kind": "method",
-              "line": 171
+              "line": 169
             },
             {
               "name": "getAllGroups",
               "kind": "method",
-              "line": 176
+              "line": 174
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 181
+              "line": 179
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 191
+              "line": 189
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 205
+              "line": 203
             }
           ]
         }

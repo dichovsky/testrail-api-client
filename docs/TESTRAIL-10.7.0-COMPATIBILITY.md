@@ -344,9 +344,19 @@ sets were compared in memory.
 ## Global user pagination: implementation check (2026-11-23)
 
 The unreleased source adds global user pagination to the SDK and CLI.
-Project user reads retain their single-response behavior and reject pagination
-controls. The client still limits requested pages to 250 items and does not
-support cursor pagination.
+Global `getUsers(undefined, options)` accepts pagination controls.
+`getUsersPage()` and `getAllUsers()` keep strict validation.
+The client still limits requested pages to 250 items and does not support
+cursor pagination.
+
+Project user reads keep their single-response behavior without pagination.
+The SDK's `getUsers(projectId)` ignores all extra runtime arguments, including
+objects and arrays, as version `10.0.0` did.
+This keeps bound project readers compatible with `Promise.then()`, which
+supplies the previous result as an extra argument.
+The TypeScript project overload accepts only the project ID.
+The CLI rejects all pagination flags with `user list --project-id` before
+authentication.
 
 A read-only check used the same instance after the implementation:
 

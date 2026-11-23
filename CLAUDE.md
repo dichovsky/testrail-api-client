@@ -161,7 +161,11 @@ Response-driven endpoints accept only safety limits. `tests/pagination-descripto
 
 Shared-step history, datasets, variables, roles, groups, and case statuses use `requestControls: false`.
 Test attachments, plan-entry attachments, project users, and ordinary metadata, configuration, and report lists do not have the three pagination methods.
-User pagination applies only to the global `get_users` route. Project user lists keep tolerant, single-response decoding and reject pagination controls.
+User pagination applies only to the global `get_users` route. Project user lists keep tolerant, single-response decoding without pagination.
+The SDK's `getUsers(projectId)` ignores all extra runtime arguments, including objects and arrays, as version `10.0.0` did.
+This keeps bound project readers compatible with `Promise.then()`, which supplies the previous result as an extra argument.
+The TypeScript project overload accepts only the project ID.
+Global `getUsers(undefined, options)` accepts pagination controls; `getUsersPage()` and `getAllUsers()` keep strict validation.
 
 The client extracts only the validated `offset` and optional `limit` from `_links.next`. `createPaginatedListExecutor()` rebuilds the endpoint path from validated parameters. It does not follow the raw URL from the server. Bare arrays stop pagination after one page.
 
@@ -176,6 +180,7 @@ The default aggregate limits are 250 items per page, offset 0, 100 pages, 25,000
 - `--all` rejects `--limit` and `--offset`.
 - `--page-size`, `--start-offset`, `--max-pages`, `--max-items`, `--max-duration-ms`, and `--max-bytes` require `--all`.
 - Response-driven endpoints accept safety limits (`--max-*`) but reject `--page-size` and `--start-offset`.
+- `user list --project-id` rejects all pagination flags.
 
 **CLI invocation contract:** `FLAG_CATALOG` defines CLI flag types. Each `ActionSpec.flags` entry defines which flags apply to an action and which flags are required. `resolveActionInvocation()` rejects unsupported or missing required flags before the CLI reads stdin, resolves auth, or creates a client. `validateSuppliedFlagTypes()` validates raw `argv` tokens so a string flag cannot consume the next flag as its value (for example, `--filename --dry-run` fails). To pass a literal value that starts with `--`, use the inline form `--flag=--value`. Only actions that support `soft=1` set `softMode` on their `ActionSpec`.
 

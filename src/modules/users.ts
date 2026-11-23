@@ -84,22 +84,20 @@ export class UsersModule {
      */
     async getUsers(projectId: undefined, options?: GetUsersOptions): Promise<User[]>;
     // Keep the 10.0.0 signature last: TypeScript infers Parameters<> from the last overload.
-    /** Get users from one response. Project reads do not accept pagination controls. */
+    /** Get users from one response. Project reads ignore trailing arguments. */
     async getUsers(projectId?: number): Promise<User[]>;
     async getUsers(projectId?: number, options?: GetUsersOptions): Promise<User[]> {
-        // Only an object is an options argument. Other trailing arguments, such
-        // as an Array.map index, stay ignored as they were in 10.0.0.
-        const controls = typeof options === 'object' && options !== null ? options : undefined;
         if (projectId === undefined) {
+            // Only an object is global options. Ignore callback indexes as in 10.0.0.
+            const controls = typeof options === 'object' && options !== null ? options : undefined;
             validateGlobalUserOptions(controls);
             return USERS_PAGINATION.items(this.client, undefined, controls);
         }
 
         validateId(projectId, 'projectId');
-        if (controls !== undefined) {
-            throw new TestRailValidationError('Project user lists do not support pagination options');
-        }
 
+        // Preserve the original project signature at runtime: a bound callback
+        // can receive a previous promise result as an extra argument.
         // Project responses can ignore page controls and report size > limit.
         // Keep their tolerant, single-response decoding separate from global pagination.
         const raw = await this.client.request<User[] | { users?: User[] }>({

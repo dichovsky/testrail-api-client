@@ -261,6 +261,12 @@ const projectUsers = await client.users.getUsers(5); // project_id; required for
 `getUsers(projectId)` keeps its existing single-response behavior. Non-admin users must supply a project ID.
 Administrators can omit the project ID for global user lists.
 
+The TypeScript project overload accepts only the project ID.
+At runtime, `getUsers(projectId)` ignores all extra arguments, including objects and arrays, as version `10.0.0` did.
+This keeps bound project readers compatible with `Promise.then()`, which supplies the previous result as an extra argument.
+These extra arguments do not enable project pagination.
+The CLI rejects all pagination flags with `user list --project-id` before authentication.
+
 ```typescript
 const firstUsers = await client.users.getUsers();
 const users = await client.users.getUsers(undefined, { limit: 25, offset: 0 });
@@ -270,6 +276,7 @@ const allUsers = await client.users.getAllUsers({ pageSize: 100, maxItems: 10000
 
 `getUsers(undefined, options)` returns one item array. `getUsersPage()` returns a `Page<User>`.
 `getAllUsers()` returns all global users within safety limits. These pagination methods and options apply only to global user lists.
+`getUsersPage()` and `getAllUsers()` keep strict pagination validation.
 On TestRail 10.10.1 or later, `getUsers()` without options returns only the first page, which has a maximum of 250 users by default.
 An older server can ignore `limit` and `offset` and return all users in one response.
 

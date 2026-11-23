@@ -300,7 +300,7 @@ describe('pagination module adapters', () => {
             expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(/\/get_users\/14$/);
         });
 
-        it('validates project IDs before rejecting unsupported project pagination options', async () => {
+        it('validates project IDs even when a callback supplies trailing objects', async () => {
             const getUsers = client.users.getUsers.bind(client.users) as unknown as (
                 projectId: number,
                 options?: unknown,
@@ -312,13 +312,36 @@ describe('pagination module adapters', () => {
                     expect(getUsers(projectId, {})).rejects.toThrow('projectId must be a positive integer'),
                 ),
             );
-            await Promise.all(
-                [{}, { limit: 1 }, []].map((options) =>
-                    expect(getUsers(14, options)).rejects.toThrow(TestRailValidationError),
-                ),
-            );
-
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            { name: 'object', value: { done: true } },
+            { name: 'array', value: [MOCK_USER] },
+            { name: 'pagination-shaped object', value: { limit: 1, offset: 10 } },
+        ])('ignores a previous promise result: $name', async ({ value }) => {
+            mockFetch.mockResolvedValueOnce(mockOk([MOCK_USER]));
+            const read = client.users.getUsers.bind(client.users, 14);
+
+            await expect(Promise.resolve(value).then(read)).resolves.toEqual([MOCK_USER]);
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(/\/get_users\/14$/);
+        });
+
+        it('does not inspect pagination properties of a project callback result', async () => {
+            const limit = vi.fn(() => {
+                throw new Error('The project callback result must not be inspected');
+            });
+            const previousResult = Object.freeze(Object.defineProperty({}, 'limit', { get: limit }));
+            mockFetch.mockResolvedValueOnce(mockOk([MOCK_USER]));
+            const read = client.users.getUsers.bind(client.users, 14);
+
+            await expect(Promise.resolve(previousResult).then(read)).resolves.toEqual([MOCK_USER]);
+
+            expect(limit).not.toHaveBeenCalled();
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(/\/get_users\/14$/);
         });
 
         it('ignores trailing non-object arguments on project reads, as the 10.0.0 signature did', async () => {

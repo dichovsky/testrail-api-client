@@ -97,7 +97,10 @@ try {
   `get*Page()` returns `Page<T>` with envelope metadata.
   `getAll*()` follows validated `_links.next` continuations within page, item, duration, and byte limits.
   Aggregate reads never return partial results. Bare arrays stop pagination after one page.
-  User pagination applies only to global reads. Project user lists return one response and reject pagination controls.
+  User pagination applies only to global reads. Project user lists return one response without pagination.
+  SDK `getUsers(projectId)` ignores all extra runtime arguments, including objects and arrays, as version `10.0.0` did.
+  Its TypeScript project overload accepts only the project ID.
+  The CLI rejects all pagination flags with `user list --project-id` before authentication.
 - **CLI response validation**: Entity-field mismatches print a redacted warning by default.
   Pass `--strict-responses` or set `TESTRAIL_STRICT_RESPONSES=1` to fail on the first mismatch.
   Warnings include only the HTTP method, CLI command, and masked issue paths.
