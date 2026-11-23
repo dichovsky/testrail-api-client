@@ -4,7 +4,7 @@ description: Use the `testrail` CLI to query and write TestRail projects, suites
 license: MIT
 compatibility: Requires Node.js 26+ and network access to a configured TestRail instance.
 metadata:
-  version: 10.0.0
+  version: 10.1.0
   homepage: https://github.com/dichovsky/testrail-api-client
 ---
 

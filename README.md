@@ -27,6 +27,20 @@ export TESTRAIL_API_KEY="…"
 
 Do not put the API key in command arguments or logs. The CLI also accepts the API key through [standard input](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CLI.md#authentication).
 
+## Upgrading to 10.1.0
+
+Global user lists now support bounded pagination.
+The Node.js 26 requirement and the [10.0.0 migration steps](#upgrading-to-1000) stay unchanged.
+
+- `users.getUsers()` and CLI `user list` still return the users from one response.
+  Use `users.getAllUsers()` or `user list --all` to read all global users within the pagination safety limits.
+- Use `users.getUsersPage()` or `user list --page` to read one global page with its pagination metadata.
+  Requested pages stay limited to 250 items. The client does not support cursor pagination.
+- Project user reads keep one response. `users.getUsers(projectId)` ignores extra runtime arguments, as version `10.0.0` did.
+  Its TypeScript overload accepts only the project ID. The CLI rejects pagination flags with `user list --project-id` before authentication.
+
+See [SDK pagination](https://github.com/dichovsky/testrail-api-client/blob/main/docs/SDK.md#pagination) and [CLI pagination](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CLI.md#pagination) for options and safety limits.
+
 ## Upgrading to 10.0.0
 
 - Upgrade application, CLI, and CI runtimes to Node.js 26 or newer.
