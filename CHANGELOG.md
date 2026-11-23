@@ -5,17 +5,31 @@ This document records all notable changes to `@dichovsky/testrail-api-client`.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`, `9.0.0`, `10.0.0`.
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`, `9.0.0`, `10.0.0`, `10.1.0`.
 > Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal or unreleased and never reached the npm registry.
 > The `5.0.0` entry combines unreleased work from `5.0.0` through `7.1.0` into one major version bump from `4.1.0`.
 > That update did not revert any source code. It only aligned the version number and this log with the published npm versions.
 
 ## [Unreleased]
 
+## [10.1.0] — 2026-11-24 — Global user pagination
+
+This minor release adds bounded pagination for global user reads. It includes #320–#322.
+The Node.js 26 requirement and the [10.0.0 migration steps](README.md#upgrading-to-1000) stay unchanged.
+
 ### Added
 
-- **Global user pagination.** The SDK adds `users.getUsersPage()` and `users.getAllUsers()`. Pass `undefined` and `{ limit, offset }` to `users.getUsers()` for a selected global response. The CLI adds `user list --page` and `user list --all` with the existing pagination controls and safety limits. Project reads keep their single-response behavior. The CLI rejects all pagination flags with `--project-id` before authentication.
+- **Global user pagination.** The SDK adds `users.getUsersPage()` and `users.getAllUsers()`. Pass `undefined` and `{ limit, offset }` to `users.getUsers()` for a selected global response. The CLI adds `user list --page` and `user list --all` with the existing pagination controls and safety limits.
+
+### Compatibility
+
+- **One response stays the default.** `users.getUsers()` and CLI `user list` still return the users from one response. Use `users.getAllUsers()` or `user list --all` to read all global users within the pagination safety limits. Aggregate reads fail without partial results if a safety limit is exceeded. Requested pages stay limited to 250 items; cursor pagination is unsupported.
 - **Project reader compatibility.** SDK `users.getUsers(projectId)` ignores all extra runtime arguments, including objects and arrays, as version `10.0.0` did. This keeps bound readers compatible with `Promise.then()` callbacks. The TypeScript project overload accepts only the project ID; project pagination stays unsupported.
+- **Project CLI reads keep one response.** The CLI rejects all pagination flags with `user list --project-id` before authentication.
+
+### Changed
+
+- Simplified active documentation, agent instructions, and public API comments under the repository's Simplified Technical English writing rules. API behavior, commands, and CLI output remain unchanged by these wording changes. (#320, #321)
 
 ## [10.0.0] — 2026-11-22 — Node 26, upload ownership, and response validation
 

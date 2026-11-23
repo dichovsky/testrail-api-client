@@ -9,7 +9,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "10.0.0"
+    "version": "10.1.0"
   },
   "sourceHash": "2c0bde3d4e0ca3134797716605d04b017571c8c203f47e2069c821226c361ed0",
   "entrypoints": [
