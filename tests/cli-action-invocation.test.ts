@@ -85,6 +85,22 @@ describe('action invocation contract', () => {
         });
     });
 
+    it('keys the project user pagination guard on the endpoint, not the command name', () => {
+        const parsed = parseCliArgv(['user', 'list', '--project-id', '7', '--all']);
+        const result = resolveActionInvocation({
+            spec: { ...spec('user', 'list'), action: 'list-alias' },
+            values: parsed.values,
+            suppliedFlags: parsed.flagOccurrences.map(({ name }) => name),
+            pathParams: [],
+            dryRun: false,
+        });
+
+        expect(result).toEqual({
+            ok: false,
+            error: 'Pagination is supported only for global user lists; omit --project-id or all pagination flags.',
+        });
+    });
+
     it('does not mistake default false pagination flags for a project pagination request', () => {
         const parsed = parseCliArgv(['user', 'list', '--project-id', '7']);
         expect(parsed.values['page']).toBe(false);

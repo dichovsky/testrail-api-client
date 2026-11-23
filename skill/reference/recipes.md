@@ -21,7 +21,7 @@ Exit code 0 means that credentials work and TestRail responds.
 Exit code 1 means that authentication or the connection failed.
 Non-admin users must pass `--project-id`. Administrators can omit `--project-id`.
 
-Administrators can read global users within safety limits:
+TestRail 10.10.1 and later split the list into pages. Administrators can read global users within safety limits:
 
 ```bash
 testrail user list --all --page-size 100 --max-pages 10 --max-items 1000

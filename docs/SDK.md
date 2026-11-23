@@ -281,10 +281,15 @@ const projectUsers = await client.users.getUsers(5);
 ```
 
 `getUsersPage()` and `getAllUsers()` read global users. They do not accept a project ID.
-`getUsers(projectId)` keeps its existing single-response behavior and rejects a second options argument.
+`getUsers(projectId)` keeps its existing single-response behavior and rejects an options object as the second argument.
 It accepts bare arrays and user wrappers, including project responses whose item count exceeds the reported limit.
 The checked project endpoint ignored requested limits and offsets. See the [live-check results](TESTRAIL-10.7.0-COMPATIBILITY.md#user-list-pagination-live-check-2026-11-23).
 The client still limits requested pages to 250 items and does not support cursor pagination.
+
+The TestRail 10.10.1 release notes list `get_users` as a paginated endpoint.
+On such a server, `getUsers()` without options returns only the first page, which has a maximum of 250 users by default.
+Use `getAllUsers()` to get all global users.
+An older server can ignore `limit` and `offset` and return all users in one response.
 
 A method that accepts `limit` or `offset` does not always have a `get*Page()` or `getAll*()` method.
 See the [API mapping](API-MAPPING.md) for endpoint coverage and the [CLI guide](CLI.md#pagination) for equivalent flags.

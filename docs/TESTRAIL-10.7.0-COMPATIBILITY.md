@@ -282,6 +282,9 @@ client has no `getUsersPage()` or `getAllUsers()` method. If TestRail 10.10
 paginates `get_users`, `getUsers()` can return only the first 250 users. This
 behavior is not verified on a live server.
 
+A later change adds `getUsersPage()` and `getAllUsers()` for global users. See
+[Global user pagination: implementation check (2026-11-23)](#global-user-pagination-implementation-check-2026-11-23).
+
 ## User list pagination: live check (2026-11-23)
 
 A later read-only check used one TestRail `10.10.2.1002` instance and the

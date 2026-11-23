@@ -64,9 +64,16 @@ describe('pagination public exports', () => {
         expectTypeOf<GetUsersOptions>().toEqualTypeOf<{ limit?: number; offset?: number }>();
         expectTypeOf<GetAllUsersOptions>().toEqualTypeOf<PaginatedRequestOptions>();
         expectTypeOf<TestRailClient['users']['getUsers']>().toEqualTypeOf<{
+            (projectId: undefined, options?: GetUsersOptions): Promise<User[]>;
             (projectId?: number): Promise<User[]>;
-            (projectId: undefined, options: GetUsersOptions): Promise<User[]>;
         }>();
+        // TypeScript infers Parameters<> from the last overload; keep the 10.0.0 signature there.
+        expectTypeOf<Parameters<TestRailClient['users']['getUsers']>>().toEqualTypeOf<
+            Parameters<(projectId?: number) => Promise<User[]>>
+        >();
+        const forwardOptions = (users: TestRailClient['users'], options?: GetUsersOptions) =>
+            users.getUsers(undefined, options);
+        expectTypeOf(forwardOptions).returns.toEqualTypeOf<Promise<User[]>>();
         expectTypeOf<TestRailClient['users']['getUsersPage']>().toEqualTypeOf<
             (options?: GetUsersOptions) => Promise<Page<User>>
         >();

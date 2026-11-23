@@ -217,13 +217,10 @@ describe('pagination module adapters', () => {
         });
 
         it.each([null, 1, '1', true, []].map((options) => ({ options })))(
-            'rejects non-object options $options before any global request',
+            'rejects non-object options $options before any global page or aggregate request',
             async ({ options }) => {
                 mockFetch.mockImplementation(() => Promise.resolve(mockOk([])));
 
-                await expect(client.users.getUsers(undefined, options as unknown as GetUsersOptions)).rejects.toThrow(
-                    TestRailValidationError,
-                );
                 await expect(client.users.getUsersPage(options as unknown as GetUsersOptions)).rejects.toThrow(
                     TestRailValidationError,
                 );
@@ -234,6 +231,34 @@ describe('pagination module adapters', () => {
                 expect(mockFetch).not.toHaveBeenCalled();
             },
         );
+
+        it('rejects array options before a global one-response request', async () => {
+            await expect(client.users.getUsers(undefined, [] as unknown as GetUsersOptions)).rejects.toThrow(
+                TestRailValidationError,
+            );
+
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('ignores trailing non-object arguments on global reads, as the 10.0.0 signature did', async () => {
+            const getUsers = client.users.getUsers.bind(client.users) as unknown as (
+                projectId: undefined,
+                options?: unknown,
+            ) => Promise<unknown>;
+            mockFetch.mockImplementation(() => Promise.resolve(mockOk([MOCK_USER])));
+
+            // oxlint-disable-next-line typescript/unbound-method -- the point-free 10.0.0 call pattern under test
+            await expect(Promise.all([3, undefined].map(client.users.getUsers, client.users))).resolves.toEqual([
+                [MOCK_USER],
+                [MOCK_USER],
+            ]);
+            await expect(getUsers(undefined, null)).resolves.toEqual([MOCK_USER]);
+
+            expect(mockFetch.mock.calls.map(([url]) => String(url).replace(/^.*\/api\/v2\//, ''))).toEqual([
+                'get_users/3',
+                'get_users',
+            ]);
+        });
 
         it('keeps the shared maximum page size and rejects invalid controls before fetch', async () => {
             mockFetch.mockImplementation(() => Promise.resolve(mockOk([])));
@@ -288,12 +313,35 @@ describe('pagination module adapters', () => {
                 ),
             );
             await Promise.all(
-                [{}, { limit: 1 }, null, 0].map((options) =>
+                [{}, { limit: 1 }, []].map((options) =>
                     expect(getUsers(14, options)).rejects.toThrow(TestRailValidationError),
                 ),
             );
 
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('ignores trailing non-object arguments on project reads, as the 10.0.0 signature did', async () => {
+            const getUsers = client.users.getUsers.bind(client.users) as unknown as (
+                projectId: number,
+                options?: unknown,
+            ) => Promise<unknown>;
+            mockFetch.mockImplementation(() => Promise.resolve(mockOk([MOCK_USER])));
+
+            // oxlint-disable-next-line typescript/unbound-method -- the point-free 10.0.0 call pattern under test
+            await expect(Promise.all([3, 5].map(client.users.getUsers, client.users))).resolves.toEqual([
+                [MOCK_USER],
+                [MOCK_USER],
+            ]);
+            await expect(getUsers(14, null)).resolves.toEqual([MOCK_USER]);
+            await expect(getUsers(15, 0)).resolves.toEqual([MOCK_USER]);
+
+            expect(mockFetch.mock.calls.map(([url]) => String(url).replace(/^.*\/api\/v2\//, ''))).toEqual([
+                'get_users/3',
+                'get_users/5',
+                'get_users/14',
+                'get_users/15',
+            ]);
         });
     });
 

@@ -122,9 +122,10 @@ export function resolveActionInvocation(options: {
     }
 
     const paginationArgs = projectPaginationArgs(options.values);
+    // Key on the endpoint, not the command name: the pagination contract of
+    // `GET get_users` covers only the global route, whichever action calls it.
     if (
-        options.spec.resource === 'user' &&
-        options.spec.action === 'list' &&
+        options.spec.apiEndpoint === 'GET get_users' &&
         options.values['project-id'] !== undefined &&
         Object.entries(paginationArgs).some(([name, value]) =>
             name === 'page' || name === 'all' ? value === true : value !== undefined,

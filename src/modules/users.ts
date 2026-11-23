@@ -79,21 +79,25 @@ export class UsersModule {
     }
 
     /**
-     * Get users from one response. Project reads do not accept pagination controls.
+     * Get global users from one response with optional limit and offset controls.
      * @testrail GET get_users
      */
+    async getUsers(projectId: undefined, options?: GetUsersOptions): Promise<User[]>;
+    // Keep the 10.0.0 signature last: TypeScript infers Parameters<> from the last overload.
+    /** Get users from one response. Project reads do not accept pagination controls. */
     async getUsers(projectId?: number): Promise<User[]>;
-    /** Get global users from one response with optional limit and offset controls. */
-    async getUsers(projectId: undefined, options: GetUsersOptions): Promise<User[]>;
     async getUsers(projectId?: number, options?: GetUsersOptions): Promise<User[]> {
-        if (projectId !== undefined) {
-            validateId(projectId, 'projectId');
-            if (options !== undefined) {
-                throw new TestRailValidationError('Project user lists do not support pagination options');
-            }
-        } else {
-            validateGlobalUserOptions(options);
-            return USERS_PAGINATION.items(this.client, undefined, options);
+        // Only an object is an options argument. Other trailing arguments, such
+        // as an Array.map index, stay ignored as they were in 10.0.0.
+        const controls = typeof options === 'object' && options !== null ? options : undefined;
+        if (projectId === undefined) {
+            validateGlobalUserOptions(controls);
+            return USERS_PAGINATION.items(this.client, undefined, controls);
+        }
+
+        validateId(projectId, 'projectId');
+        if (controls !== undefined) {
+            throw new TestRailValidationError('Project user lists do not support pagination options');
         }
 
         // Project responses can ignore page controls and report size > limit.

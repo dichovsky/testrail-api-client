@@ -270,6 +270,8 @@ const allUsers = await client.users.getAllUsers({ pageSize: 100, maxItems: 10000
 
 `getUsers(undefined, options)` returns one item array. `getUsersPage()` returns a `Page<User>`.
 `getAllUsers()` returns all global users within safety limits. These pagination methods and options apply only to global user lists.
+On TestRail 10.10.1 or later, `getUsers()` without options returns only the first page, which has a maximum of 250 users by default.
+An older server can ignore `limit` and `offset` and return all users in one response.
 
 ### Datasets & variables (data-driven testing)
 

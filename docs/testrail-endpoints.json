@@ -920,7 +920,7 @@
         "operation": "get_users",
         "method": "GET",
         "path": "get_users",
-        "summary": "Returns available users. Pagination applies only to the global route; project-scoped reads return one response.",
+        "summary": "Returns the list of available users (optionally scoped by project).",
         "pagination": {
             "response": "envelope",
             "requestControls": true,
