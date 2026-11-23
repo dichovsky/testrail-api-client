@@ -105,6 +105,21 @@ The default page size is 250 items, and the default start offset is zero.
 See [pagination limits and supported endpoints](SDK.md#pagination) for maximum values and endpoint exceptions.
 Legacy bare-array responses stop after one page. Aggregate reads bypass the cache. They cannot guarantee a server-wide snapshot.
 
+Global user lists support all three modes:
+
+```bash
+npx testrail user list --limit 25 --offset 0
+npx testrail user list --page --limit 25 --offset 0
+npx testrail user list --all --page-size 100 --max-items 10000
+```
+
+The TestRail 10.10.1 release notes list `get_users` as a paginated endpoint.
+An older server can ignore `--limit` and `--offset` and return all users in one response.
+
+With `--project-id`, `user list` keeps its existing single-response behavior. Non-admin users must supply `--project-id`.
+The CLI rejects any pagination flag with `--project-id` before authentication.
+These flags are `--page`, `--all`, `--limit`, `--offset`, `--page-size`, `--start-offset`, `--max-pages`, `--max-items`, `--max-duration-ms`, and `--max-bytes`.
+
 Shared-step history, datasets, variables, roles, groups, and case statuses use response-driven pagination.
 These endpoints reject `--page-size` and `--start-offset`. Page mode also rejects `--limit` and `--offset`.
 Read the `--help` output of the resource to make sure that it supports `--page` or `--all`.

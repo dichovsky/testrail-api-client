@@ -223,7 +223,7 @@ export type { GetAllLabelsOptions, GetLabelsOptions } from './modules/labels.js'
 export type { GetAllDatasetsOptions } from './modules/datasets.js';
 export type { GetAllVariablesOptions } from './modules/variables.js';
 export type { GetAllCaseStatusesOptions, GetAllRolesOptions } from './modules/metadata.js';
-export type { GetAllGroupsOptions } from './modules/users.js';
+export type { GetAllGroupsOptions, GetAllUsersOptions, GetUsersOptions } from './modules/users.js';
 // Type-only names a consumer needs when it emits declarations (`declaration:
 // true`): the module classes behind `client.<module>`, the helper that the
 // response types expand to, and the argument types of `client.request()`.

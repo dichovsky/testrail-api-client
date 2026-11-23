@@ -49,7 +49,7 @@ Read actions:
   user                get <user_id>
       Fetch a single user by ID
   user                list
-      List users globally or for --project-id (required for non-admins)
+      List users (pagination is global only; --project-id required for non-admins)
   user                get-by-email --user-email <email>
       Look up a single user by email address
   user                get-current

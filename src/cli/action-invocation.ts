@@ -122,6 +122,21 @@ export function resolveActionInvocation(options: {
     }
 
     const paginationArgs = projectPaginationArgs(options.values);
+    // Key on the endpoint, not the command name: the pagination contract of
+    // `GET get_users` covers only the global route, whichever action calls it.
+    if (
+        options.spec.apiEndpoint === 'GET get_users' &&
+        options.values['project-id'] !== undefined &&
+        Object.entries(paginationArgs).some(([name, value]) =>
+            name === 'page' || name === 'all' ? value === true : value !== undefined,
+        )
+    ) {
+        return {
+            ok: false,
+            error: 'Pagination is supported only for global user lists; omit --project-id or all pagination flags.',
+        };
+    }
+
     // Paginated endpoints validate their mode-specific request-control rules
     // before the generic applicability pass. This lets response-driven
     // endpoints preserve explicit legacy items-mode controls without admitting

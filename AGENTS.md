@@ -92,11 +92,15 @@ try {
   `get*Page()` caches pages in a separate strict
   namespace. `getAll*()` bypasses cache reads, cache writes, and in-flight sharing.
   In-flight request sharing requires matching header and body timeouts.
-- **Pagination**: 24 list endpoints have three methods.
+- **Pagination**: 25 list endpoints have three methods.
   `get*()` returns the item array from one response.
   `get*Page()` returns `Page<T>` with envelope metadata.
   `getAll*()` follows validated `_links.next` continuations within page, item, duration, and byte limits.
   Aggregate reads never return partial results. Bare arrays stop pagination after one page.
+  User pagination applies only to global reads. Project user lists return one response without pagination.
+  SDK `getUsers(projectId)` ignores all extra runtime arguments, including objects and arrays, as version `10.0.0` did.
+  Its TypeScript project overload accepts only the project ID.
+  The CLI rejects all pagination flags with `user list --project-id` before authentication.
 - **CLI response validation**: Entity-field mismatches print a redacted warning by default.
   Pass `--strict-responses` or set `TESTRAIL_STRICT_RESPONSES=1` to fail on the first mismatch.
   Warnings include only the HTTP method, CLI command, and masked issue paths.

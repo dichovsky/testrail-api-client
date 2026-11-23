@@ -25,7 +25,7 @@ export const userReadActions = defineActions([
     {
         resource: 'user',
         action: 'list',
-        summary: 'List users globally or for --project-id (required for non-admins)',
+        summary: 'List users (pagination is global only; --project-id required for non-admins)',
         pathParams: [],
         apiEndpoint: 'GET get_users',
         flags: [{ name: 'project-id' }],

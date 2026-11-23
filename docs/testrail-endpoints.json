@@ -920,7 +920,12 @@
         "operation": "get_users",
         "method": "GET",
         "path": "get_users",
-        "summary": "Returns the list of available users (optionally scoped by project)."
+        "summary": "Returns the list of available users (optionally scoped by project).",
+        "pagination": {
+            "response": "envelope",
+            "requestControls": true,
+            "collectionKey": "users"
+        }
     },
     {
         "resource": "Users",

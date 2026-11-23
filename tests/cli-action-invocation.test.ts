@@ -46,10 +46,77 @@ describe('action invocation contract', () => {
     });
 
     it('retains limit/offset only for legacy items-mode actions that still document them', () => {
-        expect(getAllowedActionFlags(spec('user', 'list')).has('limit')).toBe(false);
         expect(getAllowedActionFlags(spec('attachment', 'list-for-test')).has('offset')).toBe(true);
         expect(getAllowedActionFlags(spec('shared-step', 'history')).has('limit')).toBe(true);
         expect(getAllowedActionFlags(spec('project', 'get')).has('limit')).toBe(false);
+    });
+
+    it('admits controlled pagination flags for global users', () => {
+        const allowed = getAllowedActionFlags(spec('user', 'list'));
+        for (const flag of ['page', 'all', 'limit', 'offset', 'page-size', 'start-offset', 'max-pages'] as const) {
+            expect(allowed.has(flag)).toBe(true);
+        }
+    });
+
+    it.each([
+        ['--page'],
+        ['--all'],
+        ['--limit', '5'],
+        ['--offset', '0'],
+        ['--page-size', '5'],
+        ['--start-offset', '0'],
+        ['--max-pages', '2'],
+        ['--max-items', '10'],
+        ['--max-duration-ms', '1000'],
+        ['--max-bytes', '4096'],
+    ])('rejects project user pagination at the invocation boundary: %s', (...flags) => {
+        const parsed = parseCliArgv(['user', 'list', '--project-id', '7', ...flags]);
+        const result = resolveActionInvocation({
+            spec: spec('user', 'list'),
+            values: parsed.values,
+            suppliedFlags: parsed.flagOccurrences.map(({ name }) => name),
+            pathParams: [],
+            dryRun: false,
+        });
+
+        expect(result).toEqual({
+            ok: false,
+            error: 'Pagination is supported only for global user lists; omit --project-id or all pagination flags.',
+        });
+    });
+
+    it('keys the project user pagination guard on the endpoint, not the command name', () => {
+        const parsed = parseCliArgv(['user', 'list', '--project-id', '7', '--all']);
+        const result = resolveActionInvocation({
+            spec: { ...spec('user', 'list'), action: 'list-alias' },
+            values: parsed.values,
+            suppliedFlags: parsed.flagOccurrences.map(({ name }) => name),
+            pathParams: [],
+            dryRun: false,
+        });
+
+        expect(result).toEqual({
+            ok: false,
+            error: 'Pagination is supported only for global user lists; omit --project-id or all pagination flags.',
+        });
+    });
+
+    it('does not mistake default false pagination flags for a project pagination request', () => {
+        const parsed = parseCliArgv(['user', 'list', '--project-id', '7']);
+        expect(parsed.values['page']).toBe(false);
+        expect(parsed.values['all']).toBe(false);
+        const result = resolveActionInvocation({
+            spec: spec('user', 'list'),
+            values: parsed.values,
+            suppliedFlags: ['project-id'],
+            pathParams: [],
+            dryRun: false,
+        });
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.invocation.args).toEqual({ pathParams: [], projectId: '7' });
+        expect(result.invocation.pagination).toEqual({ mode: 'items' });
     });
 
     it('preserves shared-step history request controls in items mode only', () => {

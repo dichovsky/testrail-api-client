@@ -117,18 +117,19 @@ describe('pagination registry', () => {
     );
     const paginated = inventory.filter((endpoint) => endpoint.pagination !== undefined);
 
-    it('pins the agreed 24 endpoints and 18/6 request-control split', () => {
-        expect(paginated).toHaveLength(24);
-        expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === true)).toHaveLength(18);
+    it('pins the agreed 25 endpoints and 19/6 request-control split', () => {
+        expect(paginated).toHaveLength(25);
+        expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === true)).toHaveLength(19);
         expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === false)).toHaveLength(6);
         expect(paginated.filter((endpoint) => endpoint.pagination?.response === 'nested-envelope')).toEqual([
             expect.objectContaining({ operation: 'get_history_for_case' }),
         ]);
     });
 
-    it('excludes users and the two attachment endpoints without a documented pagination contract', () => {
+    it('includes global users but excludes project users and undocumented attachment pagination', () => {
         const operations = new Set(paginated.map((endpoint) => endpoint.operation));
-        expect(operations.has('get_users')).toBe(false);
+        expect(operations.has('get_users')).toBe(true);
+        expect(operations.has('get_users/{project_id}')).toBe(false);
         expect(operations.has('get_attachments_for_test')).toBe(false);
         expect(operations.has('get_attachments_for_plan_entry')).toBe(false);
     });

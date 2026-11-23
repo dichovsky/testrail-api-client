@@ -6,9 +6,31 @@ import type { User } from '../types.js';
 import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import { TESTRAIL_USER_EMAIL_PATTERN } from '../constants.js';
-import type { Page, PaginationSafetyOptions } from '../pagination.js';
+import type { Page, PaginatedRequestOptions, PaginationSafetyOptions } from '../pagination.js';
 import { listOf, unwrapList } from './list.js';
 import { createPaginatedListExecutor } from './paginated-list.js';
+
+export interface GetUsersOptions {
+    limit?: number;
+    offset?: number;
+}
+
+export type GetAllUsersOptions = PaginatedRequestOptions;
+
+export const USERS_PAGINATION = createPaginatedListExecutor<undefined, GetUsersOptions, GetAllUsersOptions, User>({
+    operations: ['get_users'],
+    collectionKey: 'users',
+    itemSchema: UserSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: () => ({ operation: 'get_users' }),
+});
+
+function validateGlobalUserOptions(options: unknown): void {
+    if (options !== undefined && (typeof options !== 'object' || options === null || Array.isArray(options))) {
+        throw new TestRailValidationError('Global user pagination options must be an object');
+    }
+}
 
 export type GetAllGroupsOptions = PaginationSafetyOptions;
 
@@ -56,26 +78,46 @@ export class UsersModule {
         return this.client.request<User>({ method: 'GET', endpoint, schema: UserSchema });
     }
 
-    /** @testrail GET get_users */
-    async getUsers(projectId?: number): Promise<User[]> {
-        if (projectId !== undefined) {
-            validateId(projectId, 'projectId');
+    /**
+     * Get global users from one response with optional limit and offset controls.
+     * @testrail GET get_users
+     */
+    async getUsers(projectId: undefined, options?: GetUsersOptions): Promise<User[]>;
+    // Keep the 10.0.0 signature last: TypeScript infers Parameters<> from the last overload.
+    /** Get users from one response. Project reads ignore trailing arguments. */
+    async getUsers(projectId?: number): Promise<User[]>;
+    async getUsers(projectId?: number, options?: GetUsersOptions): Promise<User[]> {
+        if (projectId === undefined) {
+            // Only an object is global options. Ignore callback indexes as in 10.0.0.
+            const controls = typeof options === 'object' && options !== null ? options : undefined;
+            validateGlobalUserOptions(controls);
+            return USERS_PAGINATION.items(this.client, undefined, controls);
         }
 
-        const endpoint = projectId !== undefined ? `get_users/${projectId}` : 'get_users';
+        validateId(projectId, 'projectId');
 
-        // `get_users` is the one bulk endpoint whose documentation shows a bare
-        // top-level array and supports no `limit`/`offset` parameters, while
-        // projects/groups/roles/labels all document the envelope. #248 proved
-        // this exact wrapper-only assumption wrong for six other methods, so
-        // accept both shapes rather than betting on the doc.
-        // SPEC #1.5 — `{ users: null }` is a valid empty wrapper, hence `.nullable()`.
+        // Preserve the original project signature at runtime: a bound callback
+        // can receive a previous promise result as an extra argument.
+        // Project responses can ignore page controls and report size > limit.
+        // Keep their tolerant, single-response decoding separate from global pagination.
         const raw = await this.client.request<User[] | { users?: User[] }>({
             method: 'GET',
-            endpoint,
+            endpoint: `get_users/${projectId}`,
             schema: listOf('users', UserSchema),
         });
         return unwrapList('users', raw);
+    }
+
+    /** Get one global user page. This method does not accept a project ID. */
+    async getUsersPage(options?: GetUsersOptions): Promise<Page<User>> {
+        validateGlobalUserOptions(options);
+        return USERS_PAGINATION.page(this.client, undefined, options);
+    }
+
+    /** Get all global users within the configured pagination safety limits. */
+    async getAllUsers(options?: GetAllUsersOptions): Promise<User[]> {
+        validateGlobalUserOptions(options);
+        return USERS_PAGINATION.all(this.client, undefined, options);
     }
 
     /** @testrail GET get_current_user */
