@@ -256,8 +256,20 @@ const me = await client.users.getCurrentUser(); // TestRail 6.6+
 const byEmail = await client.users.getUserByEmail('alice@example.com');
 const user = await client.users.getUser(7);
 const projectUsers = await client.users.getUsers(5); // project_id; required for non-admins
-const allVisibleUsers = await client.users.getUsers(); // administrators may omit project_id
 ```
+
+`getUsers(projectId)` keeps its existing single-response behavior. Non-admin users must supply a project ID.
+Administrators can omit the project ID for global user lists.
+
+```typescript
+const firstUsers = await client.users.getUsers();
+const users = await client.users.getUsers(undefined, { limit: 25, offset: 0 });
+const page = await client.users.getUsersPage({ limit: 25, offset: 0 });
+const allUsers = await client.users.getAllUsers({ pageSize: 100, maxItems: 10000 });
+```
+
+`getUsers(undefined, options)` returns one item array. `getUsersPage()` returns a `Page<User>`.
+`getAllUsers()` returns all global users within safety limits. These pagination methods and options apply only to global user lists.
 
 ### Datasets & variables (data-driven testing)
 

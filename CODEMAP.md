@@ -11,7 +11,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
     "name": "@dichovsky/testrail-api-client",
     "version": "10.0.0"
   },
-  "sourceHash": "66278de867ea9766758adce6b5a91020ba7d30db0f7b2e9b7da9014796fe9cba",
+  "sourceHash": "bab6c4c938e08a865d664aadd2ea2bd45940f50071010348309c94ce3c07a95f",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -825,7 +825,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "GetAllGroupsOptions",
       "kind": "type",
       "file": "src/modules/users.ts",
-      "line": 13,
+      "line": 35,
       "signature": "export type GetAllGroupsOptions = PaginationSafetyOptions",
       "typeOnly": true
     },
@@ -939,6 +939,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "file": "src/modules/tests.ts",
       "line": 13,
       "signature": "export interface GetAllTestsOptions extends Omit<GetTestsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}",
+      "typeOnly": true
+    },
+    {
+      "name": "GetAllUsersOptions",
+      "kind": "type",
+      "file": "src/modules/users.ts",
+      "line": 18,
+      "signature": "export type GetAllUsersOptions = PaginatedRequestOptions",
       "typeOnly": true
     },
     {
@@ -1100,6 +1108,14 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "line": 573,
       "signature": "export interface GetTestsOptions { statusId?: number | readonly number[]; labelId?: number | readonly number[]; limit?: number; offset?: number; status_id?: number | readonly number[]; label_id?: numb…",
       "jsdoc": "Filter options for `getTests()`.",
+      "typeOnly": true
+    },
+    {
+      "name": "GetUsersOptions",
+      "kind": "interface",
+      "file": "src/modules/users.ts",
+      "line": 13,
+      "signature": "export interface GetUsersOptions { limit?: number; offset?: number; }",
       "typeOnly": true
     },
     {
@@ -2266,7 +2282,7 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "name": "UsersModule",
       "kind": "class",
       "file": "src/modules/users.ts",
-      "line": 34,
+      "line": 56,
       "signature": "export class UsersModule",
       "typeOnly": true
     },
@@ -4806,35 +4822,36 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "imports": [
         "../filters.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../pagination.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleUserGet",
           "kind": "function",
-          "line": 5,
+          "line": 6,
           "exported": true,
           "signature": "export async function handleUserGet(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleUserList",
           "kind": "function",
-          "line": 10,
+          "line": 11,
           "exported": true,
           "signature": "export async function handleUserList(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleUserGetByEmail",
           "kind": "function",
-          "line": 30,
+          "line": 45,
           "exported": true,
           "signature": "export async function handleUserGetByEmail(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleUserGetCurrent",
           "kind": "function",
-          "line": 49,
+          "line": 64,
           "exported": true,
           "signature": "export async function handleUserGetCurrent(ctx: HandlerContext): Promise<void>"
         }
@@ -5751,28 +5768,28 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
         {
           "name": "PaginatedEndpoint",
           "kind": "type",
-          "line": 78,
+          "line": 79,
           "exported": true,
           "signature": "export type PaginatedEndpoint = keyof typeof PAGINATED_ENDPOINTS"
         },
         {
           "name": "paginationFor",
           "kind": "function",
-          "line": 87,
+          "line": 88,
           "exported": true,
           "signature": "export function paginationFor(apiEndpoint: string): PaginationContract | undefined"
         },
         {
           "name": "Assert",
           "kind": "type",
-          "line": 92,
+          "line": 93,
           "exported": false,
           "signature": "type Assert<T extends true> = T"
         },
         {
           "name": "_PaginatedEndpointsAreSurfaced",
           "kind": "type",
-          "line": 103,
+          "line": 104,
           "exported": true,
           "signature": "export type _PaginatedEndpointsAreSurfaced = Assert< Exclude<PaginatedEndpoint, ActionEndpoint> extends never ? true : false >"
         }
@@ -10293,102 +10310,150 @@ Schema: `codemap.v2`. This file contains no timestamps. The generator detects st
       "reExports": [],
       "symbols": [
         {
+          "name": "GetUsersOptions",
+          "kind": "interface",
+          "line": 13,
+          "exported": true,
+          "signature": "export interface GetUsersOptions { limit?: number; offset?: number; }"
+        },
+        {
+          "name": "GetAllUsersOptions",
+          "kind": "type",
+          "line": 18,
+          "exported": true,
+          "signature": "export type GetAllUsersOptions = PaginatedRequestOptions"
+        },
+        {
+          "name": "USERS_PAGINATION",
+          "kind": "const",
+          "line": 20,
+          "exported": true,
+          "signature": "export const USERS_PAGINATION = createPaginatedListExecutor<undefined, GetUsersOptions, GetAllUsersOptions, User>({ operations: ['get_users'], collectionKey: 'users', itemSchema: UserSchema, response:…"
+        },
+        {
+          "name": "validateGlobalUserOptions",
+          "kind": "function",
+          "line": 29,
+          "exported": false,
+          "signature": "function validateGlobalUserOptions(options: unknown): void"
+        },
+        {
           "name": "GetAllGroupsOptions",
           "kind": "type",
-          "line": 13,
+          "line": 35,
           "exported": true,
           "signature": "export type GetAllGroupsOptions = PaginationSafetyOptions"
         },
         {
           "name": "GroupPaginationControls",
           "kind": "interface",
-          "line": 15,
+          "line": 37,
           "exported": false,
           "signature": "interface GroupPaginationControls { limit?: number; offset?: number; }"
         },
         {
           "name": "GROUPS_PAGINATION",
           "kind": "const",
-          "line": 20,
+          "line": 42,
           "exported": true,
           "signature": "export const GROUPS_PAGINATION = createPaginatedListExecutor< undefined, GroupPaginationControls, GetAllGroupsOptions, Group >({ operations: ['get_groups'], collectionKey: 'groups', itemSchema: GroupS…"
         },
         {
           "name": "UsersModule",
           "kind": "class",
-          "line": 34,
+          "line": 56,
           "exported": true,
           "signature": "export class UsersModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 35
+              "line": 57
             },
             {
               "name": "getUser",
               "kind": "method",
-              "line": 38
+              "line": 60
             },
             {
               "name": "getUserByEmail",
               "kind": "method",
-              "line": 48
+              "line": 70
             },
             {
               "name": "getUsers",
               "kind": "method",
-              "line": 60
+              "line": 85
+            },
+            {
+              "name": "getUsers",
+              "kind": "method",
+              "line": 87
+            },
+            {
+              "name": "getUsers",
+              "kind": "method",
+              "line": 88
+            },
+            {
+              "name": "getUsersPage",
+              "kind": "method",
+              "line": 110
+            },
+            {
+              "name": "getAllUsers",
+              "kind": "method",
+              "line": 116
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 82
+              "line": 122
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 91
+              "line": 131
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 101
+              "line": 141
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 112
+              "line": 152
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 122
+              "line": 162
             },
             {
               "name": "getGroupsPage",
               "kind": "method",
-              "line": 127
+              "line": 167
             },
             {
               "name": "getAllGroups",
               "kind": "method",
-              "line": 132
+              "line": 172
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 137
+              "line": 177
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 147
+              "line": 187
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 161
+              "line": 201
             }
           ]
         }

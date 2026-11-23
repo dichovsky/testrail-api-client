@@ -8,13 +8,17 @@ import {
     MAX_PAGINATION_BYTES,
     MAX_PAGINATION_LIMIT,
     TestRailPaginationError,
+    type TestRailClient,
     type GetAllResultsForRunOptions,
     type GetAllResultsOptions,
+    type GetAllUsersOptions,
     type GetResultsForRunOptions,
     type GetResultsOptions,
+    type GetUsersOptions,
     type Page,
     type PaginatedRequestOptions,
     type PaginationSafetyOptions,
+    type User,
 } from '../src/index.js';
 import { TestRailPaginationError as ClientPaginationError } from '../src/client.js';
 
@@ -54,5 +58,22 @@ describe('pagination public exports', () => {
         expectTypeOf<'defectsFilter' extends keyof GetResultsForRunOptions ? true : false>().toEqualTypeOf<true>();
         expectTypeOf<'createdAfter' extends keyof GetAllResultsOptions ? true : false>().toEqualTypeOf<false>();
         expectTypeOf<'createdAfter' extends keyof GetAllResultsForRunOptions ? true : false>().toEqualTypeOf<true>();
+    });
+
+    it('exports global user options and preserves the project-only legacy overload', () => {
+        expectTypeOf<GetUsersOptions>().toEqualTypeOf<{ limit?: number; offset?: number }>();
+        expectTypeOf<GetAllUsersOptions>().toEqualTypeOf<PaginatedRequestOptions>();
+        expectTypeOf<TestRailClient['users']['getUsers']>().toEqualTypeOf<{
+            (projectId?: number): Promise<User[]>;
+            (projectId: undefined, options: GetUsersOptions): Promise<User[]>;
+        }>();
+        expectTypeOf<TestRailClient['users']['getUsersPage']>().toEqualTypeOf<
+            (options?: GetUsersOptions) => Promise<Page<User>>
+        >();
+        expectTypeOf<TestRailClient['users']['getAllUsers']>().toEqualTypeOf<
+            (options?: GetAllUsersOptions) => Promise<User[]>
+        >();
+        expectTypeOf<'projectId' extends keyof GetUsersOptions ? true : false>().toEqualTypeOf<false>();
+        expectTypeOf<'projectId' extends keyof GetAllUsersOptions ? true : false>().toEqualTypeOf<false>();
     });
 });

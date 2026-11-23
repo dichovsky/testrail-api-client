@@ -144,7 +144,7 @@ Hostnames with private-looking prefixes still require DNS classification. The cl
 - With invalidation generations, old in-flight requests cannot publish stale cache entries.
 - Cache hits and shared waiters return before DNS checks. Each network attempt, including retries, repeats DNS validation.
 
-**Pagination contract:** Each of the 24 paginated endpoints in `docs/testrail-endpoints.json` has three methods:
+**Pagination contract:** Each of the 25 paginated endpoints in `docs/testrail-endpoints.json` has three methods:
 
 1. `get*()` returns the items from one response.
 2. `get*Page()` returns `Page<T>` with envelope metadata.
@@ -157,10 +157,11 @@ Each domain pagination descriptor has a `prepare()` adapter. The adapter validat
 It controls list/page/all output, deadlines, cache policy, continuation, decoding, and collection limits.
 
 Adapters read only declared filters. Aggregate helpers read only `pageSize`, `startOffset`, and safety limits.
-Response-driven endpoints accept only safety limits. `tests/pagination-descriptor-inventory.test.ts` tests all 24 registrations against the endpoint inventory.
+Response-driven endpoints accept only safety limits. `tests/pagination-descriptor-inventory.test.ts` tests all 25 registrations against the endpoint inventory.
 
 Shared-step history, datasets, variables, roles, groups, and case statuses use `requestControls: false`.
-Test attachments, plan-entry attachments, users, and ordinary metadata, configuration, and report lists do not have the three pagination methods.
+Test attachments, plan-entry attachments, project users, and ordinary metadata, configuration, and report lists do not have the three pagination methods.
+User pagination applies only to the global `get_users` route. Project user lists keep tolerant, single-response decoding and reject pagination controls.
 
 The client extracts only the validated `offset` and optional `limit` from `_links.next`. `createPaginatedListExecutor()` rebuilds the endpoint path from validated parameters. It does not follow the raw URL from the server. Bare arrays stop pagination after one page.
 

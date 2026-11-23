@@ -225,7 +225,7 @@ If the server state is unknown, examine it before you start another report or re
 
 ## Pagination
 
-The SDK has three methods for each of the 24 paginated endpoints:
+The SDK has three methods for each of the 25 paginated endpoints:
 
 | Need                            | SDK method   | Returns                 | Requests              |
 | ------------------------------- | ------------ | ----------------------- | --------------------- |
@@ -264,13 +264,28 @@ Aggregate reads bypass cached pages, so that the client does not mix older cache
 Pages from new requests do not guarantee a server-wide snapshot. Server data can change while the client collects pages.
 
 Supported resources include cases, case history, project BDDs, projects, suites, sections, plans, runs, tests, milestones, and three result lists.
-They also include labels, shared steps and their history, case/run/plan attachments, datasets, variables, roles, groups, and case statuses.
+They also include labels, shared steps and their history, case/run/plan attachments, datasets, variables, roles, groups, global users, and case statuses.
 
 Shared-step history, datasets, variables, roles, groups, and case statuses use pagination controls that the server supplies.
 Their aggregate methods accept safety limits but do not accept `pageSize` or `startOffset`.
-Test attachments, plan-entry attachments, users, and ordinary metadata, configuration, and report lists return one response only.
-TestRail 10.10 documents `get_users` as paginated, so `users.getUsers()` can return only the first 250 users on such a server.
-The project has not tested this truncation on a live server. See the [compatibility audit](TESTRAIL-10.7.0-COMPATIBILITY.md#known-gaps-against-testrail-108-1010-checked-2026-11-21).
+Test attachments, plan-entry attachments, project users, and ordinary metadata, configuration, and report lists return one response only.
+
+User pagination applies only to global reads:
+
+```typescript
+const firstUsers = await client.users.getUsers();
+const selectedUsers = await client.users.getUsers(undefined, { limit: 50, offset: 100 });
+const usersPage = await client.users.getUsersPage({ limit: 50 });
+const allUsers = await client.users.getAllUsers({ pageSize: 100, maxItems: 10_000 });
+const projectUsers = await client.users.getUsers(5);
+```
+
+`getUsersPage()` and `getAllUsers()` read global users. They do not accept a project ID.
+`getUsers(projectId)` keeps its existing single-response behavior and rejects a second options argument.
+It accepts bare arrays and user wrappers, including project responses whose item count exceeds the reported limit.
+The checked project endpoint ignored requested limits and offsets. See the [live-check results](TESTRAIL-10.7.0-COMPATIBILITY.md#user-list-pagination-live-check-2026-11-23).
+The client still limits requested pages to 250 items and does not support cursor pagination.
+
 A method that accepts `limit` or `offset` does not always have a `get*Page()` or `getAll*()` method.
 See the [API mapping](API-MAPPING.md) for endpoint coverage and the [CLI guide](CLI.md#pagination) for equivalent flags.
 The [bounded pagination example](../examples/bounded-pagination.ts) reads one page and a bounded aggregate, then handles `TestRailPaginationError` by its `reason`.

@@ -347,10 +347,10 @@ the endpoint with the original validated parameters and filters. A bare array
 stops pagination after one page. Aggregates never return partial results. Invalid pages,
 continuations, non-progress, or exceeded bounds throw `TestRailPaginationError`.
 
-The 24 registered endpoints appear in the [SDK endpoint list](SDK.md#pagination),
-with their request-control exceptions. This set includes project BDDs and labels.
+The 25 registered endpoints appear in the [SDK endpoint list](SDK.md#pagination),
+with their request-control exceptions. This set includes project BDDs, labels, and global users.
 `tests/pagination-descriptor-inventory.test.ts` compares the keys, response shapes,
-and 18/6 `requestControls` split with the endpoint inventory.
+and 19/6 `requestControls` split with the endpoint inventory.
 
 <a id="4-type-system--schemasts--typests"></a>
 

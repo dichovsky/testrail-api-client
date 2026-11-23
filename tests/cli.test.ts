@@ -2650,14 +2650,109 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
             expect(mockFetch.mock.calls.at(-1)?.[0]).toContain('get_users/25');
+            expect(mockFetch).toHaveBeenCalledTimes(1);
         });
 
-        it('user list rejects undocumented --limit and --offset instead of ignoring them', async () => {
-            const { exitCodes, stderr } = await runCli(['user', 'list', '--limit', '25', '--offset', '10']);
+        it('global user list sends --limit and --offset and emits only items', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['user', 'list', '--limit', '25', '--offset', '10'],
+                [jsonResponse({ users: [MOCK_USER] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(JSON.parse(stdout)).toEqual([MOCK_USER]);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(mockFetch.mock.calls[0]?.[0]).toBe(
+                'https://example.testrail.io/index.php?/api/v2/get_users&limit=25&offset=10',
+            );
+        });
+
+        it('global user list --page emits normalized page metadata', async () => {
+            const envelope = {
+                users: [MOCK_USER],
+                offset: 2,
+                limit: 1,
+                size: 1,
+                _links: { next: null, prev: '/api/v2/get_users?limit=1&offset=1' },
+            };
+            const { exitCodes, stdout } = await runCli(
+                ['user', 'list', '--page', '--limit', '1', '--offset', '2'],
+                [jsonResponse(envelope)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(JSON.parse(stdout)).toEqual({
+                kind: 'envelope',
+                items: [MOCK_USER],
+                offset: 2,
+                limit: 1,
+                size: 1,
+                _links: envelope._links,
+            });
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(mockFetch.mock.calls[0]?.[0]).toContain('get_users&limit=1&offset=2');
+        });
+
+        it('global user list --all follows server continuations and emits one final array', async () => {
+            const second = { ...MOCK_USER, id: 2, name: 'Bob' };
+            const { exitCodes, stdout } = await runCli(
+                ['user', 'list', '--all', '--page-size', '1', '--start-offset', '2'],
+                [
+                    jsonResponse({
+                        users: [MOCK_USER],
+                        offset: 2,
+                        limit: 1,
+                        size: 1,
+                        _links: { next: '/api/v2/get_users?limit=1&offset=3', prev: null },
+                    }),
+                    jsonResponse({
+                        users: [second],
+                        offset: 3,
+                        limit: 1,
+                        size: 1,
+                        _links: { next: null, prev: '/api/v2/get_users?limit=1&offset=2' },
+                    }),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            expect(JSON.parse(stdout)).toEqual([MOCK_USER, second]);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            expect(mockFetch.mock.calls[0]?.[0]).toContain('get_users&limit=1&offset=2');
+            expect(mockFetch.mock.calls[1]?.[0]).toContain('get_users&limit=1&offset=3');
+        });
+
+        it.each([
+            ['--page'],
+            ['--all'],
+            ['--limit', '5'],
+            ['--offset', '0'],
+            ['--page-size', '5'],
+            ['--start-offset', '0'],
+            ['--max-pages', '2'],
+            ['--max-items', '10'],
+            ['--max-duration-ms', '1000'],
+            ['--max-bytes', '4096'],
+        ])('user list rejects project pagination before auth: %s', async (...flags) => {
+            const { exitCodes, stdout, stderr } = await runCli(
+                ['user', 'list', '--project-id', '25', ...flags],
+                [],
+                {},
+            );
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('--limit is not supported by user list');
+            expect(stdout).toBe('');
+            expect(stderr).toContain(
+                'Pagination is supported only for global user lists; omit --project-id or all pagination flags.',
+            );
             expect(mockFetch).not.toHaveBeenCalled();
         });
+
+        it.each(['0', '-1', '1.5', 'not-an-id'])(
+            'user list rejects invalid project ID %s before fetch',
+            async (projectId) => {
+                const { exitCodes, stderr } = await runCli(['user', 'list', '--project-id', projectId]);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('--project-id must be a positive integer');
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
 
         it('user unknown action should exit 1', async () => {
             const { exitCodes } = await runCli(['user', 'create']);

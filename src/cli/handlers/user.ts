@@ -1,6 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, IdParseError } from '../ids.js';
 import { parseOptionalId } from '../filters.js';
+import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 export async function handleUserGet(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'user id');
@@ -9,7 +10,21 @@ export async function handleUserGet(ctx: HandlerContext): Promise<void> {
 
 export async function handleUserList(ctx: HandlerContext): Promise<void> {
     const projectId = parseOptionalId(ctx.args.projectId, '--project-id');
-    ctx.out(await ctx.client.users.getUsers(projectId));
+    if (projectId !== undefined) {
+        ctx.out(await ctx.client.users.getUsers(projectId));
+        return;
+    }
+
+    const { limit, offset } = ctx.pagination;
+    const pageOptions = {
+        ...(limit !== undefined && { limit }),
+        ...(offset !== undefined && { offset }),
+    };
+    await outputPaginated(ctx, {
+        items: () => ctx.client.users.getUsers(undefined, pageOptions),
+        page: () => ctx.client.users.getUsersPage(pageOptions),
+        all: () => ctx.client.users.getAllUsers(getPaginatedRequestOptions(ctx.pagination)),
+    });
 }
 
 /**

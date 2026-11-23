@@ -21,7 +21,7 @@ import { SECTIONS_PAGINATION } from '../src/modules/sections.js';
 import { SHARED_STEP_HISTORY_PAGINATION, SHARED_STEPS_PAGINATION } from '../src/modules/sharedSteps.js';
 import { SUITES_PAGINATION } from '../src/modules/suites.js';
 import { TESTS_PAGINATION } from '../src/modules/tests.js';
-import { GROUPS_PAGINATION } from '../src/modules/users.js';
+import { GROUPS_PAGINATION, USERS_PAGINATION } from '../src/modules/users.js';
 import { VARIABLES_PAGINATION } from '../src/modules/variables.js';
 import { createPaginatedListExecutor } from '../src/modules/paginated-list.js';
 
@@ -47,6 +47,7 @@ const PAGINATION_EXECUTORS = [
     CASE_STATUSES_PAGINATION,
     SUITES_PAGINATION,
     TESTS_PAGINATION,
+    USERS_PAGINATION,
     VARIABLES_PAGINATION,
 ] as const;
 
@@ -73,7 +74,7 @@ describe('pagination descriptor inventory', () => {
             left.operation.localeCompare(right.operation),
         );
 
-        expect(expected).toHaveLength(24);
+        expect(expected).toHaveLength(25);
         expect(actual).toHaveLength(expected.length);
         expect(new Set(actual.map(({ operation }) => operation)).size).toBe(actual.length);
         expect(actual).toEqual(expected);

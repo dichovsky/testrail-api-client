@@ -259,10 +259,13 @@ In the SDK, pagination failures throw `TestRailPaginationError` with reason `max
 
 The pagination registry includes cases, case history, project BDDs, projects, suites, sections, plans, runs, tests, and milestones.
 It also includes all three result lists, labels, shared steps, shared-step history, and case/run/plan attachments.
-Finally, it includes datasets, variables, roles, groups, and case statuses.
+It also includes global users, datasets, variables, roles, groups, and case statuses.
 Shared-step history, datasets, variables, roles, groups, and case statuses use response-driven pagination.
 For these endpoints, `--all` accepts safety limits but rejects `--page-size` and `--start-offset`. The `--page` mode rejects `--limit` and `--offset`.
-Test attachments, plan-entry attachments, users, and standard metadata, configuration, and report lists do not support `--page` or `--all`.
+Test attachments, plan-entry attachments, project user lists, and standard metadata, configuration, and report lists do not support `--page` or `--all`.
+
+For `user list`, use pagination only when you omit `--project-id`.
+With `--project-id`, the CLI keeps its existing single-response behavior and rejects all pagination flags before authentication.
 
 In the SDK, `get*()` returns one response array. `get*Page()` returns `Page<T>`. `getAll*()` returns the complete array within safety limits.
 

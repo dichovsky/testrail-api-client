@@ -3,7 +3,7 @@ import type { ActionEndpoint } from '../metadata.js';
 /**
  * The pagination contract for every endpoint that has one.
  *
- * TestRail's own documentation of these 24 endpoints lives in
+ * TestRail's own documentation of these 25 endpoints lives in
  * `docs/testrail-endpoints.json`, which stays hand-curated because it records
  * what the API documents rather than what this client implements. This table is
  * the runtime half of that fact; the `pagination registry` block in
@@ -71,6 +71,7 @@ export const PAGINATED_ENDPOINTS = {
     'GET get_case_statuses': { response: 'envelope', requestControls: false, collectionKey: 'case_statuses' },
     'GET get_suites/{project_id}': { response: 'envelope', requestControls: true, collectionKey: 'suites' },
     'GET get_tests/{run_id}': { response: 'envelope', requestControls: true, collectionKey: 'tests' },
+    'GET get_users': { response: 'envelope', requestControls: true, collectionKey: 'users' },
     'GET get_variables/{project_id}': { response: 'envelope', requestControls: false, collectionKey: 'variables' },
 } as const satisfies Record<string, PaginationContract>;
 

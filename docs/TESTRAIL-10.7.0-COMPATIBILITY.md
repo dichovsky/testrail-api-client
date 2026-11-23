@@ -281,3 +281,84 @@ without `limit` or `offset`. These sources conflict.
 client has no `getUsersPage()` or `getAllUsers()` method. If TestRail 10.10
 paginates `get_users`, `getUsers()` can return only the first 250 users. This
 behavior is not verified on a live server.
+
+## User list pagination: live check (2026-11-23)
+
+A later read-only check used one TestRail `10.10.2.1002` instance and the
+published `10.0.0` client. The check covered the global user list and one
+project. It did not change server data.
+
+### Global users
+
+`get_users` returned an envelope with `offset`, `limit`, `size`, `_links`, and
+`users`. The endpoint applied the requested `limit` and `offset` values.
+
+| Request                                       | Returned users   | Next page |
+| --------------------------------------------- | ---------------- | --------- |
+| Default request                               | 172              | No        |
+| `limit=1&offset=0`                            | 1                | Yes       |
+| `limit=1&offset=1`                            | 1 different user | Yes       |
+| `limit=100&offset=0`                          | 100              | Yes       |
+| Supplied continuation: `limit=100&offset=100` | 72               | No        |
+
+The continuation check used the client's existing continuation parser. It
+rebuilt the global endpoint from validated controls, without using the link's
+host or path. The two pages contained 172 distinct users, with no duplicates.
+
+The default `users.getUsers()` call returned the same 172 users. No omitted
+users were observed because this instance had fewer users than the default
+page size of 250. The check confirms global pagination, but does not directly
+test a default response with more than 250 users.
+
+The published `10.0.0` client exposes only one response through `getUsers()`. A separate
+offline replay confirmed that it discards a supplied `_links.next` and does
+not request the next page. There is no `getUsersPage()` or `getAllUsers()`
+method in that release, and `user list --all` exits with an unsupported-option error.
+
+### Project users
+
+The project endpoint behaved differently. The default request returned 14
+users with `limit: 250`, `size: 14`, and `_links.next: null`.
+
+Requests with `limit=1&offset=0` and `limit=1&offset=1` returned the same 14
+users. Both responses reported `limit: 1` and `size: 14`, and neither supplied
+a next-page link. The response offset reflected the requested offset.
+
+The existing strict page decoder rejects this `size > limit` response with
+`TestRailPaginationError` and reason `invalid_page`. Global pagination controls
+must not be assumed to work on the project endpoint.
+
+### Limits of this check
+
+These results describe one instance, one account, and one project. The check
+did not test cursor pagination, older servers, or projects with more than 250
+users. Project membership rules can also exclude users from project results.
+
+The saved evidence contains counts and page metadata only. User names, email
+addresses, user IDs, the instance URL, and credentials were not saved. User ID
+sets were compared in memory.
+
+## Global user pagination: implementation check (2026-11-23)
+
+The unreleased source adds global user pagination to the SDK and CLI.
+Project user reads retain their single-response behavior and reject pagination
+controls. The client still limits requested pages to 250 items and does not
+support cursor pagination.
+
+A read-only check used the same instance after the implementation:
+
+| Check                                                                                  | Result                                                 |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| SDK `getUsers(undefined, { limit: 1, offset: 1 })`                                     | One user, matching the second user from the first page |
+| SDK `getUsersPage({ limit: 100, offset: 0 })`                                          | 100 users and a next-page link                         |
+| SDK `getAllUsers({ pageSize: 100, maxPages: 5, maxItems: 500, maxDurationMs: 60000 })` | 172 distinct users across two pages                    |
+| CLI global `--page` and `--all`, with strict response validation                       | Same users as the SDK; no response mismatches          |
+| SDK and CLI project reads                                                              | Same 14 users as the published `10.0.0` client         |
+
+The project response caused an advisory schema warning in both client versions.
+Default CLI reads succeeded with identical warnings. Strict CLI reads failed
+with identical errors and no output. This existing behavior was preserved.
+
+The check saved counts and page metadata only. User records and credentials
+were not saved. Older servers and projects with more than 250 users remain
+outside this live check.

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
-import { createClient, MOCK_CASE, MOCK_RESULT, mockOk } from './helpers.js';
+import { MAX_PAGINATION_LIMIT } from '../src/constants.js';
+import { TestRailValidationError } from '../src/errors.js';
+import type { GetAllUsersOptions, GetUsersOptions } from '../src/index.js';
+import { createClient, MOCK_CASE, MOCK_RESULT, MOCK_USER, mockErr, mockOk } from './helpers.js';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -49,6 +52,250 @@ describe('pagination module adapters', () => {
     });
 
     afterEach(() => client.destroy());
+
+    describe('global users', () => {
+        it.each([
+            { name: 'legacy array', raw: [MOCK_USER], expected: [MOCK_USER] },
+            { name: 'collection wrapper', raw: { users: [MOCK_USER] }, expected: [MOCK_USER] },
+            { name: 'null collection wrapper', raw: { users: null }, expected: [] },
+        ])('keeps the one-response $name compatible', async ({ raw, expected }) => {
+            mockFetch.mockResolvedValueOnce(mockOk(raw));
+
+            await expect(client.users.getUsers()).resolves.toEqual(expected);
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(/\/get_users$/);
+        });
+
+        it('forwards global controls and keeps item and strict-page caches separate', async () => {
+            const options = Object.freeze({ limit: 2, offset: 4 });
+            const raw = envelope('users', [MOCK_USER], 4, 2, null);
+            mockFetch.mockResolvedValueOnce(mockOk(raw)).mockResolvedValueOnce(mockOk(raw));
+
+            await expect(client.users.getUsers(undefined, options)).resolves.toEqual([MOCK_USER]);
+            await expect(client.users.getUsersPage(options)).resolves.toEqual({
+                kind: 'envelope',
+                items: [MOCK_USER],
+                offset: 4,
+                limit: 2,
+                size: 1,
+                _links: { next: null, prev: null },
+            });
+            await expect(client.users.getUsersPage(options)).resolves.toMatchObject({ items: [MOCK_USER] });
+            await expect(client.users.getUsers(undefined, options)).resolves.toEqual([MOCK_USER]);
+
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            for (const [url] of mockFetch.mock.calls) {
+                expect(String(url)).toMatch(/\/get_users&limit=2&offset=4$/);
+            }
+            expect(options).toEqual({ limit: 2, offset: 4 });
+        });
+
+        it('does not reuse a tolerant wrapper as a strict page or cache a rejected page', async () => {
+            mockFetch.mockImplementation(() => Promise.resolve(mockOk({ users: [MOCK_USER] })));
+
+            await expect(client.users.getUsers()).resolves.toEqual([MOCK_USER]);
+            await expect(client.users.getUsersPage()).rejects.toMatchObject({ reason: 'invalid_page' });
+            await expect(client.users.getUsersPage()).rejects.toMatchObject({ reason: 'invalid_page' });
+
+            expect(mockFetch).toHaveBeenCalledTimes(3);
+        });
+
+        it('collects more than 250 users with local global requests and immutable controls', async () => {
+            const users = Array.from({ length: MAX_PAGINATION_LIMIT + 1 }, (_, index) => ({
+                ...MOCK_USER,
+                id: index + 1,
+            }));
+            const startOffset = 3;
+            const nextOffset = startOffset + MAX_PAGINATION_LIMIT;
+            const options = Object.freeze({
+                pageSize: MAX_PAGINATION_LIMIT,
+                startOffset,
+                maxPages: 2,
+                maxItems: users.length,
+            });
+            mockFetch
+                .mockResolvedValueOnce(
+                    mockOk(
+                        envelope(
+                            'users',
+                            users.slice(0, MAX_PAGINATION_LIMIT),
+                            startOffset,
+                            MAX_PAGINATION_LIMIT,
+                            `https://attacker.invalid/index.php?/api/v2/get_users/99&offset=${nextOffset}&limit=1`,
+                        ),
+                    ),
+                )
+                .mockResolvedValueOnce(
+                    mockOk(
+                        envelope('users', users.slice(MAX_PAGINATION_LIMIT), nextOffset, MAX_PAGINATION_LIMIT, null),
+                    ),
+                );
+
+            await expect(client.users.getAllUsers(options)).resolves.toEqual(users);
+
+            expect(mockFetch.mock.calls.map(([url]) => String(url))).toEqual([
+                `https://example.testrail.io/index.php?/api/v2/get_users&limit=${MAX_PAGINATION_LIMIT}&offset=${startOffset}`,
+                `https://example.testrail.io/index.php?/api/v2/get_users&limit=${MAX_PAGINATION_LIMIT}&offset=${nextOffset}`,
+            ]);
+            expect(options).toEqual({
+                pageSize: MAX_PAGINATION_LIMIT,
+                startOffset,
+                maxPages: 2,
+                maxItems: users.length,
+            });
+        });
+
+        it('collects fresh users without reading or replacing cached items or pages', async () => {
+            const freshUser = { ...MOCK_USER, id: 2 };
+            const newestUser = { ...MOCK_USER, id: 3 };
+            const controls = { limit: 1, offset: 0 };
+            const cachedPage = envelope('users', [MOCK_USER], 0, 1, null);
+            mockFetch
+                .mockResolvedValueOnce(mockOk(cachedPage))
+                .mockResolvedValueOnce(mockOk(cachedPage))
+                .mockResolvedValueOnce(mockOk(envelope('users', [freshUser], 0, 1, null)))
+                .mockResolvedValueOnce(mockOk(envelope('users', [newestUser], 0, 1, null)));
+
+            await expect(client.users.getUsers(undefined, controls)).resolves.toEqual([MOCK_USER]);
+            await expect(client.users.getUsersPage(controls)).resolves.toMatchObject({ items: [MOCK_USER] });
+            await expect(client.users.getAllUsers({ pageSize: 1 })).resolves.toEqual([freshUser]);
+            await expect(client.users.getAllUsers({ pageSize: 1 })).resolves.toEqual([newestUser]);
+            await expect(client.users.getUsers(undefined, controls)).resolves.toEqual([MOCK_USER]);
+            await expect(client.users.getUsersPage(controls)).resolves.toMatchObject({ items: [MOCK_USER] });
+
+            expect(mockFetch).toHaveBeenCalledTimes(4);
+        });
+
+        it('treats a legacy array as one terminal aggregate page', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([MOCK_USER]));
+
+            await expect(client.users.getAllUsers()).resolves.toEqual([MOCK_USER]);
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(/\/get_users&limit=250&offset=0$/);
+        });
+
+        it('rejects a malformed continuation without returning the first users', async () => {
+            mockFetch.mockResolvedValueOnce(
+                mockOk(envelope('users', [MOCK_USER], 0, 1, '/api/v2/get_users&offset=1&offset=2')),
+            );
+
+            await expect(client.users.getAllUsers({ pageSize: 1 })).rejects.toMatchObject({
+                reason: 'invalid_continuation',
+                pagesFetched: 1,
+                itemsFetched: 1,
+            });
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('rejects a later request failure without returning partial users', async () => {
+            mockFetch
+                .mockResolvedValueOnce(
+                    mockOk(envelope('users', [MOCK_USER], 0, 1, '/api/v2/get_users&offset=1&limit=1')),
+                )
+                .mockResolvedValueOnce(mockErr(400, 'Bad Request'));
+
+            await expect(client.users.getAllUsers({ pageSize: 1 })).rejects.toMatchObject({ status: 400 });
+
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('enforces the page bound before requesting another users page', async () => {
+            mockFetch.mockResolvedValueOnce(
+                mockOk(envelope('users', [MOCK_USER], 0, 1, '/api/v2/get_users&offset=1&limit=1')),
+            );
+
+            await expect(client.users.getAllUsers({ pageSize: 1, maxPages: 1 })).rejects.toMatchObject({
+                reason: 'max_pages',
+                pagesFetched: 1,
+                itemsFetched: 1,
+            });
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it.each([null, 1, '1', true, []].map((options) => ({ options })))(
+            'rejects non-object options $options before any global request',
+            async ({ options }) => {
+                mockFetch.mockImplementation(() => Promise.resolve(mockOk([])));
+
+                await expect(client.users.getUsers(undefined, options as unknown as GetUsersOptions)).rejects.toThrow(
+                    TestRailValidationError,
+                );
+                await expect(client.users.getUsersPage(options as unknown as GetUsersOptions)).rejects.toThrow(
+                    TestRailValidationError,
+                );
+                await expect(client.users.getAllUsers(options as unknown as GetAllUsersOptions)).rejects.toThrow(
+                    TestRailValidationError,
+                );
+
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it('keeps the shared maximum page size and rejects invalid controls before fetch', async () => {
+            mockFetch.mockImplementation(() => Promise.resolve(mockOk([])));
+
+            await expect(client.users.getUsers(undefined, { limit: MAX_PAGINATION_LIMIT + 1 })).rejects.toThrow(
+                TestRailValidationError,
+            );
+            await expect(client.users.getUsersPage({ offset: -1 })).rejects.toThrow(TestRailValidationError);
+            await expect(client.users.getAllUsers({ pageSize: MAX_PAGINATION_LIMIT + 1 })).rejects.toThrow(
+                TestRailValidationError,
+            );
+
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('project users', () => {
+        it.each([
+            { name: 'legacy array', raw: [MOCK_USER] },
+            { name: 'collection wrapper', raw: { users: [MOCK_USER] } },
+        ])('preserves the one-response $name', async ({ raw }) => {
+            mockFetch.mockResolvedValueOnce(mockOk(raw));
+
+            await expect(client.users.getUsers(14)).resolves.toEqual([MOCK_USER]);
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(/\/get_users\/14$/);
+        });
+
+        it('ignores inconsistent project pagination metadata and never follows its next link', async () => {
+            const users = Array.from({ length: 14 }, (_, index) => ({ ...MOCK_USER, id: index + 1 }));
+            mockFetch.mockResolvedValueOnce(
+                mockOk(envelope('users', users, 0, 1, '/api/v2/get_users/14&offset=1&limit=1')),
+            );
+
+            await expect(client.users.getUsers(14)).resolves.toEqual(users);
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(/\/get_users\/14$/);
+        });
+
+        it('validates project IDs before rejecting unsupported project pagination options', async () => {
+            const getUsers = client.users.getUsers.bind(client.users) as unknown as (
+                projectId: number,
+                options?: unknown,
+            ) => Promise<unknown>;
+            mockFetch.mockImplementation(() => Promise.resolve(mockOk([])));
+
+            await Promise.all(
+                [0, -1, 1.5, Number.NaN].map((projectId) =>
+                    expect(getUsers(projectId, {})).rejects.toThrow('projectId must be a positive integer'),
+                ),
+            );
+            await Promise.all(
+                [{}, { limit: 1 }, null, 0].map((options) =>
+                    expect(getUsers(14, options)).rejects.toThrow(TestRailValidationError),
+                ),
+            );
+
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
 
     it('keeps the legacy case-list projection compatible with a wrapper that has no metadata', async () => {
         mockFetch.mockResolvedValueOnce(mockOk({ cases: [MOCK_CASE] }));

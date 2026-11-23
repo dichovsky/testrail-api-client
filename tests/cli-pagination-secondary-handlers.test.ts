@@ -11,6 +11,7 @@ import { handleLabelList } from '../src/cli/handlers/label.js';
 import { handleRoleList } from '../src/cli/handlers/role.js';
 import { handleSharedStepHistory, handleSharedStepList } from '../src/cli/handlers/shared-step.js';
 import { handleVariableList } from '../src/cli/handlers/variable.js';
+import { handleUserList } from '../src/cli/handlers/user.js';
 
 type MockMethod = ReturnType<typeof vi.fn>;
 type Mode = 'items' | 'page' | 'all';
@@ -70,6 +71,7 @@ interface MockMethods {
     readonly variables: readonly [MockMethod, MockMethod, MockMethod];
     readonly roles: readonly [MockMethod, MockMethod, MockMethod];
     readonly groups: readonly [MockMethod, MockMethod, MockMethod];
+    readonly users: readonly [MockMethod, MockMethod, MockMethod];
     readonly caseStatuses: readonly [MockMethod, MockMethod, MockMethod];
 }
 
@@ -95,6 +97,7 @@ function buildHarness(): Harness {
         variables: operationMocks(),
         roles: operationMocks(),
         groups: operationMocks(),
+        users: operationMocks(),
         caseStatuses: operationMocks(),
     };
     const client = {
@@ -130,6 +133,9 @@ function buildHarness(): Harness {
             getAllCaseStatuses: methods.caseStatuses[2],
         },
         users: {
+            getUsers: methods.users[0],
+            getUsersPage: methods.users[1],
+            getAllUsers: methods.users[2],
             getGroups: methods.groups[0],
             getGroupsPage: methods.groups[1],
             getAllGroups: methods.groups[2],
@@ -262,6 +268,17 @@ function adapters(harness: Harness): readonly HandlerAdapter[] {
             expectedArgs: { items: [], page: [], all: [safetyOptions] },
         },
         {
+            name: 'global users',
+            handler: handleUserList,
+            methods: harness.methods.users,
+            args: { items: controlledFlags, page: controlledPageArgs, all: allFlags },
+            expectedArgs: {
+                items: [undefined, { limit: 11, offset: 4 }],
+                page: [{ limit: 11, offset: 4 }],
+                all: [controlledAllOptions],
+            },
+        },
+        {
             name: 'case statuses',
             handler: handleCaseStatusList,
             methods: harness.methods.caseStatuses,
@@ -283,6 +300,7 @@ const adapterNames = [
     'variables',
     'roles',
     'groups',
+    'global users',
     'case statuses',
 ] as const;
 
@@ -290,6 +308,31 @@ const modes = ['items', 'page', 'all'] as const;
 const cases = adapterNames.flatMap((name) => modes.map((mode) => [name, mode] as const));
 
 describe('secondary pagination CLI handlers', () => {
+    it('keeps project user lists on the existing single-argument method', async () => {
+        const harness = buildHarness();
+        const out = vi.fn();
+        const ctx: HandlerContext = {
+            client: harness.client,
+            actionSpec: makeActionSpec({ resource: 'user', action: 'list' }),
+            args: { pathParams: [], projectId: '7' },
+            pagination: parseCliPagination({}),
+            stdin: makeStdin(),
+            bodyInput: {},
+            dryRun: false,
+            force: false,
+            confirmDestructive: false,
+            ...captureOutput().output,
+            out,
+        };
+
+        await handleUserList(ctx);
+
+        expect(harness.methods.users[0]).toHaveBeenCalledExactlyOnceWith(7);
+        expect(harness.methods.users[1]).not.toHaveBeenCalled();
+        expect(harness.methods.users[2]).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledExactlyOnceWith(itemResult);
+    });
+
     it.each(cases)('%s forwards %s mode to exactly one client projection', async (name, mode) => {
         const harness = buildHarness();
         const adapter = adapters(harness).find((candidate) => candidate.name === name);

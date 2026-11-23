@@ -399,4 +399,35 @@ describe('CLI response-schema controls', () => {
         expect(result.stderr).not.toContain('Warning: response schema mismatch:');
         expect(result.stderr).not.toContain('RAW_MODE_SECOND');
     });
+
+    it('fails strict global user aggregation before rendering partial users', async () => {
+        const first = { id: 1, name: 'Alice', email: 'alice@example.invalid', is_active: true };
+        const result = await runCli(
+            ['user', 'list', '--all', '--page-size', '1', '--strict-responses'],
+            [
+                jsonResponse({
+                    users: [first],
+                    offset: 0,
+                    limit: 1,
+                    size: 1,
+                    _links: { next: '/api/v2/get_users?limit=1&offset=1', prev: null },
+                }),
+                jsonResponse({
+                    users: [DRIFTED_USER],
+                    offset: 1,
+                    limit: 1,
+                    size: 1,
+                    _links: { next: null, prev: '/api/v2/get_users?limit=1&offset=0' },
+                }),
+            ],
+        );
+
+        expect(result.exitCodes[0]).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(result.stderr).toContain('Schema validation failed');
+        expect(result.stderr).not.toContain('Warning: response schema mismatch:');
+        expect(result.stderr).not.toContain('RAW_');
+        expect(result.stderr).not.toContain('alice@example.invalid');
+    });
 });

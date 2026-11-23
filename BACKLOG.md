@@ -8,7 +8,7 @@ Archive file: [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.m
 
 ## 📚 Spec Parity
 
-- [ ] **TestRail 10.8-10.10 gaps** — Nine missing operations, the 500-item page size, cursor pagination, new list filters, new response fields, and `get_users` pagination. See [Known gaps](docs/TESTRAIL-10.7.0-COMPATIBILITY.md#known-gaps-against-testrail-108-1010-checked-2026-11-21). **Trigger:** a user on TestRail 10.8 or newer needs one of these features.
+- [ ] **TestRail 10.8-10.10 gaps** — Nine missing operations, the 500-item page size, cursor pagination, new list filters, and new response fields. Global `get_users` pagination is implemented in the current source. See [Known gaps](docs/TESTRAIL-10.7.0-COMPATIBILITY.md#known-gaps-against-testrail-108-1010-checked-2026-11-21). **Trigger:** a user on TestRail 10.8 or newer needs one of these features.
 
 ## 🏗️ Architecture
 
